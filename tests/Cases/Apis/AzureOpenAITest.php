@@ -5,11 +5,11 @@ namespace HyperfTest\Odin\Cases\Apis;
 use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAI;
 use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAIConfig;
 use Hyperf\Odin\Apis\AzureOpenAI\Client;
-use Hyperf\Odin\Apis\OpenAI\Response\Model;
 use Hyperf\Odin\Apis\SystemMessage;
 use Hyperf\Odin\Apis\UserMessage;
 use Hyperf\Odin\Exception\NotImplementedException;
 use HyperfTest\Odin\Cases\AbstractTestCase;
+use function Hyperf\Support\env as env;
 
 class AzureOpenAITest extends AbstractTestCase
 {
@@ -72,7 +72,7 @@ class AzureOpenAITest extends AbstractTestCase
     {
         $this->expectException(NotImplementedException::class);
         [, , $client] = $this->buildClient();
-        $response = $client->models();
+        $client->models();
     }
 
     /**
@@ -81,7 +81,7 @@ class AzureOpenAITest extends AbstractTestCase
     protected function buildClient(): array
     {
         $openAI = new AzureOpenAI();
-        $config = new AzureOpenAIConfig(apiKey: \Hyperf\Support\env('AZURE_OPENAI_API_KEY_FOR_TEST'), apiVersion: $apiVersion = \Hyperf\Support\env('AZURE_OPENAI_API_VERSION'), deploymentName: $deploymentName = \Hyperf\Support\env('AZURE_OPENAI_DEPLOYMENT_NAME'), baseUrl: $baseUrl = \Hyperf\Support\env('AZURE_OPENAI_ENDPOINT'),);
+        $config = new AzureOpenAIConfig(apiKey: env('AZURE_OPENAI_API_KEY_FOR_TEST'), baseUrl: ('AZURE_OPENAI_ENDPOINT'), apiVersion: env('AZURE_OPENAI_API_VERSION'), deploymentName: env('AZURE_OPENAI_DEPLOYMENT_NAME'),);
         $client = $openAI->getClient($config);
         return [$openAI, $config, $client];
     }
