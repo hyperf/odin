@@ -29,17 +29,15 @@ class AzureOpenAITest extends AbstractTestCase
         $this->assertSame('application/json', $headers['Content-Type']);
     }
 
-    public function testCompletions()
+    public function testApiKey()
     {
-        $openAI = new AzureOpenAI();
-        $config = new AzureOpenAIConfig(
-            apiKey: $apiKeyForTest = \Hyperf\Support\env('AZURE_OPENAI_API_KEY_FOR_TEST'),
-            apiVersion: $apiVersion = \Hyperf\Support\env('AZURE_OPENAI_API_VERSION'),
-            deploymentName: $deploymentName = \Hyperf\Support\env('AZURE_OPENAI_DEPLOYMENT_NAME'),
-            baseUrl: $baseUrl = \Hyperf\Support\env('AZURE_OPENAI_ENDPOINT'),
-        );
-        $client = $openAI->getClient($config);
+        [, $config] = $this->buildClient();
         $this->assertNotEmpty($config->getApiKey());
+    }
+
+    public function testChat()
+    {
+        [, $config, $client] = $this->buildClient();
         $response = $client->completions([
             new SystemMessage('You are a Robot created by Hyperf, your purpose is to make people happy.'),
             new UserMessage('Who are you ?')
@@ -52,6 +50,22 @@ class AzureOpenAITest extends AbstractTestCase
         $this->assertGreaterThan(0, $usage->getCompletionTokens());
         $this->assertGreaterThan(0, $usage->getPromptTokens());
         $this->assertGreaterThan(0, $usage->getTotalTokens());
+    }
+
+    /**
+     * @return array{0: AzureOpenAI, 1: Client, 2: AzureOpenAIConfig}
+     */
+    protected function buildClient(): array
+    {
+        $openAI = new AzureOpenAI();
+        $config = new AzureOpenAIConfig(
+            apiKey: $apiKeyForTest = \Hyperf\Support\env('AZURE_OPENAI_API_KEY_FOR_TEST'),
+            apiVersion: $apiVersion = \Hyperf\Support\env('AZURE_OPENAI_API_VERSION'),
+            deploymentName: $deploymentName = \Hyperf\Support\env('AZURE_OPENAI_DEPLOYMENT_NAME'),
+            baseUrl: $baseUrl = \Hyperf\Support\env('AZURE_OPENAI_ENDPOINT'),
+        );
+        $client = $openAI->getClient($config);
+        return [$openAI, $client, $config];
     }
 
 }

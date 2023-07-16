@@ -29,14 +29,15 @@ class OpenAITest extends AbstractTestCase
         $this->assertSame($organization, $headers['OpenAI-Organization']);
     }
 
-    public function testCompletions()
+    public function testApiKey()
     {
-        $openAI = new OpenAI();
-        $config = new OpenAIConfig(
-            $apiKeyForTest = \Hyperf\Support\env('OPENAI_API_KEY_FOR_TEST'),
-        );
-        $client = $openAI->getClient($config);
+        [, $config] = $this->buildClient();
         $this->assertTrue(str_starts_with($config->getApiKey(), 'sk-'));
+    }
+
+    public function testChat()
+    {
+        [, $config, $client] = $this->buildClient();
         $response = $client->completions([
             new SystemMessage('You are a Robot created by Hyperf, your purpose is to make people happy.'),
             new UserMessage('Who are you ?')
@@ -49,6 +50,24 @@ class OpenAITest extends AbstractTestCase
         $this->assertGreaterThan(0, $usage->getCompletionTokens());
         $this->assertGreaterThan(0, $usage->getPromptTokens());
         $this->assertGreaterThan(0, $usage->getTotalTokens());
+    }
+
+    public function testModels()
+    {
+
+    }
+
+    /**
+     * @return array{0: OpenAI, 1: OpenAIConfig, 2: Client}
+     */
+    protected function buildClient(): array
+    {
+        $openAI = new OpenAI();
+        $config = new OpenAIConfig(
+            $apiKeyForTest = \Hyperf\Support\env('OPENAI_API_KEY_FOR_TEST'),
+        );
+        $client = $openAI->getClient($config);
+        return [$openAI, $config, $client];
     }
 
 }
