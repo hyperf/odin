@@ -31,14 +31,14 @@ class Client extends \Hyperf\Odin\Apis\OpenAI\Client
             'User-Agent' => 'Hyperf-Odin/1.0',
         ];
         $this->client = new GuzzleClient([
-            'base_uri' => $config->baseUrl,
+            'base_uri' => $config->getBaseUrl(),
             'headers' => $headers
         ]);
         $this->config = $config;
         return $this;
     }
 
-    public function chat(array $messages, string $model, float $temperature = 0.9, int $maxTokens = 200): ChatCompletionResponse
+    public function chat(array $messages, string $model, float $temperature = 0.9, int $maxTokens = 1000): ChatCompletionResponse
     {
         $deploymentPath = $this->buildDeploymentPath();
         $messagesArr = [];

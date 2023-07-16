@@ -35,14 +35,14 @@ class Client
             $headers['OpenAI-Organization'] = $config->getOrganization();
         }
         $this->client = new GuzzleClient([
-            'base_uri' => $config->baseUrl,
+            'base_uri' => $config->getBaseUrl(),
             'headers' => $headers
         ]);
         $this->config = $config;
         return $this;
     }
 
-    public function chat(array $messages, string $model, float $temperature = 0.9, int $maxTokens = 200): ChatCompletionResponse
+    public function chat(array $messages, string $model, float $temperature = 0.9, int $maxTokens = 1000): ChatCompletionResponse
     {
         $messagesArr = [];
         foreach ($messages as $message) {
