@@ -1,5 +1,9 @@
 <?php
 
+use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAI;
+use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAIConfig;
+use Hyperf\Odin\Apis\AzureOpenAI\Client as AzureOpenAIClient;
+use Hyperf\Odin\Apis\OpenAI\Client as OpenAIClient;
 use Hyperf\Odin\Apis\OpenAI\OpenAI;
 use Hyperf\Odin\Apis\OpenAI\OpenAIConfig;
 use Hyperf\Odin\Conversation\Conversation;
@@ -12,9 +16,21 @@ require_once dirname(dirname(__FILE__)) . '/vendor/autoload.php';
 
 \Hyperf\Di\ClassLoader::init();
 
-$openAI = new OpenAI();
-$config = new OpenAIConfig(env('OPENAI_API_KEY_FOR_TEST'),);
-$client = $openAI->getClient($config);
+function getOpenAIClient(): OpenAIClient
+{
+    $openAI = new OpenAI();
+    $config = new OpenAIConfig(env('OPENAI_API_KEY_FOR_TEST'),);
+    return $openAI->getClient($config);
+}
+
+function getAzureOpenAIClient(): AzureOpenAIClient
+{
+    $openAI = new AzureOpenAI();
+    $config = new AzureOpenAIConfig(apiKey: env('AZURE_OPENAI_API_KEY_FOR_TEST'), baseUrl: env('AZURE_OPENAI_ENDPOINT'), apiVersion: env('AZURE_OPENAI_API_VERSION'), deploymentName: env('AZURE_OPENAI_DEPLOYMENT_NAME'),);
+    return $openAI->getClient($config);
+}
+
+$client = getAzureOpenAIClient();
 $conversionId = uniqid();
 $conversation = new Conversation();
 $memory = new MessageHistory();
