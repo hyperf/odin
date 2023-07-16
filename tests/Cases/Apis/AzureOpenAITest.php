@@ -4,11 +4,11 @@ namespace HyperfTest\Odin\Cases\Apis;
 
 use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAI;
 use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAIConfig;
-use Hyperf\Odin\Apis\OpenAI\Client;
-use Hyperf\Odin\Apis\OpenAI\OpenAI;
-use Hyperf\Odin\Apis\OpenAI\OpenAIConfig;
+use Hyperf\Odin\Apis\AzureOpenAI\Client;
+use Hyperf\Odin\Apis\OpenAI\Response\Model;
 use Hyperf\Odin\Apis\SystemMessage;
 use Hyperf\Odin\Apis\UserMessage;
+use Hyperf\Odin\Exception\NotImplementedException;
 use HyperfTest\Odin\Cases\AbstractTestCase;
 
 class AzureOpenAITest extends AbstractTestCase
@@ -17,9 +17,7 @@ class AzureOpenAITest extends AbstractTestCase
     public function testGetClient()
     {
         $openAI = new AzureOpenAI();
-        $config = new AzureOpenAIConfig(
-            $apiKey = 'sk-1234567890',
-        );
+        $config = new AzureOpenAIConfig($apiKey = 'sk-1234567890',);
         $client = $openAI->getClient($config);
         $this->assertInstanceOf(Client::class, $client);
         /** @var \GuzzleHttp\Client $guzzleClient */
@@ -37,8 +35,8 @@ class AzureOpenAITest extends AbstractTestCase
 
     public function testChat()
     {
-        [, $config, $client] = $this->buildClient();
-        $response = $client->completions([
+        [, , $client] = $this->buildClient();
+        $response = $client->chat([
             new SystemMessage('You are a Robot created by Hyperf, your purpose is to make people happy.'),
             new UserMessage('Who are you ?')
         ], 'gpt-35-turbo', temperature: 0.4);
@@ -53,19 +51,39 @@ class AzureOpenAITest extends AbstractTestCase
     }
 
     /**
+     * @skip
+     */
+    public function testCompletions()
+    {
+        $this->markTestSkipped('Azure OpenAI still does not created a model that support completions');
+        [, , $client] = $this->buildClient();
+        $response = $client->completions('1+1=?', 'text-davinci-003', temperature: 0.4);
+        $this->assertTrue($response->isSuccess());
+        $this->assertCount(1, $response->getChoices());
+        $this->assertTrue(str_contains($response->getChoices()[0]->getText(), '2'));
+        // Assert Usage
+        $usage = $response->getUsage();
+        $this->assertGreaterThan(0, $usage->getCompletionTokens());
+        $this->assertGreaterThan(0, $usage->getPromptTokens());
+        $this->assertGreaterThan(0, $usage->getTotalTokens());
+    }
+
+    public function testModels()
+    {
+        $this->expectException(NotImplementedException::class);
+        [, , $client] = $this->buildClient();
+        $response = $client->models();
+    }
+
+    /**
      * @return array{0: AzureOpenAI, 1: Client, 2: AzureOpenAIConfig}
      */
     protected function buildClient(): array
     {
         $openAI = new AzureOpenAI();
-        $config = new AzureOpenAIConfig(
-            apiKey: $apiKeyForTest = \Hyperf\Support\env('AZURE_OPENAI_API_KEY_FOR_TEST'),
-            apiVersion: $apiVersion = \Hyperf\Support\env('AZURE_OPENAI_API_VERSION'),
-            deploymentName: $deploymentName = \Hyperf\Support\env('AZURE_OPENAI_DEPLOYMENT_NAME'),
-            baseUrl: $baseUrl = \Hyperf\Support\env('AZURE_OPENAI_ENDPOINT'),
-        );
+        $config = new AzureOpenAIConfig(apiKey: \Hyperf\Support\env('AZURE_OPENAI_API_KEY_FOR_TEST'), apiVersion: $apiVersion = \Hyperf\Support\env('AZURE_OPENAI_API_VERSION'), deploymentName: $deploymentName = \Hyperf\Support\env('AZURE_OPENAI_DEPLOYMENT_NAME'), baseUrl: $baseUrl = \Hyperf\Support\env('AZURE_OPENAI_ENDPOINT'),);
         $client = $openAI->getClient($config);
-        return [$openAI, $client, $config];
+        return [$openAI, $config, $client];
     }
 
 }

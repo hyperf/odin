@@ -5,6 +5,9 @@ namespace Hyperf\Odin\Apis\OpenAI;
 
 use GuzzleHttp\Client as GuzzleClient;
 use Hyperf\Odin\Apis\MessageInterface;
+use Hyperf\Odin\Apis\OpenAI\Response\ChatCompletionResponse;
+use Hyperf\Odin\Apis\OpenAI\Response\ListResponse;
+use Hyperf\Odin\Apis\OpenAI\Response\TextCompletionResponse;
 
 class Client
 {
@@ -39,7 +42,7 @@ class Client
         return $this;
     }
 
-    public function completions(array $messages, string $model, float $temperature = 0.9, int $maxTokens = 200): Response
+    public function chat(array $messages, string $model, float $temperature = 0.9, int $maxTokens = 200): ChatCompletionResponse
     {
         $messagesArr = [];
         foreach ($messages as $message) {
@@ -55,7 +58,26 @@ class Client
                 'max_tokens' => $maxTokens,
             ],
         ]);
-        return new Response($response);
+        return new ChatCompletionResponse($response);
+    }
+
+    public function completions(string $prompt, string $model, float $temperature = 0.9, int $maxTokens = 200): TextCompletionResponse
+    {
+        $response = $this->client->post('/v1/completions', [
+            'json' => [
+                'prompt' => $prompt,
+                'model' => $model,
+                'temperature' => $temperature,
+                'max_tokens' => $maxTokens,
+            ],
+        ]);
+        return new TextCompletionResponse($response);
+    }
+
+    public function models(): ListResponse
+    {
+        $response = $this->client->get('/v1/models');
+        return new ListResponse($response);
     }
 
 }

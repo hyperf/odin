@@ -1,11 +1,12 @@
 <?php
 
-namespace Hyperf\Odin\Apis\OpenAI;
+namespace Hyperf\Odin\Apis\OpenAI\Response;
 
 
 use Hyperf\Odin\Apis\MessageInterface;
+use Hyperf\Odin\Apis\OpenAI\Message;
 
-class Choice
+class ChatCompletionChoice
 {
 
     public function __construct(public MessageInterface $message, public ?int $index = null, public ?string $logprobs = null, public ?string $finishReason = null)

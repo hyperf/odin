@@ -1,33 +1,27 @@
 <?php
 
-namespace Hyperf\Odin\Apis\OpenAI;
+namespace Hyperf\Odin\Apis\OpenAI\Response;
 
+use Psr\Http\Message\ResponseInterface as PsrResponseInterface;
 
-use Psr\Http\Message\ResponseInterface;
-
-class Response
+class TextCompletionResponse extends AbstractResponse
 {
 
     protected bool $success = false;
-
     protected ?string $content = null;
-
-    protected ResponseInterface $originResponse;
-
     protected ?string $id = null;
     protected ?string $object = null;
     protected ?string $created = null;
-    protected ?string $model = null;
     protected array|null $choices = [];
     protected ?Usage $usage = null;
 
-    public function __construct(ResponseInterface $response)
+    public function setOriginResponse(PsrResponseInterface $originResponse): static
     {
-        $this->setOriginResponse($response);
-    }
-    public function __toString(): string
-    {
-        return $this?->getChoices()[0]?->getMessage()?->getContent() ?: '';
+        $this->originResponse = $originResponse;
+        $this->success = $originResponse->getStatusCode() === 200;
+        $this->content = $originResponse->getBody()->getContents();
+        $this->parseContent();
+        return $this;
     }
 
     protected function parseContent(): static
@@ -42,9 +36,6 @@ class Response
         if (isset($content['created'])) {
             $this->setCreated($content['created']);
         }
-        if (isset($content['model'])) {
-            $this->setModel($content['model']);
-        }
         if (isset($content['choices'])) {
             $this->setChoices($this->buildChoices($content['choices']));
         }
@@ -58,7 +49,7 @@ class Response
     {
         $result = [];
         foreach ($choices as $choice) {
-            $result[] = Choice::fromArray($choice);
+            $result[] = TextCompletionChoice::fromArray($choice);
         }
         return $result;
     }
@@ -66,20 +57,6 @@ class Response
     public function isSuccess(): bool
     {
         return $this->success;
-    }
-
-    public function getOriginResponse(): ResponseInterface
-    {
-        return $this->originResponse;
-    }
-
-    public function setOriginResponse(ResponseInterface $originResponse): static
-    {
-        $this->originResponse = $originResponse;
-        $this->success = $originResponse->getStatusCode() === 200;
-        $this->content = $originResponse->getBody()->getContents();
-        $this->parseContent();
-        return $this;
     }
 
     public function getContent(): ?string
@@ -123,17 +100,6 @@ class Response
     public function setCreated($created): static
     {
         $this->created = $created;
-        return $this;
-    }
-
-    public function getModel(): ?string
-    {
-        return $this->model;
-    }
-
-    public function setModel($model): static
-    {
-        $this->model = $model;
         return $this;
     }
 

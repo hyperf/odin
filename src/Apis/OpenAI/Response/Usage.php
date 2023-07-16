@@ -1,6 +1,6 @@
 <?php
 
-namespace Hyperf\Odin\Apis\OpenAI;
+namespace Hyperf\Odin\Apis\OpenAI\Response;
 
 
 class Usage
