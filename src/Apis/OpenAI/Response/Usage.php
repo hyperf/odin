@@ -13,7 +13,7 @@ class Usage
 
     public static function fromArray(array $usage): static
     {
-        return new static($usage['prompt_tokens'], $usage['completion_tokens'], $usage['total_tokens']);
+        return new static($usage['prompt_tokens'] ?? 0, $usage['completion_tokens'] ?? 0, $usage['total_tokens'] ?? 0);
     }
 
     public function getPromptTokens(): int

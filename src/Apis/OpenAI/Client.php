@@ -80,4 +80,17 @@ class Client
         return new ListResponse($response);
     }
 
+    public function embedding(string $input, string $model = 'text-embedding-ada-002', ?string $user = null): ListResponse
+    {
+        $json = [
+            'input' => $input,
+            'model' => $model,
+        ];
+        $user && $json['user'] = $user;
+        $response = $this->client->post('/v1/embeddings', [
+            'json' => $json,
+        ]);
+        return new ListResponse($response);
+    }
+
 }
