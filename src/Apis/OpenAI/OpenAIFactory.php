@@ -8,12 +8,13 @@ use Psr\Container\ContainerInterface;
 class OpenAIFactory
 {
 
-    public function __invoke(ContainerInterface $container)
+    public function __invoke(ContainerInterface $container): Client
     {
-        $config = $container->get(OpenAIConfig::class);
+        $config = new OpenAIConfig(
+            \Hyperf\Support\env('OPENAI_API_KEY_FOR_TEST'),
+        );
         $openAI = new OpenAI();
-        $openAI->getClient($config);
-        return $openAI;
+        return $openAI->getClient($config);
     }
 
 }

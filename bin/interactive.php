@@ -19,11 +19,9 @@ $conversionId = uniqid();
 $conversation = new Conversation();
 $memory = new MessageHistory();
 
-// 从命令行获取输入，并循环调用 OpenAI 的 API
-$handle = fopen("php://stdin", "r");
-while (! feof($handle)) {
+while (true) {
     echo 'Human: ';
-    $input = trim(fread($handle, 1024));
+    $input = trim(fgets(STDIN, 1024));
     $response = $conversation->chat($client, $input, 'gpt-3.5-turbo', $conversionId, $memory);
     echo 'AI: ' . $response . PHP_EOL;
 }
