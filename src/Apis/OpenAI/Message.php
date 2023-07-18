@@ -14,9 +14,9 @@ class Message
     public static function fromArray(array $message): MessageInterface
     {
         return match ($message['role']) {
-            'assistant' => new AssistantMessage($message['content']),
-            'system' => new SystemMessage($message['content']),
-            default => new UserMessage($message['content']),
+            'assistant' => new AssistantMessage($message['content'] ?? ''),
+            'system' => new SystemMessage($message['content'] ?? ''),
+            default => new UserMessage($message['content'] ?? ''),
         };
     }
 

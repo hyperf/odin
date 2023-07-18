@@ -44,4 +44,10 @@ abstract class AbstractMessage implements MessageInterface
         return $this;
     }
 
+    public function appendContent(string $content): static
+    {
+        $this->message .= $content;
+        return $this;
+    }
+
 }

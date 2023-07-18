@@ -42,7 +42,7 @@ class Client
         return $this;
     }
 
-    public function chat(array $messages, string $model, float $temperature = 0.9, int $maxTokens = 1000): ChatCompletionResponse
+    public function chat(array $messages, string $model, float $temperature = 0.9, int $maxTokens = 1000, array $stop = []): ChatCompletionResponse
     {
         $messagesArr = [];
         foreach ($messages as $message) {
@@ -50,13 +50,17 @@ class Client
                 $messagesArr[] = $message->toArray();
             }
         }
+        $json = [
+            'messages' => $messagesArr,
+            'model' => $model,
+            'temperature' => $temperature,
+            'max_tokens' => $maxTokens,
+        ];
+        if ($stop) {
+            $json['stop'] = $stop;
+        }
         $response = $this->client->post('/v1/chat/completions', [
-            'json' => [
-                'messages' => $messagesArr,
-                'model' => $model,
-                'temperature' => $temperature,
-                'max_tokens' => $maxTokens,
-            ],
+            'json' => $json,
         ]);
         return new ChatCompletionResponse($response);
     }
