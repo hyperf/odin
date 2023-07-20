@@ -9,8 +9,12 @@ use Hyperf\Odin\Message\MessageInterface;
 class ChatCompletionChoice
 {
 
-    public function __construct(public MessageInterface $message, public ?int $index = null, public ?string $logprobs = null, public ?string $finishReason = null)
-    {
+    public function __construct(
+        public MessageInterface $message,
+        public ?int $index = null,
+        public ?string $logprobs = null,
+        public ?string $finishReason = null
+    ) {
     }
 
     public static function fromArray(array $choice): static

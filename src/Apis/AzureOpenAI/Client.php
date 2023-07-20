@@ -38,8 +38,13 @@ class Client extends \Hyperf\Odin\Apis\OpenAI\Client
         return $this;
     }
 
-    public function chat(array $messages, string $model, float $temperature = 0.9, int $maxTokens = 1000, array $stop = []): ChatCompletionResponse
-    {
+    public function chat(
+        array $messages,
+        string $model,
+        float $temperature = 0.9,
+        int $maxTokens = 1000,
+        array $stop = []
+    ): ChatCompletionResponse {
         $deploymentPath = $this->buildDeploymentPath();
         $messagesArr = [];
         foreach ($messages as $message) {
@@ -68,8 +73,12 @@ class Client extends \Hyperf\Odin\Apis\OpenAI\Client
         return $chatCompletionResponse;
     }
 
-    public function completions(string $prompt, string $model, float $temperature = 0.9, int $maxTokens = 200): TextCompletionResponse
-    {
+    public function completions(
+        string $prompt,
+        string $model,
+        float $temperature = 0.9,
+        int $maxTokens = 200
+    ): TextCompletionResponse {
         $deploymentPath = $this->buildDeploymentPath();
         $response = $this->client->post($deploymentPath . '/completions', [
             'query' => [

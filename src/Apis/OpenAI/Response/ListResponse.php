@@ -3,8 +3,6 @@
 namespace Hyperf\Odin\Apis\OpenAI\Response;
 
 
-use Psr\Http\Message\ResponseInterface as PsrResponseInterface;
-
 class ListResponse extends AbstractResponse
 {
 

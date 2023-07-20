@@ -15,8 +15,7 @@ class ActionTemplate
         foreach ($actionsResults as $actionName => $result) {
             $resultPrompt .= sprintf("%s: %s\n", $actionName, $result);
         }
-        return
-<<<EOF
+        return <<<EOF
 你已经使用了 $actionNameStr Actions，并运行得到了下面的运行结果:
 
 $resultPrompt
@@ -38,8 +37,7 @@ EOF;
                 $actionsPrompt .= sprintf("%s: %s\n    ", $action->getName(), $action->getDesc());
             }
         }
-        return
-<<<EOF
+        return <<<EOF
 回答用户的问题，其中你可以使用下面的 Action 来帮助你回答问题，如果需要使用 Action 则根据 Question/Thought/Actions/Observation 的格式来回答问题，如果不需要使用 Action 则返回 Action: None，不需要回答用户提出的问题的答案:
 
     $actionsPrompt

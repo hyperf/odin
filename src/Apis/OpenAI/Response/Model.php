@@ -6,21 +6,20 @@ namespace Hyperf\Odin\Apis\OpenAI\Response;
 class Model
 {
 
-    public function __construct(public string $id, public int $created, public string $ownedBy, public ?array $permission, public string $root, public ?string $parent)
-    {
+    public function __construct(
+        public string $id,
+        public int $created,
+        public string $ownedBy,
+        public ?array $permission,
+        public string $root,
+        public ?string $parent
+    ) {
 
     }
 
     public static function fromArray(array $data): static
     {
-        return new static(
-            $data['id'],
-            $data['created'],
-            $data['owned_by'],
-            $data['permissions'],
-            $data['root'],
-            $data['parent'] ?? null
-        );
+        return new static($data['id'], $data['created'], $data['owned_by'], $data['permissions'], $data['root'], $data['parent'] ?? null);
     }
 
     public function getId(): string

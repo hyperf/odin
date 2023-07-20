@@ -5,8 +5,11 @@ namespace Hyperf\Odin\Memory;
 
 class MessageHistory extends AbstractMemory
 {
-    public function __construct(protected int $maxRecord = 10, protected int $maxTokens = 1000, array $conversations = [])
-    {
+    public function __construct(
+        protected int $maxRecord = 10,
+        protected int $maxTokens = 1000,
+        array $conversations = []
+    ) {
         // @todo validate $maxTokens
     }
 

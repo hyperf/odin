@@ -4,8 +4,6 @@ namespace Hyperf\Odin\Apis\OpenAI;
 
 
 use Hyperf\Odin\Apis\AbstractApi;
-use Hyperf\Odin\Apis\OpenAI\Response\ChatCompletionResponse;
-use Hyperf\Odin\Apis\OpenAI\Response\TextCompletionResponse;
 use Hyperf\Odin\Logger;
 
 class OpenAI extends AbstractApi
@@ -14,9 +12,10 @@ class OpenAI extends AbstractApi
     /**
      * @var Client[]
      */
-    protected array $clients = [
+    protected array $clients
+        = [
 
-    ];
+        ];
 
     public function getClient(OpenAIConfig $config): Client
     {

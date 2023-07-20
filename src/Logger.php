@@ -51,7 +51,7 @@ class Logger implements LoggerInterface
 
     public function log($level, Stringable|string $message, array $context = []): void
     {
-        $message = (string) $message;
+        $message = (string)$message;
         $message = sprintf('[%s] %s', $level, $message);
         if ($context) {
             $message .= sprintf(' %s', json_encode($context, JSON_UNESCAPED_UNICODE));

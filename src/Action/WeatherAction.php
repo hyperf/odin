@@ -3,6 +3,8 @@
 namespace Hyperf\Odin\Action;
 
 
+use GuzzleHttp\Client;
+
 class WeatherAction extends AbstractAction
 {
 
@@ -14,7 +16,7 @@ class WeatherAction extends AbstractAction
         $key = \Hyperf\Support\env('QWEATHER_API_KEY');
         // 根据 Location 转为 LocationID
         $path = 'https://geoapi.qweather.com/v2/city/lookup?key=' . $key . '&location=' . $location;
-        $client = new \GuzzleHttp\Client();
+        $client = new Client();
         $response = $client->get($path);
         $content = json_decode($response->getBody()->getContents(), true);
         $locationId = $content['location'][0]['id'] ?? 0;

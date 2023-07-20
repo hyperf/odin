@@ -8,6 +8,7 @@ use Hyperf\Odin\Apis\OpenAI\Response\ChatCompletionResponse;
 use Hyperf\Odin\Apis\OpenAI\Response\ListResponse;
 use Hyperf\Odin\Apis\OpenAI\Response\TextCompletionResponse;
 use Hyperf\Odin\Message\MessageInterface;
+use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 
 class Client
@@ -30,7 +31,7 @@ class Client
     protected function initConfig(OpenAIConfig $config): static
     {
         if (! $config->getApiKey()) {
-            throw new \InvalidArgumentException('API key of OpenAI api is required');
+            throw new InvalidArgumentException('API key of OpenAI api is required');
         }
         $headers = [
             'Authorization' => 'Bearer ' . $config->getApiKey(),
@@ -48,8 +49,13 @@ class Client
         return $this;
     }
 
-    public function chat(array $messages, string $model, float $temperature = 0.9, int $maxTokens = 1000, array $stop = []): ChatCompletionResponse
-    {
+    public function chat(
+        array $messages,
+        string $model,
+        float $temperature = 0.9,
+        int $maxTokens = 1000,
+        array $stop = []
+    ): ChatCompletionResponse {
         $messagesArr = [];
         foreach ($messages as $message) {
             if ($message instanceof MessageInterface) {
@@ -74,8 +80,12 @@ class Client
         return $chatCompletionResponse;
     }
 
-    public function completions(string $prompt, string $model, float $temperature = 0.9, int $maxTokens = 200): TextCompletionResponse
-    {
+    public function completions(
+        string $prompt,
+        string $model,
+        float $temperature = 0.9,
+        int $maxTokens = 200
+    ): TextCompletionResponse {
         $response = $this->client->post('/v1/completions', [
             'json' => [
                 'prompt' => $prompt,
@@ -93,8 +103,11 @@ class Client
         return new ListResponse($response);
     }
 
-    public function embedding(string $input, string $model = 'text-embedding-ada-002', ?string $user = null): ListResponse
-    {
+    public function embedding(
+        string $input,
+        string $model = 'text-embedding-ada-002',
+        ?string $user = null
+    ): ListResponse {
         $json = [
             'input' => $input,
             'model' => $model,
