@@ -19,6 +19,8 @@ class Client
 
     protected ?LoggerInterface $logger;
 
+    protected bool $debug = false;
+
     public function __construct(OpenAIConfig $config, LoggerInterface $logger = null)
     {
         $this->logger = $logger;
@@ -63,10 +65,13 @@ class Client
         if ($stop) {
             $json['stop'] = $stop;
         }
+        $this->debug && $this->logger?->debug(sprintf("Send: \nSystem Message: %s\nUser Message: %s", $messages['system'], $messages['user']));
         $response = $this->client->post('/v1/chat/completions', [
             'json' => $json,
         ]);
-        return new ChatCompletionResponse($response);
+        $chatCompletionResponse = new ChatCompletionResponse($response);
+        $this->debug && $this->logger?->debug('Receive: ' . $chatCompletionResponse);
+        return $chatCompletionResponse;
     }
 
     public function completions(string $prompt, string $model, float $temperature = 0.9, int $maxTokens = 200): TextCompletionResponse
@@ -99,6 +104,17 @@ class Client
             'json' => $json,
         ]);
         return new ListResponse($response);
+    }
+
+    public function isDebug(): bool
+    {
+        return $this->debug;
+    }
+
+    public function setDebug(bool $debug): static
+    {
+        $this->debug = $debug;
+        return $this;
     }
 
 }

@@ -19,36 +19,51 @@ require_once dirname(dirname(__FILE__)) . '/vendor/autoload.php';
 
 \Hyperf\Di\ClassLoader::init();
 
-function getOpenAIClient(): OpenAIClient
-{
-    $openAI = new OpenAI();
-    $config = new OpenAIConfig(env('OPENAI_API_KEY_FOR_TEST'),);
-    return $openAI->getClient($config);
+class LLM {
+
+    public Conversation $conversation;
+    public Hyperf\Odin\Memory\AbstractMemory $memory;
+    public array $actions = [];
+    public string $model = 'gpt-3.5-turbo';
+    public function __construct()
+    {
+        $this->conversation = new Conversation();
+        $this->memory = new MessageHistory();
+        $this->actions = [new CalculatorAction(), new WeatherAction(), new SearchAction()];
+    }
+
+    public function chat(string $input, string $conversionId): string
+    {
+        $client = $this->getAzureOpenAIClient();
+        $client->setDebug(true);
+        return $this->conversation->chat($client, $input, $this->model, $conversionId, $this->memory, $this->actions);
+    }
+
+    function getOpenAIClient(): OpenAIClient
+    {
+        $openAI = new OpenAI();
+        $config = new OpenAIConfig(env('OPENAI_API_KEY_FOR_TEST'),);
+        return $openAI->getClient($config);
+    }
+
+    function getAzureOpenAIClient(): AzureOpenAIClient
+    {
+        $openAI = new AzureOpenAI();
+        $config = new AzureOpenAIConfig(apiKey: env('AZURE_OPENAI_API_KEY_FOR_TEST'), baseUrl: env('AZURE_OPENAI_ENDPOINT'), apiVersion: env('AZURE_OPENAI_API_VERSION'), deploymentName: env('AZURE_OPENAI_DEPLOYMENT_NAME'),);
+        return $openAI->getClient($config);
+    }
 }
 
-function getAzureOpenAIClient(): AzureOpenAIClient
-{
-    $openAI = new AzureOpenAI();
-    $config = new AzureOpenAIConfig(apiKey: env('AZURE_OPENAI_API_KEY_FOR_TEST'), baseUrl: env('AZURE_OPENAI_ENDPOINT'), apiVersion: env('AZURE_OPENAI_API_VERSION'), deploymentName: env('AZURE_OPENAI_DEPLOYMENT_NAME'),);
-    return $openAI->getClient($config);
-}
-
-function chat(string $input): string
-{
-    $client = getAzureOpenAIClient();
-    $conversionId = uniqid();
-    $conversation = new Conversation();
-    $memory = new MessageHistory();
-    return $conversation->chat($client, $input, 'gpt-3.5-turbo', $conversionId, $memory, [new CalculatorAction(), new WeatherAction(), new SearchAction()]);
-}
+$llm = new LLM();
 
 $inputs = [
     '1+12=?，以及东莞明天的天气如何？',
     '我刚才询问天气的是哪个城市？',
-    '天气视野情况如何？能看到日出吗？'
 ];
+
+$conversionId = uniqid();
 
 foreach ($inputs as $input) {
     echo '[Human]: ' . $input . PHP_EOL;
-    echo '[AI]: ' . chat($input) . PHP_EOL;
+    echo '[AI]: ' . $llm->chat($input, $conversionId) . PHP_EOL;
 }

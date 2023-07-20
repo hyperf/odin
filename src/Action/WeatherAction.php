@@ -7,7 +7,7 @@ class WeatherAction extends AbstractAction
 {
 
     public string $name = 'Weather';
-    public string $desc = '如果需要查询天气可以使用，格式: Weather(location: string, date: string)，如果用户没有指定某一天，则代表为今天';
+    public string $desc = '如果需要查询天气可以使用，格式: Weather(location: string, date: string)，如果用户没有指定某一天，则代表为今天，location 必须为明确的真实存在的城市名称，不能是不具体的名称';
 
     public function handle(string $location, string $date = 'now'): string
     {
@@ -19,7 +19,7 @@ class WeatherAction extends AbstractAction
         $content = json_decode($response->getBody()->getContents(), true);
         $locationId = $content['location'][0]['id'] ?? 0;
         if (! $locationId) {
-            return '未找到该地区';
+            return '未找到该地区，如此前对话中提到了地区，可以以对应信息为准';
         }
         // 根据 LocationID 查询天气
         $path = 'https://devapi.qweather.com/v7/weather/3d?key=' . $key . '&location=' . $locationId;

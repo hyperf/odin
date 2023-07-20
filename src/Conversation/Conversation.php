@@ -73,7 +73,7 @@ class Conversation
 
     protected function buildSystemMessage(): SystemMessage
     {
-        return new SystemMessage('你是一个由 Hyperf 组织开发的聊天机器人');
+        return new SystemMessage('你是一个由 Hyperf 组织开发的聊天机器人，你必须严格按照格式要求返回内容');
     }
 
     protected function handleActions(array $matchedActions): array

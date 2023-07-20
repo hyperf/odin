@@ -6,6 +6,7 @@ namespace Hyperf\Odin\Apis\OpenAI;
 use Hyperf\Odin\Apis\AbstractApi;
 use Hyperf\Odin\Apis\OpenAI\Response\ChatCompletionResponse;
 use Hyperf\Odin\Apis\OpenAI\Response\TextCompletionResponse;
+use Hyperf\Odin\Logger;
 
 class OpenAI extends AbstractApi
 {
@@ -22,7 +23,7 @@ class OpenAI extends AbstractApi
         if ($config->getApiKey() && isset($this->clients[$config->getApiKey()])) {
             return $this->clients[$config->getApiKey()];
         }
-        $client = new Client($config);
+        $client = new Client($config, new Logger());
         $this->clients[$config->getApiKey()] = $client;
         return $client;
     }

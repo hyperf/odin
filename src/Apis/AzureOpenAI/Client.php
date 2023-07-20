@@ -56,13 +56,16 @@ class Client extends \Hyperf\Odin\Apis\OpenAI\Client
         if ($stop) {
             $json['stop'] = $stop;
         }
+        $this->debug && $this->logger?->debug(sprintf("Send: \nSystem Message: %s\nUser Message: %s", $messages['system'], $messages['user']));
         $response = $this->client->post($deploymentPath . '/chat/completions', [
             'query' => [
                 'api-version' => $this->config->getApiVersion(),
             ],
             'json' => $json,
         ]);
-        return new ChatCompletionResponse($response);
+        $chatCompletionResponse = new ChatCompletionResponse($response);
+        $this->debug && $this->logger?->debug('Receive: ' . $chatCompletionResponse);
+        return $chatCompletionResponse;
     }
 
     public function completions(string $prompt, string $model, float $temperature = 0.9, int $maxTokens = 200): TextCompletionResponse
