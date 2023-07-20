@@ -31,7 +31,12 @@ class Conversation
             $matchedActions = $this->thoughtActions($client, $input, $model, $actions);
             if ($matchedActions) {
                 $actionsResults = $this->handleActions($matchedActions);
-                $prompt = (new ActionTemplate())->buildAfterActionExecutedPrompt($input, $actionsResults);
+                foreach ($actionsResults as $key => $value) {
+                    if ($value === false || $value === '') {
+                        unset($actionsResults[$key]);
+                    }
+                }
+                $actionsResults && $prompt = (new ActionTemplate())->buildAfterActionExecutedPrompt($input, $actionsResults);
                 if ($memory) {
                     $prompt = $memory->buildPrompt($prompt, $conversationId);
                 }
@@ -50,6 +55,9 @@ class Conversation
         }
         if ($memory) {
             $memory->addHumanMessage($input, $conversationId);
+            foreach ($actionsResults ?? [] as $actionName => $actionResult) {
+                $memory->addMessage(sprintf('%s Action Result: %s', $actionName, $actionResult), $conversationId);
+            }
             $memory->addAIMessage($finalAnswer, $conversationId);
         }
         return trim($finalAnswer);

@@ -12,6 +12,8 @@ abstract class AbstractMemory
 
     abstract public function addAIMessage(string $output, ?string $conversationId): static;
 
+    abstract public function addMessage(string $message, ?string $conversationId): static;
+
     abstract public function buildPrompt(string $input, ?string $conversationId): string;
 
     public function count(): int

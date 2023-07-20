@@ -21,13 +21,9 @@ class MessageHistory extends AbstractMemory
         }
         $history = implode("\n", $conversation);
         return <<<EOF
-"以下是一段用户与AI的历史对话：
+"以下是一段用户与AI的对话记录：
 
 $history
-
-以上为历史对话。
-
-以下为最新对话：
  
 用户: $input
 AI: 
@@ -36,19 +32,18 @@ EOF;
 
     public function addHumanMessage(string $input, ?string $conversationId): static
     {
-        if ($conversationId) {
-            $this->conversations[$conversationId][] = '用户: ' . $input;
-            if (count($this->conversations[$conversationId]) > $this->maxRecord) {
-                array_shift($this->conversations[$conversationId]);
-            }
-        }
-        return $this;
+        return $this->addMessage('用户: ' . $input, $conversationId);
     }
 
     public function addAIMessage(string $output, ?string $conversationId): static
     {
+        return $this->addMessage('AI: ' . $output, $conversationId);
+    }
+
+    public function addMessage(string $message, ?string $conversationId): static
+    {
         if ($conversationId) {
-            $this->conversations[$conversationId][] = 'AI: ' . $output;
+            $this->conversations[$conversationId][] = $message;
             if (count($this->conversations[$conversationId]) > $this->maxRecord) {
                 array_shift($this->conversations[$conversationId]);
             }

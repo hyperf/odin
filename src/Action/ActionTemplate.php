@@ -20,7 +20,7 @@ class ActionTemplate
 
 $resultPrompt
 
-你需要根据上面的运行结果以及用户的 Question 来回答问题。
+你需要根据历史对话记录和上面的运行结果来回答用户提出的 Question。
 
 开始!
 

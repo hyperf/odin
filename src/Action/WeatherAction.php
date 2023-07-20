@@ -21,7 +21,7 @@ class WeatherAction extends AbstractAction
         $content = json_decode($response->getBody()->getContents(), true);
         $locationId = $content['location'][0]['id'] ?? 0;
         if (! $locationId) {
-            return '未找到该地区，如此前对话中提到了地区，可以以对应信息为准';
+            return false;
         }
         // 根据 LocationID 查询天气
         $path = 'https://devapi.qweather.com/v7/weather/3d?key=' . $key . '&location=' . $locationId;
@@ -37,8 +37,8 @@ class WeatherAction extends AbstractAction
                 '月升' => $item['moonrise'],
                 '月落' => $item['moonset'],
                 '月相' => $item['moonPhase'],
-                '最高温度' => $item['tempMax'],
-                '最低温度' => $item['tempMin'],
+                '最高温度' => $item['tempMax'] . '℃',
+                '最低温度' => $item['tempMin'] . '℃',
                 '白天天气' => $item['textDay'],
                 '晚上天气' => $item['textNight'],
                 '白天风向' => $item['windDirDay'],

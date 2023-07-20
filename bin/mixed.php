@@ -25,7 +25,7 @@ class LLM {
     public Hyperf\Odin\Memory\AbstractMemory $memory;
     public array $actions = [];
     public string $model = 'gpt-3.5-turbo';
-    public function __construct()
+    public function __construct(protected bool $debug = false)
     {
         $this->conversation = new Conversation();
         $this->memory = new MessageHistory();
@@ -35,7 +35,7 @@ class LLM {
     public function chat(string $input, string $conversionId): string
     {
         $client = $this->getAzureOpenAIClient();
-        $client->setDebug(true);
+        $client->setDebug($this->debug);
         return $this->conversation->chat($client, $input, $this->model, $conversionId, $this->memory, $this->actions);
     }
 
@@ -54,11 +54,14 @@ class LLM {
     }
 }
 
-$llm = new LLM();
+$llm = new LLM(false);
 
 $inputs = [
     '1+12=?，以及东莞明天的天气如何？',
     '我刚才询问天气的是哪个城市？',
+    '能见度如何？',
+    '12加上22等于多少',
+    '我都询问过哪些数学计算，列出所有',
 ];
 
 $conversionId = uniqid();

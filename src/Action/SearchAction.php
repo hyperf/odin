@@ -13,6 +13,7 @@ class SearchAction extends AbstractAction
 
     public function handle(string $keyword): string
     {
+        return false;
         echo 'Enter search action' . PHP_EOL;
         $client = new Client();
         $path = 'https://serpapi.com/search';
@@ -23,7 +24,8 @@ class SearchAction extends AbstractAction
             ],
         ]);
         $webContent = $response->getBody()->getContents();
-        var_dump($webContent);exit();
+        var_dump($webContent);
+        exit();
         return '搜索结果：' . $webContent;
     }
 
