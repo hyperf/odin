@@ -5,7 +5,7 @@ namespace Hyperf\Odin\Memory;
 
 class MessageHistory extends AbstractMemory
 {
-    public function __construct(protected int $maxRecord = 10, protected int $maxTokens = 1000, protected array $conversations = [])
+    public function __construct(protected int $maxRecord = 10, protected int $maxTokens = 1000, array $conversations = [])
     {
         // @todo validate $maxTokens
     }
@@ -14,19 +14,19 @@ class MessageHistory extends AbstractMemory
     {
         $conversation = $this->conversations[$conversationId] ?? null;
         if (! $conversation) {
-            $conversation = [
-                'Null',
-            ];
+            return $input;
         }
         $history = implode("\n", $conversation);
         return <<<EOF
-The following is the conversation history between a human and an AI, you should continue the conversation from the last line:
-
-Current conversation:
+"以下是一段用户与AI的历史对话：
 
 $history
 
-Human: $input
+以上为历史对话。
+
+以下为最新对话：
+ 
+用户: $input
 AI: 
 EOF;
     }
@@ -34,7 +34,7 @@ EOF;
     public function addHumanMessage(string $input, ?string $conversationId): static
     {
         if ($conversationId) {
-            $this->conversations[$conversationId][] = 'Human: ' . $input;
+            $this->conversations[$conversationId][] = '用户: ' . $input;
             if (count($this->conversations[$conversationId]) > $this->maxRecord) {
                 array_shift($this->conversations[$conversationId]);
             }

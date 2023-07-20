@@ -37,10 +37,12 @@ $client = getAzureOpenAIClient();
 $conversionId = uniqid();
 $conversation = new Conversation();
 $memory = new MessageHistory();
-$actions = [new CalculatorAction(), new WeatherAction(), new SearchAction()];
-while (true) {
-    echo 'Human: ';
-    $input = trim(fgets(STDIN, 1024));
-    $response = $conversation->chat($client, $input, 'gpt-3.5-turbo', $conversionId, $memory, $actions);
-    echo 'AI: ' . $response . PHP_EOL;
-}
+
+$input = '1+12=?，以及东莞明天的天气如何？';
+echo '[Human]: ' . $input . PHP_EOL;
+$response = $conversation->chat($client, $input, 'gpt-3.5-turbo', $conversionId, $memory, [new CalculatorAction(), new WeatherAction(), new SearchAction()]);
+echo '[AI]: ' . $response . PHP_EOL;
+$input = '我刚才询问天气的是哪个城市？';
+echo '[Human]: ' . $input . PHP_EOL;
+$response = $conversation->chat($client, $input, 'gpt-3.5-turbo', $conversionId, $memory, [new CalculatorAction(), new WeatherAction(), new SearchAction()]);
+echo '[AI]: ' . $response . PHP_EOL;

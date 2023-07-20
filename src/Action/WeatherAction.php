@@ -7,7 +7,7 @@ class WeatherAction extends AbstractAction
 {
 
     public string $name = 'Weather';
-    public string $desc = '如果需要查询天气可以使用这个 Action，格式: Weather(location: string, date: string)，如果用户没有指定某一天，则代表为今天';
+    public string $desc = '如果需要查询天气可以使用，格式: Weather(location: string, date: string)，如果用户没有指定某一天，则代表为今天';
 
     public function handle(string $location, string $date = 'now'): string
     {
