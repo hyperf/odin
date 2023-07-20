@@ -3,8 +3,8 @@
 namespace Hyperf\Odin\Apis\OpenAI\Response;
 
 
-use Hyperf\Odin\Apis\MessageInterface;
 use Hyperf\Odin\Apis\OpenAI\Message;
+use Hyperf\Odin\Message\MessageInterface;
 
 class ChatCompletionChoice
 {

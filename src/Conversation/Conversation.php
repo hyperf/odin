@@ -9,9 +9,9 @@ use Hyperf\Odin\Action\SearchAction;
 use Hyperf\Odin\Action\WeatherAction;
 use Hyperf\Odin\Apis\OpenAI\Client;
 use Hyperf\Odin\Apis\OpenAI\Response\ChatCompletionResponse;
-use Hyperf\Odin\Apis\SystemMessage;
-use Hyperf\Odin\Apis\UserMessage;
 use Hyperf\Odin\Memory\AbstractMemory;
+use Hyperf\Odin\Message\SystemMessage;
+use Hyperf\Odin\Message\UserMessage;
 use Hyperf\Stringable\Str;
 
 class Conversation

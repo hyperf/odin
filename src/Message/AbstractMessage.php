@@ -1,6 +1,6 @@
 <?php
 
-namespace Hyperf\Odin\Apis;
+namespace Hyperf\Odin\Message;
 
 
 abstract class AbstractMessage implements MessageInterface

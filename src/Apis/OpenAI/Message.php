@@ -3,10 +3,10 @@
 namespace Hyperf\Odin\Apis\OpenAI;
 
 
-use Hyperf\Odin\Apis\AssistantMessage;
-use Hyperf\Odin\Apis\MessageInterface;
-use Hyperf\Odin\Apis\SystemMessage;
-use Hyperf\Odin\Apis\UserMessage;
+use Hyperf\Odin\Message\AssistantMessage;
+use Hyperf\Odin\Message\MessageInterface;
+use Hyperf\Odin\Message\SystemMessage;
+use Hyperf\Odin\Message\UserMessage;
 
 class Message
 {

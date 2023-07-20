@@ -4,10 +4,11 @@ namespace Hyperf\Odin\Apis\OpenAI;
 
 
 use GuzzleHttp\Client as GuzzleClient;
-use Hyperf\Odin\Apis\MessageInterface;
 use Hyperf\Odin\Apis\OpenAI\Response\ChatCompletionResponse;
 use Hyperf\Odin\Apis\OpenAI\Response\ListResponse;
 use Hyperf\Odin\Apis\OpenAI\Response\TextCompletionResponse;
+use Hyperf\Odin\Message\MessageInterface;
+use Psr\Log\LoggerInterface;
 
 class Client
 {
@@ -16,8 +17,11 @@ class Client
 
     protected OpenAIConfig $config;
 
-    public function __construct(OpenAIConfig $config)
+    protected ?LoggerInterface $logger;
+
+    public function __construct(OpenAIConfig $config, LoggerInterface $logger = null)
     {
+        $this->logger = $logger;
         $this->initConfig($config);
     }
 

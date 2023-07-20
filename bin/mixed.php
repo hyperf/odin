@@ -33,16 +33,22 @@ function getAzureOpenAIClient(): AzureOpenAIClient
     return $openAI->getClient($config);
 }
 
-$client = getAzureOpenAIClient();
-$conversionId = uniqid();
-$conversation = new Conversation();
-$memory = new MessageHistory();
+function chat(string $input): string
+{
+    $client = getAzureOpenAIClient();
+    $conversionId = uniqid();
+    $conversation = new Conversation();
+    $memory = new MessageHistory();
+    return $conversation->chat($client, $input, 'gpt-3.5-turbo', $conversionId, $memory, [new CalculatorAction(), new WeatherAction(), new SearchAction()]);
+}
 
-$input = '1+12=?，以及东莞明天的天气如何？';
-echo '[Human]: ' . $input . PHP_EOL;
-$response = $conversation->chat($client, $input, 'gpt-3.5-turbo', $conversionId, $memory, [new CalculatorAction(), new WeatherAction(), new SearchAction()]);
-echo '[AI]: ' . $response . PHP_EOL;
-$input = '我刚才询问天气的是哪个城市？';
-echo '[Human]: ' . $input . PHP_EOL;
-$response = $conversation->chat($client, $input, 'gpt-3.5-turbo', $conversionId, $memory, [new CalculatorAction(), new WeatherAction(), new SearchAction()]);
-echo '[AI]: ' . $response . PHP_EOL;
+$inputs = [
+    '1+12=?，以及东莞明天的天气如何？',
+    '我刚才询问天气的是哪个城市？',
+    '天气视野情况如何？能看到日出吗？'
+];
+
+foreach ($inputs as $input) {
+    echo '[Human]: ' . $input . PHP_EOL;
+    echo '[AI]: ' . chat($input) . PHP_EOL;
+}

@@ -4,12 +4,12 @@ namespace Hyperf\Odin\Apis\AzureOpenAI;
 
 
 use GuzzleHttp\Client as GuzzleClient;
-use Hyperf\Odin\Apis\MessageInterface;
 use Hyperf\Odin\Apis\OpenAI\OpenAIConfig;
 use Hyperf\Odin\Apis\OpenAI\Response\ChatCompletionResponse;
 use Hyperf\Odin\Apis\OpenAI\Response\ListResponse;
 use Hyperf\Odin\Apis\OpenAI\Response\TextCompletionResponse;
 use Hyperf\Odin\Exception\NotImplementedException;
+use Hyperf\Odin\Message\MessageInterface;
 use InvalidArgumentException;
 
 class Client extends \Hyperf\Odin\Apis\OpenAI\Client
