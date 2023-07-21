@@ -10,8 +10,11 @@ class OpenAIConfig
     protected ?string $apiKey = null;
     protected ?string $organization = null;
 
-    public function __construct(string $apiKey = null, string $organization = null, string $baseUrl = 'https://api.openai.com/' )
-    {
+    public function __construct(
+        string $apiKey = null,
+        string $organization = null,
+        string $baseUrl = 'https://api.openai.com/'
+    ) {
         $this->apiKey = $apiKey;
         $this->organization = $organization;
         $this->baseUrl = $baseUrl;

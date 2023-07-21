@@ -6,8 +6,8 @@ use Hyperf\Odin\Apis\OpenAI\Client;
 use Hyperf\Odin\Apis\OpenAI\OpenAI;
 use Hyperf\Odin\Apis\OpenAI\OpenAIConfig;
 use Hyperf\Odin\Apis\OpenAI\Response\Model;
-use Hyperf\Odin\Apis\SystemMessage;
-use Hyperf\Odin\Apis\UserMessage;
+use Hyperf\Odin\Message\SystemMessage;
+use Hyperf\Odin\Message\UserMessage;
 use HyperfTest\Odin\Cases\AbstractTestCase;
 
 class OpenAITest extends AbstractTestCase

@@ -1,5 +1,8 @@
 <?php
 
+use Hyperf\Odin\Action\CalculatorAction;
+use Hyperf\Odin\Action\SearchAction;
+use Hyperf\Odin\Action\WeatherAction;
 use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAI;
 use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAIConfig;
 use Hyperf\Odin\Apis\AzureOpenAI\Client as AzureOpenAIClient;
@@ -34,10 +37,10 @@ $client = getAzureOpenAIClient();
 $conversionId = uniqid();
 $conversation = new Conversation();
 $memory = new MessageHistory();
-
+$actions = [new CalculatorAction(), new WeatherAction(), new SearchAction()];
 while (true) {
     echo 'Human: ';
     $input = trim(fgets(STDIN, 1024));
-    $response = $conversation->chat($client, $input, 'gpt-3.5-turbo', $conversionId, $memory);
+    $response = $conversation->chat($client, $input, 'gpt-3.5-turbo', $conversionId, $memory, $actions);
     echo 'AI: ' . $response . PHP_EOL;
 }

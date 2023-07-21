@@ -14,7 +14,7 @@ class ChatCompletionResponse extends AbstractResponse
 
     public function __toString(): string
     {
-        return trim($this?->getChoices()[0]?->getMessage()?->getContent() ?: '');
+        return trim($this?->getChoices()[0]?->getMessage()?->getContent() ? : '');
     }
 
     protected function parseContent(): static

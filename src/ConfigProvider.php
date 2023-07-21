@@ -9,6 +9,7 @@ declare(strict_types=1);
  * @contact  group@hyperf.io
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
+
 namespace Hyperf\Odin;
 
 class ConfigProvider
@@ -16,10 +17,8 @@ class ConfigProvider
     public function __invoke(): array
     {
         return [
-            'dependencies' => [
-            ],
-            'commands' => [
-            ],
+            'dependencies' => [],
+            'commands' => [],
             'annotations' => [
                 'scan' => [
                     'paths' => [

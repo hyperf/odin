@@ -7,12 +7,14 @@ class CalculatorAction extends AbstractAction
 {
 
     public string $name = 'Calculator';
-    public string $desc = 'If user want to calculate math, use this action, action input format: Calculator(a: string, b: string)';
+    public string $desc = '如果需要计算数学问题可以使用，格式: Calculator(a: string, b: string)';
 
     public function handle(string $a, string $b): string
     {
-        echo 'Enter calculator action' . PHP_EOL;
-        return bcadd($a, $b);
+        $a = trim($a, ' \t\n\r\0\x0B\'"');
+        $b = trim($b, ' \t\n\r\0\x0B\'"');
+        $result = bcadd($a, $b);
+        return sprintf('%s + %s = %s', $a, $b, $result);
     }
 
 }

@@ -6,8 +6,12 @@ namespace Hyperf\Odin\Apis\OpenAI\Response;
 class TextCompletionChoice
 {
 
-    public function __construct(public string $text, public ?int $index = null, public ?string $logprobs = null, public ?string $finishReason = null)
-    {
+    public function __construct(
+        public string $text,
+        public ?int $index = null,
+        public ?string $logprobs = null,
+        public ?string $finishReason = null
+    ) {
     }
 
     public static function fromArray(array $choice): static

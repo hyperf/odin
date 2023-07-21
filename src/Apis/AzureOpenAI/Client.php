@@ -4,12 +4,12 @@ namespace Hyperf\Odin\Apis\AzureOpenAI;
 
 
 use GuzzleHttp\Client as GuzzleClient;
-use Hyperf\Odin\Apis\MessageInterface;
 use Hyperf\Odin\Apis\OpenAI\OpenAIConfig;
 use Hyperf\Odin\Apis\OpenAI\Response\ChatCompletionResponse;
 use Hyperf\Odin\Apis\OpenAI\Response\ListResponse;
 use Hyperf\Odin\Apis\OpenAI\Response\TextCompletionResponse;
 use Hyperf\Odin\Exception\NotImplementedException;
+use Hyperf\Odin\Message\MessageInterface;
 use InvalidArgumentException;
 
 class Client extends \Hyperf\Odin\Apis\OpenAI\Client
@@ -38,8 +38,13 @@ class Client extends \Hyperf\Odin\Apis\OpenAI\Client
         return $this;
     }
 
-    public function chat(array $messages, string $model, float $temperature = 0.9, int $maxTokens = 1000, array $stop = []): ChatCompletionResponse
-    {
+    public function chat(
+        array $messages,
+        string $model,
+        float $temperature = 0.9,
+        int $maxTokens = 1000,
+        array $stop = []
+    ): ChatCompletionResponse {
         $deploymentPath = $this->buildDeploymentPath();
         $messagesArr = [];
         foreach ($messages as $message) {
@@ -56,17 +61,24 @@ class Client extends \Hyperf\Odin\Apis\OpenAI\Client
         if ($stop) {
             $json['stop'] = $stop;
         }
+        $this->debug && $this->logger?->debug(sprintf("Send: \nSystem Message: %s\nUser Message: %s", $messages['system'], $messages['user']));
         $response = $this->client->post($deploymentPath . '/chat/completions', [
             'query' => [
                 'api-version' => $this->config->getApiVersion(),
             ],
             'json' => $json,
         ]);
-        return new ChatCompletionResponse($response);
+        $chatCompletionResponse = new ChatCompletionResponse($response);
+        $this->debug && $this->logger?->debug('Receive: ' . $chatCompletionResponse);
+        return $chatCompletionResponse;
     }
 
-    public function completions(string $prompt, string $model, float $temperature = 0.9, int $maxTokens = 200): TextCompletionResponse
-    {
+    public function completions(
+        string $prompt,
+        string $model,
+        float $temperature = 0.9,
+        int $maxTokens = 200
+    ): TextCompletionResponse {
         $deploymentPath = $this->buildDeploymentPath();
         $response = $this->client->post($deploymentPath . '/completions', [
             'query' => [

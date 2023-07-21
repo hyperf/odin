@@ -38,9 +38,9 @@ $conversionId = uniqid();
 $conversation = new Conversation();
 $memory = new MessageHistory();
 
-//$input = '1+2=?，然后帮我查查东莞的天气情况';
-$input = '东莞明天的最高多少度？以及 1+1=?';
-$response = $conversation->chat($client, $input, 'gpt-3.5-turbo', $conversionId, null, [
+$input = '1+2=?，然后帮我查查东莞的明天的天气情况';
+//$input = '东莞明天的最高多少度？以及 1+1=?，并将计算结果赋值给x用于下一次计算，x+10=?';
+$response = $conversation->chat($client, $input, 'gpt-3.5-turbo', $conversionId, $memory, [
         new CalculatorAction(),
         new WeatherAction(),
         new SearchAction()

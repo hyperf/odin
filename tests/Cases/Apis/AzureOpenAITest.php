@@ -5,9 +5,9 @@ namespace HyperfTest\Odin\Cases\Apis;
 use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAI;
 use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAIConfig;
 use Hyperf\Odin\Apis\AzureOpenAI\Client;
-use Hyperf\Odin\Apis\SystemMessage;
-use Hyperf\Odin\Apis\UserMessage;
 use Hyperf\Odin\Exception\NotImplementedException;
+use Hyperf\Odin\Message\SystemMessage;
+use Hyperf\Odin\Message\UserMessage;
 use HyperfTest\Odin\Cases\AbstractTestCase;
 use function Hyperf\Support\env as env;
 

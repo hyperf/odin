@@ -1,25 +1,32 @@
 <?php
 
-namespace Hyperf\Odin\Apis;
+namespace Hyperf\Odin\Message;
 
 
-abstract class AbstractMessage implements MessageInterface
+use Stringable;
+
+abstract class AbstractMessage implements MessageInterface, Stringable
 {
 
     protected Role $role;
-    protected string $message = '';
+    protected string $content = '';
 
-    public function __construct(string $message)
+    public function __construct(string $content)
     {
-        $this->message = $message;
+        $this->content = $content;
     }
 
     public function toArray(): array
     {
         return [
             'role' => $this->role->value,
-            'content' => $this->message,
+            'content' => $this->content,
         ];
+    }
+
+    public function __toString(): string
+    {
+        return $this->getContent();
     }
 
     public function getRole(): Role
@@ -29,7 +36,7 @@ abstract class AbstractMessage implements MessageInterface
 
     public function getContent(): string
     {
-        return $this->message;
+        return $this->content;
     }
 
     public function setRole(Role $role): static
@@ -40,13 +47,13 @@ abstract class AbstractMessage implements MessageInterface
 
     public function setContent(string $content): static
     {
-        $this->message = $content;
+        $this->content = $content;
         return $this;
     }
 
     public function appendContent(string $content): static
     {
-        $this->message .= $content;
+        $this->content .= $content;
         return $this;
     }
 
