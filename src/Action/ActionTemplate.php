@@ -46,7 +46,7 @@ EOF;
     使用 Action 的格式要求如下：
     
     Question: 你必须要回答的问题
-    Actions: 需要使用的 Actions，并以 JSON 格式输出，格式：[{"name": "Action 名称", "args": ["Action 参数 key": "Action 参数 value"]}]，比如 [{"name": "Calculator", "args": ["a": "1", "b": "2"]}, {"name": "Weather", "args": ["city": "北京"]}]
+    Actions: 需要使用的 Actions，并以 JSON 格式输出，格式：[{"name":"Action 名称","args":{"Action 参数 key":"Action 参数 value"}}]，比如 [{"name":"Calculator","args":{"a":"1","b":"2"}},{"name":"Weather","args":{"city":"北京"}}]
     
     开始!
     
