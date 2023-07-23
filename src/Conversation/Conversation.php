@@ -89,10 +89,10 @@ class Conversation
         // 匹配到了 Actions，按顺序执行 Actions
         $actionsResults = [];
         foreach ($matchedActions as $action) {
-            if (! isset($action['action'], $action['args'])) {
+            if (! isset($action['name'], $action['args'])) {
                 continue;
             }
-            $actionName = $action['action'];
+            $actionName = $action['name'];
             $actionArgs = $action['args'];
             $actionInstance = match ($actionName) {
                 'Calculator' => new CalculatorAction(),
