@@ -8,7 +8,6 @@ use Hyperf\Odin\Action\CalculatorAction;
 use Hyperf\Odin\Action\SearchAction;
 use Hyperf\Odin\Action\WeatherAction;
 use Hyperf\Odin\Apis\ClientInterface;
-use Hyperf\Odin\Apis\OpenAI\Client;
 use Hyperf\Odin\Apis\OpenAI\Response\ChatCompletionResponse;
 use Hyperf\Odin\Memory\AbstractMemory;
 use Hyperf\Odin\Message\SystemMessage;

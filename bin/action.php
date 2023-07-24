@@ -5,8 +5,6 @@ use Hyperf\Odin\Action\SearchAction;
 use Hyperf\Odin\Action\WeatherAction;
 use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAI;
 use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAIConfig;
-use Hyperf\Odin\Apis\AzureOpenAI\Client as AzureOpenAIClient;
-use Hyperf\Odin\Apis\OpenAI\Client as OpenAIClient;
 use Hyperf\Odin\Apis\OpenAI\OpenAI;
 use Hyperf\Odin\Apis\OpenAI\OpenAIConfig;
 use Hyperf\Odin\Apis\RWKV\RWKVConfig;
@@ -52,9 +50,9 @@ $memory = new MessageHistory();
 $input = '1+2=?，然后帮我查查东莞的明天的天气情况';
 //$input = '东莞明天的最高多少度？以及 1+1=?，并将计算结果赋值给x用于下一次计算，x+10=?';
 $response = $conversation->chat($client, $input, 'gpt-3.5-turbo', $conversionId, $memory, [
-        new CalculatorAction(),
-        new WeatherAction(),
-        new SearchAction()
-    ]);
+    new CalculatorAction(),
+    new WeatherAction(),
+    new SearchAction()
+]);
 echo PHP_EOL . PHP_EOL;
 echo '[FINAL] AI: ' . $response;

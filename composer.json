@@ -22,6 +22,7 @@
         "hyperf/framework": "3.0.*",
         "hyperf/di": "3.0.*",
         "guzzlehttp/guzzle": "^7.0",
+        "hyperf/qdrant-client": "*",
         "ext-bcmath": "*"
     },
     "require-dev": {
@@ -50,5 +51,11 @@
         "hyperf": {
             "config": "Hyperf\\Odin\\ConfigProvider"
         }
-    }
+    },
+    "repositories": [
+        {
+            "type": "git",
+            "url": "https://github.com/hyperf/qdrant-client"
+        }
+    ]
 }
