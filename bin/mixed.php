@@ -79,5 +79,5 @@ $conversionId = uniqid();
 
 foreach ($inputs as $input) {
     echo '[Human]: ' . $input . PHP_EOL;
-    echo '[AI]: ' . $llm->chat($input, $conversionId, llmType: 'rwkv') . PHP_EOL;
+    echo '[AI]: ' . $llm->chat($input, $conversionId, llmType: 'azure') . PHP_EOL;
 }
