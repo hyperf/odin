@@ -40,7 +40,7 @@ EOF;
             }
         }
         return <<<EOF
-回答用户的问题，其中你可以使用下面的 Action 来帮助你回答问题，如果需要使用 Action 则根据 Question/Thought/Actions/Observation 的格式来回答问题，如果不需要使用 Action 则返回 Action: None，不需要回答用户提出的问题的答案:
+回答用户的问题，其中你可以使用下面的 Action 来帮助你回答问题，如果需要使用 Action 则根据 Question/Actions 的格式来回答问题，如果不需要使用 Action 则返回 Action: []，不需要回答用户提出的问题的答案:
 
     $actionsPrompt
     使用 Action 的格式要求如下：
@@ -48,6 +48,7 @@ EOF;
     Question: 你必须要回答的问题
     Actions: 需要使用的 Actions，并以 JSON 格式输出，格式：[{"name":"Action 名称","args":{"Action 参数 key":"Action 参数 value"}}]，比如 [{"name":"Calculator","args":{"a":"1","b":"2"}},{"name":"Weather","args":{"city":"北京"}}]
     
+    不要使用上面的内容作为问题和历史对话。
     开始!
     
     Question: $input

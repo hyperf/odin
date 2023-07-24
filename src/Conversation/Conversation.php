@@ -42,7 +42,7 @@ class Conversation
                 }
                 $response = $this->answer($client, $prompt, $model);
                 if ($response->getContent()) {
-                    $finalAnswer = Str::replaceFirst('Final Answer:', '', $response);
+                    $finalAnswer = Str::replaceFirst('Answer:', '', $response);
                 }
             }
         }
