@@ -7,6 +7,7 @@ use Hyperf\Odin\Action\ActionTemplate;
 use Hyperf\Odin\Action\CalculatorAction;
 use Hyperf\Odin\Action\SearchAction;
 use Hyperf\Odin\Action\WeatherAction;
+use Hyperf\Odin\Apis\ClientInterface;
 use Hyperf\Odin\Apis\OpenAI\Client;
 use Hyperf\Odin\Apis\OpenAI\Response\ChatCompletionResponse;
 use Hyperf\Odin\Memory\AbstractMemory;
@@ -18,7 +19,7 @@ class Conversation
 {
 
     public function chat(
-        Client $client,
+        ClientInterface $client,
         string $input,
         string $model,
         ?string $conversationId = null,
@@ -64,7 +65,7 @@ class Conversation
     }
 
     protected function thoughtActions(
-        Client $client,
+        ClientInterface $client,
         string $userInput,
         string $model,
         array $actions,
@@ -110,7 +111,7 @@ class Conversation
     }
 
     protected function answer(
-        Client $client,
+        ClientInterface $client,
         string $prompt,
         string $model,
         float $temperature = 0,

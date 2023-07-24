@@ -19,39 +19,53 @@ use Hyperf\Odin\Apis\AzureOpenAI\Client as AzureOpenAIClient;
 use Hyperf\Odin\Apis\OpenAI\Client as OpenAIClient;
 use Hyperf\Odin\Apis\OpenAI\OpenAI;
 use Hyperf\Odin\Apis\OpenAI\OpenAIConfig;
+use Hyperf\Odin\Apis\RWKV\RWKVConfig;
 use Hyperf\Odin\Message\SystemMessage;
 use Hyperf\Odin\Message\UserMessage;
 use function Hyperf\Support\env as env;
 
-!defined('BASE_PATH') && define('BASE_PATH', dirname(__DIR__, 1));
+! defined('BASE_PATH') && define('BASE_PATH', dirname(__DIR__, 1));
 
 require_once dirname(dirname(__FILE__)) . '/vendor/autoload.php';
 
 \Hyperf\Di\ClassLoader::init();
 
-class LLM {
+class LLM
+{
 
     public string $model = 'gpt-3.5-turbo';
-    public function chat(array $messages, float $temperature = 0.9,): string
+
+    public function chat(array $messages, float $temperature = 0.9, string $llmType = 'azure'): string
     {
-        $client = $this->getAzureOpenAIClient();
+        $client = $this->getClient($llmType);
         $client->setDebug(true);
         return $client->chat($messages, $this->model, $temperature);
     }
 
-    function getOpenAIClient(): OpenAIClient
+    public function getClient(string $type = 'azure')
     {
-        $openAI = new OpenAI();
-        $config = new OpenAIConfig(env('OPENAI_API_KEY_FOR_TEST'),);
-        return $openAI->getClient($config);
+        switch ($type) {
+            case 'openai':
+                $openAI = new OpenAI();
+                $config = new OpenAIConfig(env('OPENAI_API_KEY_FOR_TEST'),);
+                $client = $openAI->getClient($config);
+                break;
+            case 'azure':
+                $openAI = new AzureOpenAI();
+                $config = new AzureOpenAIConfig(apiKey: env('AZURE_OPENAI_API_KEY_FOR_TEST'), baseUrl: env('AZURE_OPENAI_HOST'), apiVersion: env('AZURE_OPENAI_API_VERSION'), deploymentName: env('AZURE_OPENAI_DEPLOYMENT_NAME'),);
+                $client = $openAI->getClient($config);
+                break;
+            case 'rwkv':
+                $rwkv = new Hyperf\Odin\Apis\RWKV\RWKV();
+                $config = new RWKVConfig(env('RWKV_HOST'),);
+                $client = $rwkv->getClient($config);
+                break;
+            default:
+                throw new \RuntimeException('Invalid type');
+        }
+        return $client;
     }
 
-    function getAzureOpenAIClient(): AzureOpenAIClient
-    {
-        $openAI = new AzureOpenAI();
-        $config = new AzureOpenAIConfig(apiKey: env('AZURE_OPENAI_API_KEY_FOR_TEST'), baseUrl: env('AZURE_OPENAI_ENDPOINT'), apiVersion: env('AZURE_OPENAI_API_VERSION'), deploymentName: env('AZURE_OPENAI_DEPLOYMENT_NAME'),);
-        return $openAI->getClient($config);
-    }
 }
 
 $llm = new LLM();
@@ -59,4 +73,4 @@ $llm = new LLM();
 echo '[AI]: ' . $llm->chat([
         'system' => new SystemMessage('你是一个由 Hyperf 组织开发的聊天机器人，你必须严格按照格式要求返回内容'),
         'user' => new UserMessage($prompt),
-    ]) . PHP_EOL;
+    ], llmType: 'rwkv') . PHP_EOL;

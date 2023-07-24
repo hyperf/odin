@@ -9,6 +9,7 @@ use Hyperf\Odin\Apis\AzureOpenAI\Client as AzureOpenAIClient;
 use Hyperf\Odin\Apis\OpenAI\Client as OpenAIClient;
 use Hyperf\Odin\Apis\OpenAI\OpenAI;
 use Hyperf\Odin\Apis\OpenAI\OpenAIConfig;
+use Hyperf\Odin\Apis\RWKV\RWKVConfig;
 use Hyperf\Odin\Conversation\Conversation;
 use Hyperf\Odin\Memory\MessageHistory;
 use function Hyperf\Support\env as env;
@@ -19,21 +20,31 @@ require_once dirname(dirname(__FILE__)) . '/vendor/autoload.php';
 
 \Hyperf\Di\ClassLoader::init();
 
-function getOpenAIClient(): OpenAIClient
+function getClient(string $type = 'azure')
 {
-    $openAI = new OpenAI();
-    $config = new OpenAIConfig(env('OPENAI_API_KEY_FOR_TEST'),);
-    return $openAI->getClient($config);
+    switch ($type) {
+        case 'openai':
+            $openAI = new OpenAI();
+            $config = new OpenAIConfig(env('OPENAI_API_KEY_FOR_TEST'),);
+            $client = $openAI->getClient($config);
+            break;
+        case 'azure':
+            $openAI = new AzureOpenAI();
+            $config = new AzureOpenAIConfig(apiKey: env('AZURE_OPENAI_API_KEY_FOR_TEST'), baseUrl: env('AZURE_OPENAI_HOST'), apiVersion: env('AZURE_OPENAI_API_VERSION'), deploymentName: env('AZURE_OPENAI_DEPLOYMENT_NAME'),);
+            $client = $openAI->getClient($config);
+            break;
+        case 'rwkv':
+            $rwkv = new Hyperf\Odin\Apis\RWKV\RWKV();
+            $config = new RWKVConfig(env('RWKV_HOST'),);
+            $client = $rwkv->getClient($config);
+            break;
+        default:
+            throw new \RuntimeException('Invalid type');
+    }
+    return $client;
 }
 
-function getAzureOpenAIClient(): AzureOpenAIClient
-{
-    $openAI = new AzureOpenAI();
-    $config = new AzureOpenAIConfig(apiKey: env('AZURE_OPENAI_API_KEY_FOR_TEST'), baseUrl: env('AZURE_OPENAI_ENDPOINT'), apiVersion: env('AZURE_OPENAI_API_VERSION'), deploymentName: env('AZURE_OPENAI_DEPLOYMENT_NAME'),);
-    return $openAI->getClient($config);
-}
-
-$client = getAzureOpenAIClient();
+$client = getClient('azure');
 $conversionId = uniqid();
 $conversation = new Conversation();
 $memory = new MessageHistory();

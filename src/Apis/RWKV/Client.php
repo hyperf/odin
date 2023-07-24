@@ -1,6 +1,6 @@
 <?php
 
-namespace Hyperf\Odin\Apis\OpenAI;
+namespace Hyperf\Odin\Apis\RWKV;
 
 
 use GuzzleHttp\Client as GuzzleClient;
@@ -9,7 +9,6 @@ use Hyperf\Odin\Apis\OpenAI\Response\ChatCompletionResponse;
 use Hyperf\Odin\Apis\OpenAI\Response\ListResponse;
 use Hyperf\Odin\Apis\OpenAI\Response\TextCompletionResponse;
 use Hyperf\Odin\Message\MessageInterface;
-use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 
 class Client implements ClientInterface
@@ -17,31 +16,24 @@ class Client implements ClientInterface
 
     protected GuzzleClient $client;
 
-    protected OpenAIConfig $config;
+    protected RWKVConfig $config;
 
     protected ?LoggerInterface $logger;
 
     protected bool $debug = false;
 
-    public function __construct(OpenAIConfig $config, LoggerInterface $logger = null)
+    public function __construct(RWKVConfig $config, LoggerInterface $logger = null)
     {
         $this->logger = $logger;
         $this->initConfig($config);
     }
 
-    protected function initConfig(OpenAIConfig $config): static
+    protected function initConfig(RWKVConfig $config): static
     {
-        if (! $config->getApiKey()) {
-            throw new InvalidArgumentException('API key of OpenAI api is required');
-        }
         $headers = [
-            'Authorization' => 'Bearer ' . $config->getApiKey(),
             'Content-Type' => 'application/json',
             'User-Agent' => 'Hyperf-Odin/1.0'
         ];
-        if ($config->getOrganization()) {
-            $headers['OpenAI-Organization'] = $config->getOrganization();
-        }
         $this->client = new GuzzleClient([
             'base_uri' => $config->getBaseUrl(),
             'headers' => $headers
