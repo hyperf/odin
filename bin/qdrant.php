@@ -27,6 +27,7 @@ use Hyperf\Qdrant\Struct\Points\SearchCondition\Filter;
 use Hyperf\Qdrant\Struct\Points\SearchCondition\Match\MatchValue;
 use Hyperf\Qdrant\Struct\Points\VectorStruct;
 
+use Hyperf\Qdrant\Struct\Points\WithPayload;
 use function Hyperf\Support\env;
 
 ! defined('BASE_PATH') && define('BASE_PATH', dirname(__DIR__, 1));
@@ -71,7 +72,7 @@ $data = [
 $vectors = array_map(function (string $datum, int $key) use ($client) {
     return new Record(
         new ExtendedPointId($key + 10000),
-        new VectorStruct($client->embedding($datum)->getData()['embedding']),
+        new VectorStruct($client->embedding($datum)->getData()[0]->embedding),
         ['mark' => 'payload 是自定义属性', 'prefix' => explode(':', $datum)[0], 'content' => explode(':', $datum)[1]],
     );
 }, $data, array_keys($data));
@@ -84,21 +85,23 @@ $points = new Points(new HttpClient(new Config()));
 $points->setWait(true);
 $points->upsertPoints('test_collection', $vectors);
 # 近似搜索
-$point = $points->searchPoints(
+$result = $points->searchPoints(
     'test_collection',
-    new VectorStruct($client->embedding('啥是Odin')->getData()['embedding']),
-    3,
+    new VectorStruct($client->embedding('啥是Odin')->getData()[0]->embedding),
+    2,
+    withPayload: new WithPayload(true),
 );
-print_r($point);
+print_r($result);
 # payload 过滤
-$point = $points->searchPoints(
+$result = $points->searchPoints(
     'test_collection',
-    new VectorStruct($client->embedding('你是Odin')->getData()['embedding']),
+    new VectorStruct($client->embedding('你是Odin')->getData()[0]->embedding),
     3,
     new Filter(
         must: [
             new FieldCondition('prefix', new MatchValue('odin 是什么')),
         ]
     ),
+    withPayload: new WithPayload(true),
 );
-print_r($point);
+print_r($result);
