@@ -9,7 +9,7 @@ class SearchAction extends AbstractAction
 {
 
     public string $name = 'Search';
-    public string $desc = '如果需要从互联网上搜索内容可以使用，格式: Search(keyword: string)';
+    public string $desc = '如果需要从互联网搜索引擎上搜索内容可以使用，其它类型内容的搜索不要使用此 Action，格式: {"name": "Search", "args": {"keyword": "string"}}';
 
     public function handle(string $keyword): string
     {

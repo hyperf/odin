@@ -3,11 +3,15 @@
 namespace Hyperf\Odin\Action;
 
 
+use Hyperf\Odin\Apis\ClientInterface;
+
 abstract class AbstractAction
 {
 
     public string $name;
     public string $desc;
+    protected ClientInterface $client;
+
 
     public function getName(): string
     {
@@ -28,6 +32,17 @@ abstract class AbstractAction
     public function setDesc(string $desc): static
     {
         $this->desc = $desc;
+        return $this;
+    }
+
+    public function getClient(): ClientInterface
+    {
+        return $this->client;
+    }
+
+    public function setClient(ClientInterface $client): static
+    {
+        $this->client = $client;
         return $this;
     }
 

@@ -61,7 +61,7 @@ class Client extends \Hyperf\Odin\Apis\OpenAI\Client
         if ($stop) {
             $json['stop'] = $stop;
         }
-        $this->debug && $this->logger?->debug(sprintf("Send: \nSystem Message: %s\nUser Message: %s", $messages['system'], $messages['user']));
+        $this->debug && $this->logger?->debug(sprintf("Send: \nSystem Message: %s\nUser Message: %s", $messages['system'] ?? '', $messages['user'] ?? ''));
         $response = $this->client->post($deploymentPath . '/chat/completions', [
             'query' => [
                 'api-version' => $this->config->getApiVersion(),

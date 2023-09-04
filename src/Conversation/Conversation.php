@@ -31,11 +31,6 @@ class Conversation
             $matchedActions = $this->thoughtActions($client, $input, $model, $actions);
             if ($matchedActions) {
                 $actionsResults = $this->handleActions($matchedActions);
-                foreach ($actionsResults as $key => $value) {
-                    if ($value === false || $value === '') {
-                        unset($actionsResults[$key]);
-                    }
-                }
                 $actionsResults && $prompt = (new ActionTemplate())->buildAfterActionExecutedPrompt($input, $actionsResults);
                 if ($memory) {
                     $prompt = $memory->buildPrompt($prompt, $conversationId);
@@ -104,7 +99,9 @@ class Conversation
                 continue;
             }
             $actionResult = $actionInstance->handle(...$actionArgs);
-            $actionsResults[$actionName] = $actionResult;
+            if ($actionResult) {
+                $actionsResults[$actionName] = $actionResult;
+            }
         }
         return $actionsResults;
     }
