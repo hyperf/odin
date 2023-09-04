@@ -9,6 +9,7 @@ declare(strict_types=1);
  * @contact  group@hyperf.io
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
+
 use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAI;
 use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAIConfig;
 use Hyperf\Odin\Apis\OpenAI\OpenAI;
@@ -21,12 +22,11 @@ use Hyperf\Qdrant\Connection\HttpClient;
 use Hyperf\Qdrant\Struct\Collections\Enums\Distance;
 use Hyperf\Qdrant\Struct\Collections\VectorParams;
 use Hyperf\Qdrant\Struct\Points\ExtendedPointId;
-use Hyperf\Qdrant\Struct\Points\Record;
+use Hyperf\Qdrant\Struct\Points\Point\Record;
 use Hyperf\Qdrant\Struct\Points\SearchCondition\FieldCondition;
 use Hyperf\Qdrant\Struct\Points\SearchCondition\Filter;
 use Hyperf\Qdrant\Struct\Points\SearchCondition\Match\MatchValue;
 use Hyperf\Qdrant\Struct\Points\VectorStruct;
-
 use Hyperf\Qdrant\Struct\Points\WithPayload;
 use function Hyperf\Support\env;
 
