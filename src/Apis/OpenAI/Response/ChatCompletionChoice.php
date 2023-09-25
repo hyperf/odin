@@ -42,4 +42,9 @@ class ChatCompletionChoice
         return $this->finishReason;
     }
 
+    public function isFinishedByFunctionCall(): bool
+    {
+        return $this->getFinishReason() === 'function_call';
+    }
+
 }

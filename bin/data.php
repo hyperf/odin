@@ -21,7 +21,7 @@ class LLM
 
     public string $model = 'gpt-3.5-turbo';
 
-    public function chat(array $messages, float $temperature = 0.9,): string
+    public function chat(array $messages, float $temperature = 0,): string
     {
         $client = $this->getAzureOpenAIClient();
         $client->setDebug(true);
@@ -31,27 +31,29 @@ class LLM
     function getOpenAIClient(): OpenAIClient
     {
         $openAI = new OpenAI();
-        $config = new OpenAIConfig(env('OPENAI_API_KEY_FOR_TEST'),);
+        $config = new OpenAIConfig(env('OPENAI_API_KEY'),);
         return $openAI->getClient($config);
     }
 
     function getAzureOpenAIClient(): AzureOpenAIClient
     {
         $openAI = new AzureOpenAI();
-        $config = new AzureOpenAIConfig(apiKey: env('AZURE_OPENAI_API_KEY_FOR_TEST'), baseUrl: env('AZURE_OPENAI_HOST'), apiVersion: env('AZURE_OPENAI_API_VERSION'), deploymentName: env('AZURE_OPENAI_DEPLOYMENT_NAME'),);
+        $config = new AzureOpenAIConfig(apiKey: env('AZURE_OPENAI_API_KEY'), baseUrl: env('AZURE_OPENAI_API_BASE'), apiVersion: env('AZURE_OPENAI_API_VERSION'), deploymentName: env('AZURE_OPENAI_DEPLOYMENT_NAME'),);
         return $openAI->getClient($config);
     }
 }
 
-$data = file_get_contents(BASE_PATH . '/data/销售额趋势.csv');
+$data = file_get_contents(BASE_PATH . '/data/test.markdown');
 
 $prompt = <<<PROMPT
-你是一个专业的数据分析师，你需要根据下面的数据进行分析，可以通过数学统计、归因分析、关联性分析、趋势分析等专业的分析技巧，根据用户问题以结论性的内容简洁的输出你的分析结果，不需要解释计算过程，尽量不要输出空白行：
+你是一个专业的数据分析师，你需要根据下面的数据进行分析，根据用户问题以结论性的内容简洁的输出你的分析结果，尽量不要输出空白行：
 
 数据：
 $data
 
-问题：进行数据分析
+数据计算逻辑：单杯利润=价格-费用合计，毛利率=毛利/价格，毛利=价格-物料成本，费用合计=运营费用+营销费用+其它成本+折旧+管理费用+税项
+要求：严格基于上面的数据和数据计算逻辑，一步一步推理全过程回答下面的问题
+问题：如果我想在2021年提高单杯利润到2.1，但前提保持价格为15.1不变，那么其它指标应该要如何调整才能支持这个目标？调整多少？
 分析结果：
 PROMPT;
 

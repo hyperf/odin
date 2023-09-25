@@ -43,7 +43,8 @@ class Client extends \Hyperf\Odin\Apis\OpenAI\Client
         string $model,
         float $temperature = 0.9,
         int $maxTokens = 1000,
-        array $stop = []
+        array $stop = [],
+        array $functions = [],
     ): ChatCompletionResponse {
         $deploymentPath = $this->buildDeploymentPath();
         $messagesArr = [];
@@ -58,6 +59,10 @@ class Client extends \Hyperf\Odin\Apis\OpenAI\Client
             'temperature' => $temperature,
             'max_tokens' => $maxTokens,
         ];
+        if ($functions) {
+            $json['functions'] = $functions;
+            $json['function_call'] = 'auto';
+        }
         if ($stop) {
             $json['stop'] = $stop;
         }

@@ -22,7 +22,7 @@
         "ext-bcmath": "*",
         "guzzlehttp/guzzle": "^7.0",
         "hyperf/di": "3.0.*",
-        "hyperf/framework": "3.0.*",
+        "hyperf/config": "3.0.*",
         "hyperf/qdrant-client": "*",
         "yethee/tiktoken": "^0.1.2"
     },
@@ -52,11 +52,5 @@
         "hyperf": {
             "config": "Hyperf\\Odin\\ConfigProvider"
         }
-    },
-    "repositories": [
-        {
-            "type": "git",
-            "url": "https://github.com/hyperf/qdrant-client"
-        }
-    ]
+    }
 }

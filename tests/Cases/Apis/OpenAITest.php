@@ -80,7 +80,7 @@ class OpenAITest extends AbstractTestCase
     protected function buildClient(): array
     {
         $openAI = new OpenAI();
-        $config = new OpenAIConfig(\Hyperf\Support\env('OPENAI_API_KEY_FOR_TEST'),);
+        $config = new OpenAIConfig(\Hyperf\Support\env('OPENAI_API_KEY'),);
         $client = $openAI->getClient($config);
         return [$openAI, $config, $client];
     }

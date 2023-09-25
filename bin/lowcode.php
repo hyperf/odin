@@ -31,14 +31,14 @@ class LLM
     function getOpenAIClient(): OpenAIClient
     {
         $openAI = new OpenAI();
-        $config = new OpenAIConfig(env('OPENAI_API_KEY_FOR_TEST'),);
+        $config = new OpenAIConfig(env('OPENAI_API_KEY'),);
         return $openAI->getClient($config);
     }
 
     function getAzureOpenAIClient(): AzureOpenAIClient
     {
         $openAI = new AzureOpenAI();
-        $config = new AzureOpenAIConfig(apiKey: env('AZURE_OPENAI_API_KEY_FOR_TEST'), baseUrl: env('AZURE_OPENAI_HOST'), apiVersion: env('AZURE_OPENAI_API_VERSION'), deploymentName: env('AZURE_OPENAI_DEPLOYMENT_NAME'),);
+        $config = new AzureOpenAIConfig(apiKey: env('AZURE_OPENAI_API_KEY'), baseUrl: env('AZURE_OPENAI_API_BASE'), apiVersion: env('AZURE_OPENAI_API_VERSION'), deploymentName: env('AZURE_OPENAI_DEPLOYMENT_NAME'),);
         return $openAI->getClient($config);
     }
 }
@@ -59,7 +59,7 @@ $prompt = <<<PROMPT
     ] 
 }
 
-问题：设计一个企业的访客管理系统中用于满足访客申请的表单。
+问题：设计一个企业的访客管理系统中用于满足访客申请的表单，需要收集访客的姓名、手机号码、身份证号码、来访时间、来访的团队名称等基础信息，如果访客有开车过来，还需要提供车牌。
 生成的表单 JSON：
 PROMPT;
 

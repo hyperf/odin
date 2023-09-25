@@ -61,14 +61,14 @@ class LLM
     function getOpenAIClient(): OpenAIClient
     {
         $openAI = new OpenAI();
-        $config = new OpenAIConfig(env('OPENAI_API_KEY_FOR_TEST'),);
+        $config = new OpenAIConfig(env('OPENAI_API_KEY'),);
         return $openAI->getClient($config);
     }
 
     function getAzureOpenAIClient(): AzureOpenAIClient
     {
         $openAI = new AzureOpenAI();
-        $config = new AzureOpenAIConfig(apiKey: env('AZURE_OPENAI_API_KEY_FOR_TEST'), baseUrl: env('AZURE_OPENAI_HOST'), apiVersion: env('AZURE_OPENAI_API_VERSION'), deploymentName: env('AZURE_OPENAI_DEPLOYMENT_NAME'),);
+        $config = new AzureOpenAIConfig(apiKey: env('AZURE_OPENAI_API_KEY'), baseUrl: env('AZURE_OPENAI_API_BASE'), apiVersion: env('AZURE_OPENAI_API_VERSION'), deploymentName: env('AZURE_OPENAI_DEPLOYMENT_NAME'),);
         return $openAI->getClient($config);
     }
 }

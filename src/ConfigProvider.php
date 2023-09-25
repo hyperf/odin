@@ -12,20 +12,22 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin;
 
+use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAIClientFactory;
+use Hyperf\Odin\Apis\AzureOpenAI\Client as AzureOpenAIClient;
+use Hyperf\Odin\Apis\OpenAI\Client as OpenAIClient;
+use Hyperf\Odin\Apis\OpenAI\OpenAIClientFactory;
+
 class ConfigProvider
 {
     public function __invoke(): array
     {
         return [
-            'dependencies' => [],
-            'commands' => [],
-            'annotations' => [
-                'scan' => [
-                    'paths' => [
-                        __DIR__,
-                    ],
-                ],
+            'dependencies' => [
+                OpenAIClient::class => OpenAIClientFactory::class,
+                AzureOpenAIClient::class => AzureOpenAIClientFactory::class,
             ],
+            'commands' => [],
+            'annotations' => [],
         ];
     }
 }
