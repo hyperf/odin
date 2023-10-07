@@ -1,7 +1,18 @@
 <?php
 
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
+
 namespace Hyperf\Odin\Memory;
 
+use Stringable;
 
 class MessageHistory extends AbstractMemory
 {
@@ -13,7 +24,7 @@ class MessageHistory extends AbstractMemory
         // @todo validate $maxTokens
     }
 
-    public function buildPrompt(string $input, ?string $conversationId): string
+    public function buildPrompt(string|Stringable $input, string|Stringable|null $conversationId): string|Stringable
     {
         $conversation = $this->conversations[$conversationId] ?? null;
         if (! $conversation) {
@@ -21,26 +32,34 @@ class MessageHistory extends AbstractMemory
         }
         $history = implode("\n", $conversation);
         return <<<EOF
-"以下是一段用户与AI的对话记录：
+"The following is a conversation history between a user and AI：
 
-$history
+{$history}
  
-用户: $input
+User: {$input}
 AI: 
 EOF;
     }
 
-    public function addHumanMessage(string $input, ?string $conversationId): static
+    public function addHumanMessage(
+        string|Stringable $input,
+        string|Stringable|null $conversationId,
+        string $prefix = 'User: '
+    ): static
     {
-        return $this->addMessage('用户: ' . $input, $conversationId);
+        return $this->addMessage($prefix . $input, $conversationId);
     }
 
-    public function addAIMessage(string $output, ?string $conversationId): static
+    public function addAIMessage(
+        string|Stringable $output,
+        string|Stringable|null $conversationId,
+        string $prefix = 'AI: '
+    ): static
     {
-        return $this->addMessage('AI: ' . $output, $conversationId);
+        return $this->addMessage($prefix . $output, $conversationId);
     }
 
-    public function addMessage(string $message, ?string $conversationId): static
+    public function addMessage(string|Stringable $message, string|Stringable|null $conversationId): static
     {
         if ($conversationId) {
             $this->conversations[$conversationId][] = $message;

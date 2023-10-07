@@ -14,6 +14,8 @@ namespace Hyperf\Odin;
 
 use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAIClientFactory;
 use Hyperf\Odin\Apis\AzureOpenAI\Client as AzureOpenAIClient;
+use Hyperf\Odin\Apis\AzureOpenAI\DeploymentMapper;
+use Hyperf\Odin\Apis\AzureOpenAI\DeploymentMapperFactory;
 use Hyperf\Odin\Apis\OpenAI\Client as OpenAIClient;
 use Hyperf\Odin\Apis\OpenAI\OpenAIClientFactory;
 
@@ -22,9 +24,18 @@ class ConfigProvider
     public function __invoke(): array
     {
         return [
+            'publish' => [
+                [
+                    'id' => 'config',
+                    'description' => 'The config for odin.',
+                    'source' => __DIR__ . '/../publish/odin.php',
+                    'destination' => BASE_PATH . '/config/autoload/odin.php',
+                ],
+            ],
             'dependencies' => [
                 OpenAIClient::class => OpenAIClientFactory::class,
                 AzureOpenAIClient::class => AzureOpenAIClientFactory::class,
+                DeploymentMapper::class => DeploymentMapperFactory::class,
             ],
             'commands' => [],
             'annotations' => [],

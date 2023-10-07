@@ -1,23 +1,34 @@
 <?php
 
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
+
 namespace Hyperf\Odin\Apis\AzureOpenAI;
 
-
-use Hyperf\Odin\Apis\OpenAI\Client as OpenAIClient;
-use Hyperf\Odin\Apis\OpenAI\OpenAI;
-use Hyperf\Odin\Apis\OpenAI\OpenAIConfig;
 use Hyperf\Odin\Logger;
 
-class AzureOpenAI extends OpenAI
+class AzureOpenAI
 {
-    public function getClient(AzureOpenAIConfig|OpenAIConfig $config): Client|OpenAIClient
+    /**
+     * @var Client[]
+     */
+    protected array $clients
+        = [];
+
+    public function getClient(AzureOpenAIConfig $config, string $modelName): Client
     {
-        if ($config->getApiKey() && isset($this->clients[$config->getApiKey()])) {
-            return $this->clients[$config->getApiKey()];
+        if ($config->getApiKey($modelName) && isset($this->clients[$config->getApiKey($modelName)])) {
+            return $this->clients[$config->getApiKey($modelName)];
         }
         $client = new Client($config, new Logger());
-        $this->clients[$config->getApiKey()] = $client;
+        $this->clients[$config->getApiKey($modelName)] = $client;
         return $client;
     }
-
 }

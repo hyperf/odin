@@ -3,11 +3,7 @@
 use Hyperf\Odin\Utils\TokenCounter;
 use Yethee\Tiktoken\EncoderProvider;
 
-! defined('BASE_PATH') && define('BASE_PATH', dirname(__DIR__, 1));
-
-require_once dirname(dirname(__FILE__)) . '/vendor/autoload.php';
-
-\Hyperf\Di\ClassLoader::init();
+$container = require_once dirname(dirname(__FILE__)) . '/bin/init.php';
 
 $text = file_get_contents('../data/keewood_lowcode_template_1.json');
 

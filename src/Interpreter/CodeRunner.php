@@ -1,10 +1,26 @@
 <?php
 
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
+
 namespace Hyperf\Odin\Interpreter;
+
+use Closure;
+use Exception;
+use Hyperf\Odin\Apis\OpenAI\Request\FunctionCallDefinition;
+use Hyperf\Odin\Apis\OpenAI\Request\FunctionCallParameter;
+use Hyperf\Odin\Apis\OpenAI\Request\FunctionCallParameters;
+use Hyperf\Odin\Apis\OpenAI\Response\FunctionCall;
 
 class CodeRunner
 {
-
     protected array $config
         = [
             'php' => [
@@ -21,6 +37,46 @@ class CodeRunner
             ],
         ];
 
+    /**
+     * @return Closure[]
+     */
+    public static function handlers(): array
+    {
+        $handler = function (FunctionCall $functionCall) {
+            $arguments = $functionCall->getArguments();
+            if (! isset($arguments['language']) || ! isset($arguments['code'])) {
+                echo '[DEBUG] Invalid function arguments' . PHP_EOL;
+                return null;
+            }
+            return (new CodeRunner())->runCode($arguments['language'], $arguments['code']);
+        };
+        $fixer = function (FunctionCall $functionCall) {
+            if ($functionCall->getName() !== 'run_code' && $functionCall->getOriginalArguments() && ! $functionCall->getArguments()) {
+                if (in_array($functionCall->getName(), ['python', 'shell', 'php'])) {
+                    $functionCall->setArguments([
+                        'language' => $functionCall->getName(),
+                        'code' => $functionCall->getOriginalArguments(),
+                    ]);
+                    $functionCall->setName('run_code');
+                }
+            }
+            return $functionCall;
+        };
+        return [$handler, $fixer];
+    }
+
+    public static function toFunctionCallDefinition(): FunctionCallDefinition
+    {
+        return new FunctionCallDefinition(name: 'run_code', description: 'Executes code and returns the value printed on STDOUT.', parameters: new FunctionCallParameters([
+                    new FunctionCallParameter(name: 'language', description: 'The programming language, PHP version is 8.2, Python version is 3.11', enum: [
+                            'php',
+                            'python',
+                            'shell'
+                        ]),
+                    new FunctionCallParameter(name: 'code', description: 'The code which needs to be executed.',),
+                ]), functionHandlers: CodeRunner::handlers(),);
+    }
+
     public function runCode(string $language, string $code)
     {
         [$language, $code] = $this->prehandle($language, $code);
@@ -35,7 +91,7 @@ class CodeRunner
             case 'golang':
                 return $this->runGolang($code);
             default:
-                throw new \Exception('Language not supported');
+                throw new Exception('Language not supported');
         }
     }
 
@@ -49,7 +105,7 @@ class CodeRunner
         $tmpFile = tempnam(sys_get_temp_dir(), 'odin-interpreter-php-execution-');
         file_put_contents($tmpFile, $code);
         $bin = $this->config['php']['bin'];
-        $output = shell_exec("$bin $tmpFile");
+        $output = shell_exec("{$bin} {$tmpFile} 2>&1");
         unlink($tmpFile);
         echo sprintf('[DEBUG] PHP Code execution result: %s' . PHP_EOL, trim($output ?? ''));
         return $output;
@@ -61,8 +117,8 @@ class CodeRunner
         $tmpFile = tempnam(sys_get_temp_dir(), 'odin-interpreter-python-execution-');
         file_put_contents($tmpFile, $code);
         $bin = $this->config['python']['bin'];
-        $output = shell_exec("$bin $tmpFile");
-        unlink($tmpFile);
+        $output = shell_exec("{$bin} {$tmpFile} 2>&1");
+        // unlink($tmpFile);
         echo sprintf('[DEBUG] Python Code execution result: %s' . PHP_EOL, trim($output ?? ''));
         return $output;
     }
@@ -73,7 +129,7 @@ class CodeRunner
         $tmpFile = tempnam(sys_get_temp_dir(), 'odin-interpreter-shell-execution-');
         file_put_contents($tmpFile, $code);
         $bin = $this->config['shell']['bin'];
-        $output = shell_exec("$bin $tmpFile");
+        $output = shell_exec("{$bin} {$tmpFile} 2>&1");
         unlink($tmpFile);
         echo sprintf('[DEBUG] Shell Code execution result: %s' . PHP_EOL, trim($output ?? ''));
         return $output;
@@ -85,7 +141,7 @@ class CodeRunner
         $tmpFile = tempnam(sys_get_temp_dir(), 'odin-interpreter-golang-execution-');
         file_put_contents($tmpFile, $code);
         $bin = $this->config['golang']['bin'];
-        $output = shell_exec("$bin $tmpFile");
+        $output = shell_exec("{$bin} {$tmpFile} 2>&1");
         unlink($tmpFile);
         echo sprintf('[DEBUG] Golang Code execution result: %s' . PHP_EOL, trim($output ?? ''));
         return $output;
@@ -110,10 +166,12 @@ class CodeRunner
             $language = 'shell';
         }
         // 如果 language 为 python 且 code 以 pip 开头，则修改 language 为 shell
-        if ($language === 'python' && str_starts_with($code, 'pip')) {
+        if ($language === 'python' && (str_starts_with($code, 'pip') || str_starts_with($code, '!pip'))) {
             $language = 'shell';
+            if (str_starts_with($code, '!pip')) {
+                $code = substr($code, 1);
+            }
         }
         return [$language, $code];
     }
-
 }

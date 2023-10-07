@@ -1,7 +1,16 @@
 <?php
 
-namespace Hyperf\Odin\Apis\RWKV;
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
 
+namespace Hyperf\Odin\Apis\RWKV;
 
 use GuzzleHttp\Client as GuzzleClient;
 use Hyperf\Odin\Apis\ClientInterface;
@@ -13,7 +22,6 @@ use Psr\Log\LoggerInterface;
 
 class Client implements ClientInterface
 {
-
     protected GuzzleClient $client;
 
     protected RWKVConfig $config;
@@ -26,20 +34,6 @@ class Client implements ClientInterface
     {
         $this->logger = $logger;
         $this->initConfig($config);
-    }
-
-    protected function initConfig(RWKVConfig $config): static
-    {
-        $headers = [
-            'Content-Type' => 'application/json',
-            'User-Agent' => 'Hyperf-Odin/1.0'
-        ];
-        $this->client = new GuzzleClient([
-            'base_uri' => $config->getBaseUrl(),
-            'headers' => $headers
-        ]);
-        $this->config = $config;
-        return $this;
     }
 
     public function chat(
@@ -123,4 +117,17 @@ class Client implements ClientInterface
         return $this;
     }
 
+    protected function initConfig(RWKVConfig $config): static
+    {
+        $headers = [
+            'Content-Type' => 'application/json',
+            'User-Agent' => 'Hyperf-Odin/1.0',
+        ];
+        $this->client = new GuzzleClient([
+            'base_uri' => $config->getBaseUrl(),
+            'headers' => $headers,
+        ]);
+        $this->config = $config;
+        return $this;
+    }
 }

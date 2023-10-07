@@ -1,19 +1,27 @@
 <?php
 
-namespace Hyperf\Odin\Apis\AzureOpenAI;
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
 
+namespace Hyperf\Odin\Apis\AzureOpenAI;
 
 use Hyperf\Contract\ConfigInterface;
 use Psr\Container\ContainerInterface;
 
 class AzureOpenAIClientFactory
 {
-
     public function __invoke(ContainerInterface $container)
     {
         $config = $container->get(ConfigInterface::class);
-        $azureConfig = new AzureOpenAIConfig(apiKey: $config->get('odin.azure_openai.api_key'), baseUrl: $config->get('odin.azure_openai.api_base'), apiVersion: $config->get('odin.azure_openai.api_version'), deploymentName: $config->get('odin.azure_openai.deployment_name'),);
-        return (new AzureOpenAI())->getClient($azureConfig);
+        $defaultModel = $config->get('odin.llm.default_model', 'gpt-3.5-turbo');
+        $azureConfig = new AzureOpenAIConfig($config->get('odin.azure', []));
+        return (new AzureOpenAI())->getClient($azureConfig, $defaultModel);
     }
-
 }

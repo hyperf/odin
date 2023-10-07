@@ -1,41 +1,45 @@
 <?php
 
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
+
 namespace Hyperf\Odin\Apis\AzureOpenAI;
 
-
 use GuzzleHttp\Client as GuzzleClient;
-use Hyperf\Odin\Apis\OpenAI\OpenAIConfig;
+use Hyperf\Odin\Apis\ClientInterface;
+use Hyperf\Odin\Apis\OpenAI\Request\FunctionCallDefinition;
 use Hyperf\Odin\Apis\OpenAI\Response\ChatCompletionResponse;
 use Hyperf\Odin\Apis\OpenAI\Response\ListResponse;
 use Hyperf\Odin\Apis\OpenAI\Response\TextCompletionResponse;
 use Hyperf\Odin\Exception\NotImplementedException;
 use Hyperf\Odin\Message\MessageInterface;
 use InvalidArgumentException;
+use Psr\Log\LoggerInterface;
 
-class Client extends \Hyperf\Odin\Apis\OpenAI\Client
+class Client implements ClientInterface
 {
+    protected AzureOpenAIConfig $config;
 
-    protected AzureOpenAIConfig|OpenAIConfig $config;
+    /**
+     * @var GuzzleClient[]
+     */
+    protected array $clients = [];
 
-    protected function initConfig(AzureOpenAIConfig|OpenAIConfig $config): static
+    protected ?LoggerInterface $logger;
+
+    protected bool $debug = false;
+
+    public function __construct(AzureOpenAIConfig $config, LoggerInterface $logger = null)
     {
-        if (! $config instanceof AzureOpenAIConfig) {
-            throw new InvalidArgumentException('AzureOpenAIConfig is required');
-        }
-        if (! $config->getApiKey()) {
-            throw new InvalidArgumentException('API key of OpenAI api is required');
-        }
-        $headers = [
-            'api-key' => $config->getApiKey(),
-            'Content-Type' => 'application/json',
-            'User-Agent' => 'Hyperf-Odin/1.0',
-        ];
-        $this->client = new GuzzleClient([
-            'base_uri' => $config->getBaseUrl(),
-            'headers' => $headers
-        ]);
-        $this->config = $config;
-        return $this;
+        $this->logger = $logger;
+        $this->initConfig($config);
     }
 
     public function chat(
@@ -46,7 +50,7 @@ class Client extends \Hyperf\Odin\Apis\OpenAI\Client
         array $stop = [],
         array $functions = [],
     ): ChatCompletionResponse {
-        $deploymentPath = $this->buildDeploymentPath();
+        $deploymentPath = $this->buildDeploymentPath($model);
         $messagesArr = [];
         foreach ($messages as $message) {
             if ($message instanceof MessageInterface) {
@@ -57,22 +61,38 @@ class Client extends \Hyperf\Odin\Apis\OpenAI\Client
             'messages' => $messagesArr,
             'model' => $model,
             'temperature' => $temperature,
-            'max_tokens' => $maxTokens,
         ];
+        if ($maxTokens) {
+            $json['max_tokens'] = $maxTokens;
+        }
         if ($functions) {
-            $json['functions'] = $functions;
+            $functionsArray = [];
+            foreach ($functions as $function) {
+                if ($function instanceof FunctionCallDefinition) {
+                    $functionsArray[] = $function->toArray();
+                } else {
+                    $functionsArray[] = $function;
+                }
+            }
+
+            $json['functions'] = $functionsArray;
             $json['function_call'] = 'auto';
         }
         if ($stop) {
             $json['stop'] = $stop;
         }
         $this->debug && $this->logger?->debug(sprintf("Send: \nSystem Message: %s\nUser Message: %s", $messages['system'] ?? '', $messages['user'] ?? ''));
-        $response = $this->client->post($deploymentPath . '/chat/completions', [
-            'query' => [
-                'api-version' => $this->config->getApiVersion(),
-            ],
-            'json' => $json,
-        ]);
+        try {
+            $response = $this->getClient($model)->post($deploymentPath . '/chat/completions', [
+                'query' => [
+                    'api-version' => $this->config->getApiVersion($model),
+                ],
+                'json' => $json,
+            ]);
+        } catch (\Exception $exception) {
+            var_dump($json);
+            throw $exception;
+        }
         $chatCompletionResponse = new ChatCompletionResponse($response);
         $this->debug && $this->logger?->debug('Receive: ' . $chatCompletionResponse);
         return $chatCompletionResponse;
@@ -84,10 +104,10 @@ class Client extends \Hyperf\Odin\Apis\OpenAI\Client
         float $temperature = 0.9,
         int $maxTokens = 200
     ): TextCompletionResponse {
-        $deploymentPath = $this->buildDeploymentPath();
-        $response = $this->client->post($deploymentPath . '/completions', [
+        $deploymentPath = $this->buildDeploymentPath($model);
+        $response = $this->getClient($model)->post($deploymentPath . '/completions', [
             'query' => [
-                'api-version' => $this->config->getApiVersion(),
+                'api-version' => $this->config->getApiVersion($model),
             ],
             'json' => [
                 'prompt' => $prompt,
@@ -104,9 +124,63 @@ class Client extends \Hyperf\Odin\Apis\OpenAI\Client
         throw new NotImplementedException();
     }
 
-    protected function buildDeploymentPath(): string
-    {
-        return 'openai/deployments/' . $this->config->getDeploymentName();
+    public function embedding(
+        string $input,
+        string $model = 'text-embedding-ada-002',
+        ?string $user = null
+    ): ListResponse {
+        $deploymentPath = $this->buildDeploymentPath($model);
+        $json = [
+            'input' => $input,
+        ];
+        $user && $json['user'] = $user;
+        $response = $this->getClient($model)->post($deploymentPath . '/embeddings', [
+            'query' => [
+                'api-version' => $this->config->getApiVersion($model),
+            ],
+            'json' => $json,
+        ]);
+        return new ListResponse($response);
     }
 
+    public function isDebug(): bool
+    {
+        return $this->debug;
+    }
+
+    public function setDebug(bool $debug): static
+    {
+        $this->debug = $debug;
+        return $this;
+    }
+
+    protected function initConfig(AzureOpenAIConfig $config): static
+    {
+        if (! $config instanceof AzureOpenAIConfig) {
+            throw new InvalidArgumentException('AzureOpenAIConfig is required');
+        }
+        $this->config = $config;
+        foreach ($config->getMapper() as $model => $modelConfig) {
+            $headers = [
+                'api-key' => $config->getApiKey($model),
+                'Content-Type' => 'application/json',
+                'User-Agent' => 'Hyperf-Odin/1.0',
+            ];
+            $this->clients[$model] = new GuzzleClient([
+                'base_uri' => $config->getBaseUrl($model),
+                'headers' => $headers,
+            ]);
+        }
+        return $this;
+    }
+
+    protected function getClient(string $model): ?GuzzleClient
+    {
+        return $this->clients[$model];
+    }
+
+    protected function buildDeploymentPath(string $model = 'gpt-3.5-turbo'): string
+    {
+        return 'openai/deployments/' . $this->config->getDeploymentName($model);
+    }
 }

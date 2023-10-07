@@ -1,7 +1,16 @@
 <?php
 
-namespace Hyperf\Odin\Apis\OpenAI;
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
 
+namespace Hyperf\Odin\Apis\OpenAI;
 
 use GuzzleHttp\Client as GuzzleClient;
 use Hyperf\Odin\Apis\ClientInterface;
@@ -14,7 +23,6 @@ use Psr\Log\LoggerInterface;
 
 class Client implements ClientInterface
 {
-
     protected GuzzleClient $client;
 
     protected OpenAIConfig $config;
@@ -27,27 +35,6 @@ class Client implements ClientInterface
     {
         $this->logger = $logger;
         $this->initConfig($config);
-    }
-
-    protected function initConfig(OpenAIConfig $config): static
-    {
-        if (! $config->getApiKey()) {
-            throw new InvalidArgumentException('API key of OpenAI api is required');
-        }
-        $headers = [
-            'Authorization' => 'Bearer ' . $config->getApiKey(),
-            'Content-Type' => 'application/json',
-            'User-Agent' => 'Hyperf-Odin/1.0'
-        ];
-        if ($config->getOrganization()) {
-            $headers['OpenAI-Organization'] = $config->getOrganization();
-        }
-        $this->client = new GuzzleClient([
-            'base_uri' => $config->getBaseUrl(),
-            'headers' => $headers
-        ]);
-        $this->config = $config;
-        return $this;
     }
 
     public function chat(
@@ -131,4 +118,24 @@ class Client implements ClientInterface
         return $this;
     }
 
+    protected function initConfig(OpenAIConfig $config): static
+    {
+        if (! $config->getApiKey()) {
+            throw new InvalidArgumentException('API key of OpenAI api is required');
+        }
+        $headers = [
+            'Authorization' => 'Bearer ' . $config->getApiKey(),
+            'Content-Type' => 'application/json',
+            'User-Agent' => 'Hyperf-Odin/1.0',
+        ];
+        if ($config->getOrganization()) {
+            $headers['OpenAI-Organization'] = $config->getOrganization();
+        }
+        $this->client = new GuzzleClient([
+            'base_uri' => $config->getBaseUrl(),
+            'headers' => $headers,
+        ]);
+        $this->config = $config;
+        return $this;
+    }
 }

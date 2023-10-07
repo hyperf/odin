@@ -10,11 +10,10 @@ declare(strict_types=1);
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
 
-use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAI;
-use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAIConfig;
-use Hyperf\Odin\Apis\OpenAI\OpenAI;
-use Hyperf\Odin\Apis\OpenAI\OpenAIConfig;
-use Hyperf\Odin\Apis\RWKV\RWKVConfig;
+use GuzzleHttp\Exception\ClientException;
+use Hyperf\Context\ApplicationContext;
+use Hyperf\Di\Container;
+use Hyperf\Di\Definition\DefinitionSourceFactory;
 use Hyperf\Odin\VectorStore\Qdrant\Config;
 use Hyperf\Qdrant\Api\Collections;
 use Hyperf\Qdrant\Api\Points;
@@ -22,86 +21,73 @@ use Hyperf\Qdrant\Connection\HttpClient;
 use Hyperf\Qdrant\Struct\Collections\Enums\Distance;
 use Hyperf\Qdrant\Struct\Collections\VectorParams;
 use Hyperf\Qdrant\Struct\Points\ExtendedPointId;
-use Hyperf\Qdrant\Struct\Points\Point\Record;
-use Hyperf\Qdrant\Struct\Points\SearchCondition\FieldCondition;
-use Hyperf\Qdrant\Struct\Points\SearchCondition\Filter;
-use Hyperf\Qdrant\Struct\Points\SearchCondition\Match\MatchValue;
+use Hyperf\Qdrant\Struct\Points\Point\PointStruct;
+use Hyperf\Qdrant\Struct\Points\Point\ScoredPoint;
 use Hyperf\Qdrant\Struct\Points\VectorStruct;
 use Hyperf\Qdrant\Struct\Points\WithPayload;
-use function Hyperf\Support\env;
 
 ! defined('BASE_PATH') && define('BASE_PATH', dirname(__DIR__, 1));
 
 require_once dirname(dirname(__FILE__)) . '/vendor/autoload.php';
 
 \Hyperf\Di\ClassLoader::init();
+$container = ApplicationContext::setContainer(new Container((new DefinitionSourceFactory())()));
 
-function getClient(string $type = 'azure')
-{
-    switch ($type) {
-        case 'openai':
-            $openAI = new OpenAI();
-            $config = new OpenAIConfig(env('OPENAI_API_KEY'));
-            $client = $openAI->getClient($config);
-            break;
-        case 'azure':
-            $openAI = new AzureOpenAI();
-            $config = new AzureOpenAIConfig(apiKey: env('AZURE_OPENAI_API_KEY'), baseUrl: env('AZURE_OPENAI_API_BASE'), apiVersion: env('AZURE_OPENAI_API_VERSION'), deploymentName: env('AZURE_OPENAI_DEPLOYMENT_NAME'));
-            $client = $openAI->getClient($config);
-            break;
-        case 'rwkv':
-            $rwkv = new Hyperf\Odin\Apis\RWKV\RWKV();
-            $config = new RWKVConfig(env('RWKV_HOST'));
-            $client = $rwkv->getClient($config);
-            break;
-        default:
-            throw new \RuntimeException('Invalid type');
-    }
-    return $client;
-}
+$llm = $container->get(\Hyperf\Odin\LLM::class);
 
-$client = getClient('openai');
+$client = $llm->getAzureOpenAIClient('text-embedding-ada-002');
 $conversionId = uniqid();
 
 # 原始语料
 $data = [
-    '你是谁:你是一个由 Hyperf 组织开发的专业的数据分析机器人，你必须严格按照格式要求返回内容',
-    '今天多少度:今天的气温是 20 度',
-    'odin 是什么:Odin 是一个基于 PHP 的 LLM 应用开发框架',
+    '询问:::如何检查变量的类型？',
+    '询问:::如果一个数大于10，打印"大于10"，否则打印"小于等于10"。',
+    '询问:::如何在列表末尾添加一个元素？',
+    '创建代码:::创建一个计算两个数之和的函数',
+    '创建代码:::循环打印数字1到10',
+    '创建代码:::捕获和处理除以零的异常',
+    '询问:::如何从字典中获取特定键的值？',
+    '询问:::如何读取一个文本文件的内容？',
+    '询问:::如何将一个字符串反转？',
 ];
+// 减少数据量
+$data = array_slice($data, 0, 3);
 $vectors = array_map(function (string $datum, int $key) use ($client) {
-    return new Record(
-        new ExtendedPointId($key + 10000),
-        new VectorStruct($client->embedding($datum)->getData()[0]->embedding),
-        ['mark' => 'payload 是自定义属性', 'prefix' => explode(':', $datum)[0], 'content' => explode(':', $datum)[1]],
-    );
+    return new PointStruct(new ExtendedPointId($key + 10000), new VectorStruct($client->embedding($datum)
+        ->getData()[0]->embedding), [
+        'behavior' => explode(':::', $datum)[0],
+        'content' => explode(':::', $datum)[1],
+    ]);
 }, $data, array_keys($data));
 
-# 创建 collection, 类似于数据库中的表
+// Collections
 $collections = new Collections(new HttpClient(new Config()));
-$collections->createCollection('test_collection', new VectorParams(1536, Distance::COSINE));
-# 插入数据
+$targetCollectionName = 'test_collection';
+try {
+    $collectionInfo = $collections->getCollectionInfo($targetCollectionName);
+} catch (ClientException $exception) {
+    if ($exception->getCode() !== 404) {
+        throw $exception;
+    }
+    $collections->createCollection($targetCollectionName, new VectorParams(1536, Distance::COSINE));
+}
+
+// Insert Data
 $points = new Points(new HttpClient(new Config()));
 $points->setWait(true);
-$points->upsertPoints('test_collection', $vectors);
-# 近似搜索
-$result = $points->searchPoints(
-    'test_collection',
-    new VectorStruct($client->embedding('啥是Odin')->getData()[0]->embedding),
-    2,
-    withPayload: new WithPayload(true),
-);
-print_r($result);
-# payload 过滤
-$result = $points->searchPoints(
-    'test_collection',
-    new VectorStruct($client->embedding('你是Odin')->getData()[0]->embedding),
-    3,
-    new Filter(
-        must: [
-            new FieldCondition('prefix', new MatchValue('odin 是什么')),
-        ]
-    ),
-    withPayload: new WithPayload(true),
-);
-print_r($result);
+$points->upsertPoints($targetCollectionName, $vectors);
+
+// Search
+$vector = new VectorStruct($client->embedding('创建一个整数加减乘除的方法')->getData()[0]->embedding);
+$result = $points->searchPoints(collectionName: $targetCollectionName, vector: $vector, limit: 1, withPayload: new WithPayload(true));
+$matchResult = array_map(function (ScoredPoint $scoredPoint, int $key) {
+    if ($scoredPoint->score > 0.8) {
+        return [
+            'id' => $scoredPoint->id->id,
+            'version' => $scoredPoint->version,
+            'score' => $scoredPoint->score,
+            'payload' => $scoredPoint->payload,
+        ];
+    }
+}, $result, array_keys($result));
+echo json_encode(array_values($matchResult), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);

@@ -1,14 +1,22 @@
 <?php
 
-namespace Hyperf\Odin\Apis\OpenAI\Response;
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
 
+namespace Hyperf\Odin\Apis\OpenAI\Response;
 
 use Hyperf\Odin\Apis\OpenAI\Message;
 use Hyperf\Odin\Message\MessageInterface;
 
 class ChatCompletionChoice
 {
-
     public function __construct(
         public MessageInterface $message,
         public ?int $index = null,
@@ -46,5 +54,4 @@ class ChatCompletionChoice
     {
         return $this->getFinishReason() === 'function_call';
     }
-
 }

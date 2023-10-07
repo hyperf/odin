@@ -1,36 +1,47 @@
 <?php
 
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
+
 namespace Hyperf\Odin\Apis\AzureOpenAI;
 
-
-use Hyperf\Odin\Apis\OpenAI\OpenAIConfig;
-
-class AzureOpenAIConfig extends OpenAIConfig
+class AzureOpenAIConfig
 {
-
-    protected ?string $apiVersion = null;
-    protected ?string $deploymentName = null;
-
     public function __construct(
-        string $apiKey = null,
-        string $organization = null,
-        string $baseUrl = 'https://example-endpoint.openai.azure.com/',
-        string $apiVersion = '2023-05-15',
-        string $deploymentName = ''
+        protected array $mapper = [],
     ) {
-        parent::__construct($apiKey, $organization, $baseUrl);
-        $this->apiVersion = $apiVersion;
-        $this->deploymentName = $deploymentName;
+
     }
 
-    public function getApiVersion(): ?string
+    public function getApiKey(string $model): ?string
     {
-        return $this->apiVersion;
+        return $this->mapper[$model]['api_key'] ?? null;
     }
 
-    public function getDeploymentName(): ?string
+    public function getBaseUrl(string $model): string
     {
-        return $this->deploymentName;
+        return $this->mapper[$model]['api_base'] ?? '';
     }
 
+    public function getApiVersion(string $model): ?string
+    {
+        return $this->mapper[$model]['api_version'] ?? null;
+    }
+
+    public function getDeploymentName(string $model): ?string
+    {
+        return $this->mapper[$model]['deployment_name'] ?? null;
+    }
+
+    public function getMapper(): array
+    {
+        return $this->mapper;
+    }
 }

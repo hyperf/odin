@@ -1,19 +1,35 @@
 <?php
 
-namespace Hyperf\Odin\Message;
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
 
+namespace Hyperf\Odin\Message;
 
 use Stringable;
 
 abstract class AbstractMessage implements MessageInterface, Stringable
 {
-
     protected Role $role;
+
     protected string $content = '';
+
+    protected array $context = [];
 
     public function __construct(string $content)
     {
         $this->content = $content;
+    }
+
+    public function __toString(): string
+    {
+        return $this->getContent();
     }
 
     public function toArray(): array
@@ -24,9 +40,9 @@ abstract class AbstractMessage implements MessageInterface, Stringable
         ];
     }
 
-    public function __toString(): string
+    public static function fromArray(array $message): static
     {
-        return $this->getContent();
+        return new static($message['content'] ?? '');
     }
 
     public function getRole(): Role
@@ -57,4 +73,14 @@ abstract class AbstractMessage implements MessageInterface, Stringable
         return $this;
     }
 
+    public function getContext(string $key): mixed
+    {
+        return $this->context[$key] ?? null;
+    }
+
+    public function setContext(string $key, $value): mixed
+    {
+        $this->context[$key] = $value;
+        return $value;
+    }
 }
