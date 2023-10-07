@@ -34,7 +34,7 @@ class LLM
     public function chat(
         array $messages,
         float $temperature = 0.9,
-        int $maxTokens = 1000,
+        int $maxTokens = 0,
         array $stop = [],
         array $functions = [],
         string $model = '',
