@@ -18,11 +18,11 @@
         }
     },
     "require": {
-        "php": ">=8.2",
+        "php": ">=8.0",
         "ext-bcmath": "*",
         "guzzlehttp/guzzle": "^7.0",
-        "hyperf/di": "3.0.*",
-        "hyperf/config": "3.0.*",
+        "hyperf/di": "~2.2.0 || 3.0.*",
+        "hyperf/config": "~2.2.0 || 3.0.*",
         "hyperf/qdrant-client": "*",
         "yethee/tiktoken": "^0.1.2"
     },
