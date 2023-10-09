@@ -35,6 +35,9 @@ class Prompt
         };
         if ($arguments) {
             foreach ($arguments as $key => $value) {
+                if ($value === null) {
+                    $value = '';
+                }
                 $prompt = str_replace("{{{$key}}}", $value, $prompt);
             }
         }

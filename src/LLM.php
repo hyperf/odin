@@ -47,10 +47,10 @@ class LLM
         if (! $client) {
             $client = match ($targetModel->getApiType()) {
                 'openai' => $this->getOpenAIClient(),
-                'azure' => $this->getAzureOpenAIClient(),
+                'azure' => $this->getAzureOpenAIClient($targetModel->getName()),
             };
         }
-        return $client->chat($messages, $this->defaultModelName, $temperature, $maxTokens, $stop, $functions);
+        return $client->chat($messages, $targetModel->getName(), $temperature, $maxTokens, $stop, $functions);
     }
 
     public function getOpenAIClient(): OpenAIClient
