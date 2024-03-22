@@ -22,7 +22,7 @@ use Hyperf\Odin\Apis\OpenAI\OpenAI;
 use Hyperf\Odin\Apis\OpenAI\OpenAIConfig;
 use Hyperf\Odin\Conversation\Conversation;
 
-class LLM
+class ModelFacade
 {
     public string $defaultModelName = 'gpt-3.5-turbo';
 

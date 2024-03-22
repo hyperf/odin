@@ -12,7 +12,9 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Apis\OpenAI\Response;
 
-class ChatCompletionResponse extends AbstractResponse
+use Stringable;
+
+class ChatCompletionResponse extends AbstractResponse implements Stringable
 {
     protected ?string $id = null;
 
@@ -134,4 +136,5 @@ class ChatCompletionResponse extends AbstractResponse
         }
         return $result;
     }
+
 }

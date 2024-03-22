@@ -14,10 +14,10 @@ namespace Hyperf\Odin\Interpreter;
 
 use Closure;
 use Exception;
-use Hyperf\Odin\Apis\OpenAI\Request\FunctionCallDefinition;
-use Hyperf\Odin\Apis\OpenAI\Request\FunctionCallParameter;
-use Hyperf\Odin\Apis\OpenAI\Request\FunctionCallParameters;
-use Hyperf\Odin\Apis\OpenAI\Response\FunctionCall;
+use Hyperf\Odin\Apis\OpenAI\Request\ToolDefinition;
+use Hyperf\Odin\Apis\OpenAI\Request\ToolParameter;
+use Hyperf\Odin\Apis\OpenAI\Request\ToolParameters;
+use Hyperf\Odin\Apis\OpenAI\Response\ToolCall;
 
 class CodeRunner
 {
@@ -42,7 +42,7 @@ class CodeRunner
      */
     public static function handlers(): array
     {
-        $handler = function (FunctionCall $functionCall) {
+        $handler = function (ToolCall $functionCall) {
             $arguments = $functionCall->getArguments();
             if (! isset($arguments['language']) || ! isset($arguments['code'])) {
                 echo '[DEBUG] Invalid function arguments' . PHP_EOL;
@@ -50,7 +50,7 @@ class CodeRunner
             }
             return (new CodeRunner())->runCode($arguments['language'], $arguments['code']);
         };
-        $fixer = function (FunctionCall $functionCall) {
+        $fixer = function (ToolCall $functionCall) {
             if ($functionCall->getName() !== 'run_code' && $functionCall->getOriginalArguments() && ! $functionCall->getArguments()) {
                 if (in_array($functionCall->getName(), ['python', 'shell', 'php'])) {
                     $functionCall->setArguments([
@@ -65,16 +65,16 @@ class CodeRunner
         return [$handler, $fixer];
     }
 
-    public static function toFunctionCallDefinition(): FunctionCallDefinition
+    public static function toFunctionCallDefinition(): ToolDefinition
     {
-        return new FunctionCallDefinition(name: 'run_code', description: 'Executes code and returns the value printed on STDOUT.', parameters: new FunctionCallParameters([
-                    new FunctionCallParameter(name: 'language', description: 'The programming language, PHP version is 8.2, Python version is 3.11', enum: [
+        return new ToolDefinition(name: 'run_code', description: 'Executes code and returns the value printed on STDOUT.', parameters: new ToolParameters([
+            new ToolParameter(name: 'language', description: 'The programming language, PHP version is 8.2, Python version is 3.11', enum: [
                             'php',
                             'python',
                             'shell'
                         ]),
-                    new FunctionCallParameter(name: 'code', description: 'The code which needs to be executed.',),
-                ]), functionHandlers: CodeRunner::handlers(),);
+            new ToolParameter(name: 'code', description: 'The code which needs to be executed.',),
+        ]), toolHandler: CodeRunner::handlers(),);
     }
 
     public function runCode(string $language, string $code)

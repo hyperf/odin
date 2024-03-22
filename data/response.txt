@@ -1,0 +1,40 @@
+Thought: The user wants to group the "建店信息表" (Store Information Table) by "大区" (Region).
+
+Action: ModifyViews
+
+Observation: I need to modify the view of the "建店信息表-主表" (Store Information Table - Main Table) to include the "大区" (Region) column in the groups section.
+
+Action:
+
+```json
+{
+    "action": "modify_views",
+    "original_views": [
+        {
+            "view_type": "table",
+            "name": "建店信息表-主表"
+        }
+    ],
+    "new_views": [
+        {
+            "view_type": "table",
+            "table_name": "建店信息表",
+            "name": "建店信息表-主表",
+            "functions": {
+                "filters": [],
+                "sorts": [],
+                "groups": [
+                    {
+                        "column": "大区"
+                    }
+                ]
+            },
+            "columns": []
+        }
+    ]
+}
+```
+
+Thought: The view has been modified to group the "建店信息表" (Store Information Table) by "大区" (Region).
+
+Final Answer: "建店信息表" (Store Information Table) has been grouped by "大区" (Region).

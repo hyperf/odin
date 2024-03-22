@@ -12,7 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Apis\OpenAI\Request;
 
-class FunctionCallParameter
+class ToolParameter
 {
     protected string $name;
 

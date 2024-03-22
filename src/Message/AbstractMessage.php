@@ -22,14 +22,30 @@ abstract class AbstractMessage implements MessageInterface, Stringable
 
     protected array $context = [];
 
-    public function __construct(string $content)
+    public function __construct(string $content, array $context = [])
     {
         $this->content = $content;
+        $this->context = $context;
     }
 
     public function __toString(): string
     {
-        return $this->getContent();
+        // Replace the variables in content according to the key in context, for example {name} matches $context['name']
+        $content = $this->content;
+        foreach ($this->context as $key => $value) {
+            $content = str_replace('{' . $key . '}', $value, $content);
+        }
+        return $content;
+    }
+
+    public function formatContent(array $context): string
+    {
+        $context = array_merge($this->context, $context);
+        $content = $this->content;
+        foreach ($context as $key => $value) {
+            $content = str_replace('{' . $key . '}', $value, $content);
+        }
+        return $content;
     }
 
     public function toArray(): array
@@ -82,5 +98,10 @@ abstract class AbstractMessage implements MessageInterface, Stringable
     {
         $this->context[$key] = $value;
         return $value;
+    }
+
+    public function hasContext(string $key): bool
+    {
+        return isset($this->context[$key]);
     }
 }

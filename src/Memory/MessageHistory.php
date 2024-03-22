@@ -12,10 +12,14 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Memory;
 
+use Hyperf\Odin\Message\MessageInterface;
+use InvalidArgumentException;
 use Stringable;
 
 class MessageHistory extends AbstractMemory
 {
+    protected array $systemMessages = [];
+
     public function __construct(
         protected int $maxRecord = 10,
         protected int $maxTokens = 1000,
@@ -24,49 +28,42 @@ class MessageHistory extends AbstractMemory
         // @todo validate $maxTokens
     }
 
-    public function buildPrompt(string|Stringable $input, string|Stringable|null $conversationId): string|Stringable
+    public function setSystemMessage(MessageInterface $message, string|Stringable $conversationId): static
     {
-        $conversation = $this->conversations[$conversationId] ?? null;
-        if (! $conversation) {
-            return $input;
+        $this->systemMessages[$conversationId] = $message;
+        return $this;
+    }
+
+    public function addMessages(array|MessageInterface $messages, string|Stringable $conversationId): static
+    {
+        if (! is_string($conversationId) && ! ($conversationId instanceof Stringable)) {
+            throw new InvalidArgumentException('Conversation ID must be a string, an instance of Stringable, or null.');
         }
-        $history = implode("\n", $conversation);
-        return <<<EOF
-"The following is a conversation history between a user and AI：
 
-{$history}
- 
-User: {$input}
-AI: 
-EOF;
-    }
+        if (! is_array($messages)) {
+            $messages = [$messages];
+        }
 
-    public function addHumanMessage(
-        string|Stringable $input,
-        string|Stringable|null $conversationId,
-        string $prefix = 'User: '
-    ): static
-    {
-        return $this->addMessage($prefix . $input, $conversationId);
-    }
+        foreach ($messages as $message) {
+            if (! $message instanceof MessageInterface) {
+                throw new InvalidArgumentException('Messages must be an array of MessageInterface instances.');
+            }
+        }
 
-    public function addAIMessage(
-        string|Stringable $output,
-        string|Stringable|null $conversationId,
-        string $prefix = 'AI: '
-    ): static
-    {
-        return $this->addMessage($prefix . $output, $conversationId);
-    }
-
-    public function addMessage(string|Stringable $message, string|Stringable|null $conversationId): static
-    {
-        if ($conversationId) {
+        foreach ($messages as $message) {
             $this->conversations[$conversationId][] = $message;
             if (count($this->conversations[$conversationId]) > $this->maxRecord) {
                 array_shift($this->conversations[$conversationId]);
             }
         }
+
         return $this;
+    }
+
+    public function getConversations(string $conversationId): array
+    {
+        $messages = $this->conversations[$conversationId] ?? [];
+        $systemMessage = $this->systemMessages[$conversationId] ?? null;
+        return $systemMessage ? array_merge([$systemMessage], $messages) : $messages;
     }
 }

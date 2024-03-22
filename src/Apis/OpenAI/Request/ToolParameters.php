@@ -5,7 +5,7 @@ namespace Hyperf\Odin\Apis\OpenAI\Request;
 
 use Hyperf\Contract\Arrayable;
 
-class FunctionCallParameters implements Arrayable
+class ToolParameters implements Arrayable
 {
 
     protected string $type;
@@ -17,7 +17,7 @@ class FunctionCallParameters implements Arrayable
         $this->properties = $properties;
         $this->type = $type;
         foreach ($properties as $property) {
-            if (! $property instanceof FunctionCallParameter) {
+            if (! $property instanceof ToolParameter) {
                 continue;
             }
             if ($property->isRequired()) {
@@ -30,7 +30,7 @@ class FunctionCallParameters implements Arrayable
     {
         $properties = [];
         foreach ($this->getProperties() as $property) {
-            if (! $property instanceof FunctionCallParameter) {
+            if (! $property instanceof ToolParameter) {
                 continue;
             }
             $item = [
@@ -47,6 +47,15 @@ class FunctionCallParameters implements Arrayable
             'properties' => $properties,
             'required' => $this->getRequired(),
         ];
+    }
+
+    public static function fromArray(array $parameters): ToolParameters
+    {
+        $properties = [];
+        foreach ($parameters as $name => $property) {
+            $properties[] = new ToolParameter($name, $property['description'], $property['type'] ?? 'string', $property['required'] ?? false, $property['enum'] ?? null);
+        }
+        return new ToolParameters($properties);
     }
 
     public function getType(): string

@@ -50,8 +50,8 @@ class ChatCompletionChoice
         return $this->finishReason;
     }
 
-    public function isFinishedByFunctionCall(): bool
+    public function isFinishedByToolCall(): bool
     {
-        return $this->getFinishReason() === 'function_call';
+        return $this->getFinishReason() === 'tool_calls';
     }
 }

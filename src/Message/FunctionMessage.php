@@ -10,14 +10,9 @@ declare(strict_types=1);
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
 
-namespace Hyperf\Odin\Memory;
+namespace Hyperf\Odin\Message;
 
-abstract class AbstractMemory implements MemoryInterface
+class FunctionMessage extends AbstractMessage
 {
-    protected array $conversations = [];
-
-    public function count(): int
-    {
-        return count($this->conversations);
-    }
+    protected Role $role = Role::Function;
 }

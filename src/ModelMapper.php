@@ -13,6 +13,7 @@ declare(strict_types=1);
 namespace Hyperf\Odin;
 
 use Hyperf\Contract\ConfigInterface;
+use Hyperf\Odin\Model\ModelInterface;
 use InvalidArgumentException;
 
 class ModelMapper
@@ -25,14 +26,24 @@ class ModelMapper
         $this->defaultModel = $config->get('odin.llm.default', 'gpt-3.5-turbo');
         $models = $config->get('odin.llm.models', []);
         foreach ($models as $model => $item) {
-            if (! isset($item['name'], $item['api_type'])) {
+            if (! $model || ! isset($item['implementation'])) {
                 continue;
             }
-            $this->models[$model] = new Model($item['name'], $item['api_type']);
+            $implementation = $item['implementation'];
+            $modelObject = new $implementation($model, $item['config'] ?? []);
+            if (! $modelObject instanceof ModelInterface) {
+                throw new InvalidArgumentException(sprintf('Model %s must be an instance of %s.', $model, ModelInterface::class));
+            }
+            $this->models[$model] = $modelObject;
         }
     }
 
-    public function getModel(string $model): Model
+    public function getDefaultModel(): ModelInterface
+    {
+        return $this->getModel($this->defaultModel);
+    }
+
+    public function getModel(string $model): ModelInterface
     {
         if ($model === '') {
             $model = $this->defaultModel;

@@ -12,41 +12,55 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Message;
 
-use Hyperf\Odin\Apis\OpenAI\Response\FunctionCall;
+use Hyperf\Odin\Apis\OpenAI\Response\ToolCall;
 
 class AssistantMessage extends AbstractMessage
 {
     protected Role $role = Role::Assistant;
 
-    protected ?FunctionCall $functionCall;
+    /**
+     * @var ToolCall[]
+     */
+    protected array $toolCalls = [];
 
-    public function __construct(string $content, ?FunctionCall $functionCall = null)
+    public function __construct(string $content, array $toolsCall = [])
     {
         parent::__construct($content);
-        $this->functionCall = $functionCall;
+        $this->toolCalls = $toolsCall;
     }
 
     public static function fromArray(array $message): static
     {
-        return new static($message['content'] ?? '', FunctionCall::fromArray($message['function_call'] ?? []));
+        return new static($message['content'] ?? '', ToolCall::fromArray($message['tool_calls'] ?? []));
     }
 
     public function toArray(): array
     {
-        return [
+        $toolCalls = [];
+        foreach ($this->toolCalls as $toolCall) {
+            $toolCalls[] = $toolCall->toArray();
+        }
+        $result = [
             'role' => $this->role->value,
-            'function_call' => $this->functionCall->toArray(),
+            'content' => $this->content,
         ];
+        $toolCalls && $result['tool_calls'] = $toolCalls;
+        return $result;
     }
 
-    public function getFunctionCall(): ?FunctionCall
+    public function hasToolCalls(): bool
     {
-        return $this->functionCall;
+        return ! empty($this->toolCalls);
     }
 
-    public function setFunctionCall(FunctionCall $functionCall): static
+    public function getToolCalls(): array
     {
-        $this->functionCall = $functionCall;
+        return $this->toolCalls;
+    }
+
+    public function setToolCalls(array $toolCalls): static
+    {
+        $this->toolCalls = $toolCalls;
         return $this;
     }
 }

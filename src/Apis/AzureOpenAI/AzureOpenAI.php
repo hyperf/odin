@@ -24,12 +24,12 @@ class AzureOpenAI
 
     public function getClient(AzureOpenAIConfig $config, string $modelName): Client
     {
-        $apiKey = $config->getApiKey($modelName);
+        $apiKey = $config->getApiKey();
         $storageKey = $apiKey . '-' . $modelName;
         if ($apiKey && isset($this->clients[$apiKey])) {
             return $this->clients[$storageKey];
         }
-        $client = new Client($config, new Logger());
+        $client = new Client($config, new Logger(), $modelName);
         $this->clients[$storageKey] = $client;
         return $client;
     }

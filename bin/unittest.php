@@ -35,7 +35,7 @@ $code
 ```
 PROMPT;
 
-$llm = $container->get(\Hyperf\Odin\LLM::class);
+$llm = $container->get(\Hyperf\Odin\ModelFacade::class);
 
 echo '[AI]: ' . $llm->chat([
         'system' => new SystemMessage('You are a unit test generation robot developed by the Hyperf organization. You must return content strictly in accordance with the format requirements.'),

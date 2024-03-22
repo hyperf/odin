@@ -15,56 +15,54 @@ namespace Hyperf\Odin\Apis\OpenAI\Request;
 use Hyperf\Contract\Arrayable;
 use InvalidArgumentException;
 
-class FunctionCallDefinition implements Arrayable
+class ToolDefinition implements Arrayable
 {
     protected string $name;
 
     protected string $description;
 
-    protected ?FunctionCallParameters $parameters;
+    protected ?ToolParameters $parameters;
 
     /**
      * @var callable[]
      */
-    protected array $functionCallHandlers = [];
+    protected array $toolHandler = [];
 
     public function __construct(
         string $name,
         string $description = '',
-        ?FunctionCallParameters $parameters = null,
-        callable|array $functionHandlers = []
+        ?ToolParameters $parameters = null,
+        callable|array $toolHandler = []
     ) {
         $this->name = $name;
         $this->description = $description;
         $this->parameters = $parameters;
-        $this->setFunctionCallHandlers($functionHandlers);
+        $this->setToolHandler($toolHandler);
     }
 
     public function toArray(): array
     {
         return [
-            'name' => $this->getName(),
-            'description' => $this->getDescription(),
-            'parameters' => $this->getParameters()?->toArray(),
+            'type' => 'function',
+            'function' => [
+                'name' => $this->getName(),
+                'description' => $this->getDescription(),
+                'parameters' => $this->getParameters()?->toArray(),
+            ]
         ];
     }
 
-    public function getFunctionCallHandlers(): array
+    public function getToolHandler(): array
     {
-        return $this->functionCallHandlers;
+        return $this->toolHandler;
     }
 
-    public function setFunctionCallHandlers(array|callable $functionCallHandlers): static
+    public function setToolHandler(array|callable $toolHandler): static
     {
-        if (! is_array($functionCallHandlers)) {
-            $functionCallHandlers = [$functionCallHandlers];
+        if (! is_callable($toolHandler)) {
+            throw new InvalidArgumentException('Tool handler must be callable.');
         }
-        foreach ($functionCallHandlers as $functionCallHandler) {
-            if (! is_callable($functionCallHandler)) {
-                throw new InvalidArgumentException('Function call handler must be callable.');
-            }
-        }
-        $this->functionCallHandlers = $functionCallHandlers;
+        $this->toolHandler = $toolHandler;
         return $this;
     }
 
@@ -90,12 +88,12 @@ class FunctionCallDefinition implements Arrayable
         return $this;
     }
 
-    public function getParameters(): ?FunctionCallParameters
+    public function getParameters(): ?ToolParameters
     {
         return $this->parameters;
     }
 
-    public function setParameters(FunctionCallParameters $parameters): static
+    public function setParameters(ToolParameters $parameters): static
     {
         $this->parameters = $parameters;
         return $this;

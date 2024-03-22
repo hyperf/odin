@@ -15,33 +15,33 @@ namespace Hyperf\Odin\Apis\AzureOpenAI;
 class AzureOpenAIConfig
 {
     public function __construct(
-        protected array $mapper = [],
+        protected array $config = [],
     ) {
 
     }
 
-    public function getApiKey(string $model): ?string
+    public function getApiKey(): ?string
     {
-        return $this->mapper[$model]['api_key'] ?? null;
+        return $this->config['api_key'] ?? null;
     }
 
-    public function getBaseUrl(string $model): string
+    public function getBaseUrl(): string
     {
-        return $this->mapper[$model]['api_base'] ?? '';
+        return $this->config['api_base'] ?? '';
     }
 
-    public function getApiVersion(string $model): ?string
+    public function getApiVersion(): ?string
     {
-        return $this->mapper[$model]['api_version'] ?? null;
+        return $this->config['api_version'] ?? null;
     }
 
-    public function getDeploymentName(string $model): ?string
+    public function getDeploymentName(): ?string
     {
-        return $this->mapper[$model]['deployment_name'] ?? null;
+        return $this->config['deployment_name'] ?? null;
     }
 
-    public function getMapper(): array
+    public function getConfig(): array
     {
-        return $this->mapper;
+        return $this->config;
     }
 }
