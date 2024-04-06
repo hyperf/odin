@@ -10,14 +10,16 @@ declare(strict_types=1);
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
 
-namespace Hyperf\Odin\Apis\OpenAI;
+namespace Hyperf\Odin\Apis\Ollama;
 
 use GuzzleHttp\Client as GuzzleClient;
 use Hyperf\Odin\Apis\ClientInterface;
+use Hyperf\Odin\Apis\OpenAI\Request\ToolDefinition;
 use Hyperf\Odin\Apis\OpenAI\Response\ChatCompletionResponse;
 use Hyperf\Odin\Apis\OpenAI\Response\ListResponse;
 use Hyperf\Odin\Apis\OpenAI\Response\TextCompletionResponse;
 use Hyperf\Odin\Message\MessageInterface;
+use Hyperf\Odin\Tools\ToolInterface;
 use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 
@@ -25,16 +27,33 @@ class Client implements ClientInterface
 {
     protected GuzzleClient $client;
 
-    protected OpenAIConfig $config;
+    protected OllamaConfig $config;
 
     protected ?LoggerInterface $logger;
 
     protected bool $debug = false;
 
-    public function __construct(OpenAIConfig $config, LoggerInterface $logger = null)
+    public function __construct(OllamaConfig $config, LoggerInterface $logger = null)
     {
         $this->logger = $logger;
         $this->initConfig($config);
+    }
+
+    protected function initConfig(OllamaConfig $config): static
+    {
+        if (! $config->getBaseUrl()) {
+            throw new InvalidArgumentException('The base url of Ollama is required.');
+        }
+        $headers = [
+            'Content-Type' => 'application/json',
+            'User-Agent' => 'Hyperf-Odin/1.0',
+        ];
+        $this->client = new GuzzleClient([
+            'base_uri' => $config->getBaseUrl(),
+            'headers' => $headers,
+        ]);
+        $this->config = $config;
+        return $this;
     }
 
     public function chat(
@@ -56,8 +75,26 @@ class Client implements ClientInterface
             'messages' => $messagesArr,
             'model' => $model,
             'temperature' => $temperature,
-            'max_tokens' => $maxTokens,
         ];
+        if ($maxTokens) {
+            $json['max_tokens'] = $maxTokens;
+        }
+        if (! empty($tools)) {
+            $toolsArray = [];
+            foreach ($tools as $tool) {
+                if ($tool instanceof ToolInterface) {
+                    $toolsArray[] = $tool->toToolDefinition()->toArray();
+                } elseif ($tool instanceof ToolDefinition) {
+                    $toolsArray[] = $tool->toArray();
+                } else {
+                    $toolsArray[] = $tool;
+                }
+            }
+            if (! empty($toolsArray)) {
+                $json['tools'] = $toolsArray;
+                $json['tool_choice'] = 'auto';
+            }
+        }
         if ($stop) {
             $json['stop'] = $stop;
         }
@@ -117,27 +154,6 @@ class Client implements ClientInterface
     public function setDebug(bool $debug): static
     {
         $this->debug = $debug;
-        return $this;
-    }
-
-    protected function initConfig(OpenAIConfig $config): static
-    {
-        if (! $config->getApiKey()) {
-            throw new InvalidArgumentException('API key of OpenAI api is required');
-        }
-        $headers = [
-            'Authorization' => 'Bearer ' . $config->getApiKey(),
-            'Content-Type' => 'application/json',
-            'User-Agent' => 'Hyperf-Odin/1.0',
-        ];
-        if ($config->getOrganization()) {
-            $headers['OpenAI-Organization'] = $config->getOrganization();
-        }
-        $this->client = new GuzzleClient([
-            'base_uri' => $config->getBaseUrl(),
-            'headers' => $headers,
-        ]);
-        $this->config = $config;
         return $this;
     }
 }

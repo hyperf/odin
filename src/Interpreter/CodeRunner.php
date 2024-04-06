@@ -74,7 +74,7 @@ class CodeRunner
                             'shell'
                         ]),
             new ToolParameter(name: 'code', description: 'The code which needs to be executed.',),
-        ]), toolHandler: CodeRunner::handlers(),);
+        ]), examples: [], toolHandler: CodeRunner::handlers());
     }
 
     public function runCode(string $language, string $code)

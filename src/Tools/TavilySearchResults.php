@@ -22,9 +22,7 @@ class TavilySearchResults extends AbstractTool
 
     public string $description
         = <<<'EOF'
-A search engine optimized for comprehensive, accurate, and trusted results.
-Useful for when you need to answer questions about current events.
-Input should be a search query.
+When you answer non-logical questions or non-chat questions, especially current affairs, economics, business, academic, scientific research, and political questions, call this tool to search for real time information from the Internet to assist in answering. The input should be a search query.
 EOF;
 
     public array $parameters

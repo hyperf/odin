@@ -33,7 +33,7 @@ require_once dirname(dirname(__FILE__)) . '/vendor/autoload.php';
 \Hyperf\Di\ClassLoader::init();
 $container = ApplicationContext::setContainer(new Container((new DefinitionSourceFactory())()));
 
-$llm = $container->get(\Hyperf\Odin\LLM::class);
+$llm = $container->get(\Hyperf\Odin\ModelFacade::class);
 
 $client = $llm->getAzureOpenAIClient('text-embedding-ada-002');
 $conversionId = uniqid();

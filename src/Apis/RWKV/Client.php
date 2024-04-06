@@ -41,7 +41,9 @@ class Client implements ClientInterface
         string $model,
         float $temperature = 0.9,
         int $maxTokens = 1000,
-        array $stop = []
+        array $stop = [],
+        array $tools = [],
+        bool $stream = false,
     ): ChatCompletionResponse {
         $messagesArr = [];
         foreach ($messages as $message) {

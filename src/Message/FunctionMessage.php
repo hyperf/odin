@@ -12,7 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Message;
 
-class FunctionMessage extends AbstractMessage
+class FunctionMessage extends ToolMessage
 {
     protected Role $role = Role::Function;
 }

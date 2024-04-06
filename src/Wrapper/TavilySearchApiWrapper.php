@@ -1,14 +1,23 @@
 <?php
 
-namespace Hyperf\Odin\Wrapper;
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
 
+namespace Hyperf\Odin\Wrapper;
 
 use GuzzleHttp\Client;
 use Hyperf\Contract\ConfigInterface;
+use RuntimeException;
 
 class TavilySearchApiWrapper
 {
-
     protected const API_URL = 'https://api.tavily.com';
 
     protected Client $client;
@@ -49,18 +58,17 @@ class TavilySearchApiWrapper
                 'query' => $query,
                 'max_results' => $maxResults,
                 'search_depth' => $searchDepth,
-                "include_domains" => $includeDomains,
-                "exclude_domains" => $excludeDomains,
-                "include_answer" => $includeAnswer,
-                "include_raw_content" => $includeRawContent,
-                "include_images" => $includeImages,
+                'include_domains' => $includeDomains,
+                'exclude_domains' => $excludeDomains,
+                'include_answer' => $includeAnswer,
+                'include_raw_content' => $includeRawContent,
+                'include_images' => $includeImages,
             ],
             'verify' => false,
         ]);
         if ($response->getStatusCode() !== 200) {
-            throw new \RuntimeException('Failed to fetch results from Tavily Search API with status code ' . $response->getStatusCode());
+            throw new RuntimeException('Failed to fetch results from Tavily Search API with status code ' . $response->getStatusCode());
         }
         return json_decode($response->getBody()->getContents(), true);
     }
-
 }

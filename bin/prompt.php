@@ -35,6 +35,6 @@ Begin!
     Question: 1+12=?，以及东莞明天的天气如何？
 PROMPT;
 
-$llm = $container->get(\Hyperf\Odin\LLM::class);
+$llm = $container->get(\Hyperf\Odin\ModelFacade::class);
 $response = $llm->chat(Prompt::input($prompt), temperature: 0);
 echo $response;

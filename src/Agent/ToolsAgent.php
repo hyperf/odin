@@ -19,13 +19,15 @@ use Hyperf\Odin\Apis\OpenAI\Response\ToolCall;
 use Hyperf\Odin\Memory\MemoryInterface;
 use Hyperf\Odin\Message\AssistantMessage;
 use Hyperf\Odin\Message\FunctionMessage;
+use Hyperf\Odin\Message\ToolMessage;
 use Hyperf\Odin\Model\ModelInterface;
+use Hyperf\Odin\Model\SkylarkModel;
 use Hyperf\Odin\Observer;
 use Hyperf\Odin\Prompt\PromptInterface;
 use Hyperf\Odin\Tools\ToolInterface;
 use InvalidArgumentException;
 
-class OpenAIToolsAgent
+class ToolsAgent
 {
     protected bool $debug = false;
 
@@ -52,7 +54,8 @@ class OpenAIToolsAgent
         // Handle tool calls
         if ($response->getChoices()) {
             foreach ($response->getChoices() as $choice) {
-                if (! $choice instanceof ChatCompletionChoice || ! $choice->isFinishedByToolCall() || ! $choice->getMessage() instanceof AssistantMessage) {
+                if (! $choice instanceof ChatCompletionChoice || ! $choice->getMessage() instanceof AssistantMessage || ! $choice->getMessage()
+                        ->hasToolCalls()) {
                     continue;
                 }
                 $toolCalls = $choice->getMessage()->getToolCalls();
@@ -96,24 +99,26 @@ class OpenAIToolsAgent
                     }
                     if ($toolCallsResults) {
                         $toolCallsMessages = [];
-                        foreach ($toolCallsResults as $toolCallResult) {
+                        foreach ($toolCallsResults as $toolCallId => $toolCallResult) {
                             if (! $toolCallResult['call'] || ! $toolCallResult['result']) {
                                 continue;
                             }
-                            $toolCallsMessages[] = new FunctionMessage("Tool Call: {call}\nObservation: {observation}", [
-                                'call' => $toolCallResult['call'],
-                                'observation' => json_encode($toolCallResult['result'], JSON_UNESCAPED_UNICODE),
-                            ]);
+                            $toolCallsMessages[] = new ToolMessage(sprintf("Tool Call: %s\nObservation: %s", $toolCallResult['call'], json_encode($toolCallResult['result'], JSON_UNESCAPED_UNICODE)), $toolCallId);
                         }
                         $messages = $this->memory->getConversations($conversationId);
-                        return $this->innerChat(array_merge($messages, $toolCallsMessages, [$currentStageUserMessage]), conversationId: $conversationId);
+                        $innerChatResponse = $this->innerChat(array_merge($messages, [
+                            $currentStageUserMessage,
+                            $response->getFirstChoice()->getMessage()
+                        ], $toolCallsMessages), conversationId: $conversationId);
+                        $response = $innerChatResponse;
                     }
-                } else {
-                    $this->memory->addMessages([$currentStageUserMessage], $conversationId);
                 }
             }
         }
-        return $response;
+        $this->memory->addMessages($currentStageUserMessage, $conversationId);
+        $response->getFirstChoice() && $this->memory->addMessages($response->getFirstChoice()
+            ?->getMessage(), $conversationId);
+        return $this->response($response);
     }
 
     public function isDebug(): bool
@@ -139,10 +144,27 @@ class OpenAIToolsAgent
         if ($this->currentIteration >= $this->maxIterations) {
             throw new InvalidArgumentException('The maximum iterations has been reached.');
         }
+        if ($this->isDebug()) {
+            $this->observer?->debug('Inner call to the model with messages ' . implode("\r", array_map(function (
+                    $message
+                ) {
+                    return sprintf('%s Prompt: %s', $message->getRole()->name, $message->getContent());
+                }, $messages)));
+        } else {
+            $this->observer?->info('Inner call to the model');
+        }
+        $messages = $this->transferMessages($messages);
         $response = $this->model->chat($messages, $temperature, $maxTokens, $stop, $tools);
         if ($response instanceof ChatCompletionResponse) {
-
+            $message = $response->getFirstChoice()->getMessage();
+            if ($this->isDebug()) {
+                $this->observer?->debug(sprintf('Model response %s message: %s', $message->getRole()->value, $message->getContent()));
+            } else {
+                $this->observer?->info('Model has responded');
+            }
         }
+        ++$this->currentIteration;
+        return $response;
     }
 
     /**
@@ -160,17 +182,22 @@ class OpenAIToolsAgent
             throw new InvalidArgumentException('The maximum iterations has been reached.');
         }
         if ($this->isDebug()) {
-            $this->observer?->debug('Chatting to the model with messages ' . implode("\r", array_map(function ($message
+            $this->observer?->debug('Chatting to the model with messages ' . implode("\r", array_map(function (
+                    $message
                 ) {
                     return sprintf('%s Prompt: %s', $message->getRole()->name, $message->getContent());
                 }, $messages)));
         } else {
             $this->observer?->info('Chatting to the model');
         }
-        var_dump($messages);
+        $messages = $this->transferMessages($messages);
         $response = $this->model->chat($messages, $temperature, $maxTokens, $stop, $tools);
         if ($response instanceof ChatCompletionResponse) {
-            $message = $response->getFirstChoice()->getMessage();
+            $firstChoice = $response->getFirstChoice();
+            if (! $firstChoice) {
+                var_dump($response);
+            }
+            $message = $firstChoice?->getMessage();
             if ($this->isDebug()) {
                 $this->observer?->debug(sprintf('Model response %s message: %s', $message->getRole()->value, $message->getContent()));
             } else {
@@ -179,5 +206,44 @@ class OpenAIToolsAgent
         }
         ++$this->currentIteration;
         return $response;
+    }
+
+    protected function response(ChatCompletionResponse $response): ChatCompletionResponse
+    {
+        if ($this->model instanceof SkylarkModel) {
+            $choices = $response->getChoices();
+            // 取 <|Answer|>: 后面的内容作为回答
+            foreach ($choices as $key => $choice) {
+                if (! $choice instanceof ChatCompletionChoice) {
+                    continue;
+                }
+                $message = $choice->getMessage();
+                if ($message instanceof AssistantMessage) {
+                    $content = $message->getContent();
+                    // 如果存在 <|Answer|> 标记，则取出 <|Answer|>: 后面的内容作为回答
+                    if (str_contains($content, '<|Answer|>:')) {
+                        $answer = substr($content, strpos($content, '<|Answer|>:') + 11);
+                        $message->setContent($answer);
+                        $choice->setMessage($message);
+                        break;
+                    }
+                }
+            }
+        }
+        return $response;
+    }
+
+    protected function transferMessages(array $messages): array
+    {
+        if ($this->model instanceof SkylarkModel) {
+            // 把里面的 ToolMessage 转为 FunctionMessage
+            foreach ($messages as $key => $message) {
+                if ($message instanceof ToolMessage) {
+                    $assistantMessage = new FunctionMessage($message->getContent(), $message->getToolCallId());
+                    $messages[$key] = $assistantMessage;
+                }
+            }
+        }
+        return $messages;
     }
 }

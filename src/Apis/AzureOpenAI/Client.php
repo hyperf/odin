@@ -35,7 +35,7 @@ class Client implements ClientInterface
 
     protected ?LoggerInterface $logger;
 
-    protected bool $debug = false;
+    protected bool $debug = true;
     protected string $model;
 
     public function __construct(AzureOpenAIConfig $config, LoggerInterface $logger, string $model)
@@ -52,6 +52,7 @@ class Client implements ClientInterface
         int $maxTokens = 1000,
         array $stop = [],
         array $tools = [],
+        bool $stream = false,
     ): ChatCompletionResponse {
         $deploymentPath = $this->buildDeploymentPath($model);
         $messagesArr = [];
@@ -87,19 +88,14 @@ class Client implements ClientInterface
         if ($stop) {
             $json['stop'] = $stop;
         }
-        $this->debug && $this->logger?->debug(sprintf("Send: \nSystem Message: %s\nUser Message: %s\nTools: %s", $messages['system'] ?? '', $messages['user'] ?? '', json_encode($tools)));
-        try {
-            $response = $this->getClient($model)->post($deploymentPath . '/chat/completions', [
-                'query' => [
-                    'api-version' => $this->config->getApiVersion($model),
-                ],
-                'json' => $json,
-                'verify' => false,
-            ]);
-        } catch (\Exception $exception) {
-            var_dump($json);
-            throw $exception;
-        }
+        $this->debug && $this->logger?->debug(sprintf("Send Messages: %s\nTools: %s", json_encode($messagesArr, JSON_UNESCAPED_UNICODE), json_encode($tools, JSON_UNESCAPED_UNICODE)));
+        $response = $this->getClient($model)->post($deploymentPath . '/chat/completions', [
+            'query' => [
+                'api-version' => $this->config->getApiVersion($model),
+            ],
+            'json' => $json,
+            'verify' => false,
+        ]);
         $chatCompletionResponse = new ChatCompletionResponse($response);
         $this->debug && $this->logger?->debug('Receive: ' . $chatCompletionResponse);
         return $chatCompletionResponse;

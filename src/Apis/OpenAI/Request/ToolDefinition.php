@@ -27,16 +27,19 @@ class ToolDefinition implements Arrayable
      * @var callable[]
      */
     protected array $toolHandler = [];
+    protected array $examples;
 
     public function __construct(
         string $name,
         string $description = '',
         ?ToolParameters $parameters = null,
-        callable|array $toolHandler = []
+        array $examples = [],
+        callable|array $toolHandler = [],
     ) {
         $this->name = $name;
         $this->description = $description;
         $this->parameters = $parameters;
+        $this->examples = $examples;
         $this->setToolHandler($toolHandler);
     }
 
@@ -48,6 +51,19 @@ class ToolDefinition implements Arrayable
                 'name' => $this->getName(),
                 'description' => $this->getDescription(),
                 'parameters' => $this->getParameters()?->toArray(),
+            ]
+        ];
+    }
+
+    public function toArrayWithExamples(): array
+    {
+        return [
+            'type' => 'function',
+            'function' => [
+                'name' => $this->getName(),
+                'description' => $this->getDescription(),
+                'parameters' => $this->getParameters()?->toArray(),
+                'examples' => $this->getExamples(),
             ]
         ];
     }
@@ -96,6 +112,17 @@ class ToolDefinition implements Arrayable
     public function setParameters(ToolParameters $parameters): static
     {
         $this->parameters = $parameters;
+        return $this;
+    }
+
+    public function getExamples(): array
+    {
+        return $this->examples;
+    }
+
+    public function setExamples(array $examples)
+    {
+        $this->examples = $examples;
         return $this;
     }
 }

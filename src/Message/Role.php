@@ -9,5 +9,6 @@ enum Role: string
     case User = 'user';
     case Assistant = 'assistant';
     case Function = 'function';
+    case Tool = 'tool';
 
 }

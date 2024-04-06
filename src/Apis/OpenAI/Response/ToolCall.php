@@ -22,7 +22,12 @@ class ToolCall implements Arrayable
      * @param array $arguments
      * @param bool $shouldFix Sometimes the API will return a wrong function call. If this flag is true will attempt to fix that.
      */
-    public function __construct(protected string $name, protected array $arguments, protected string $id)
+    public function __construct(
+        protected string $name,
+        protected array $arguments,
+        protected string $id,
+        protected string $type = 'function'
+    )
     {
     }
 
@@ -43,8 +48,9 @@ class ToolCall implements Arrayable
                 $arguments = [];
             }
             $name = $function['name'] ?? '';
-            $id = $function['id'] ?? '';
-            $static = new static($name, $arguments, $id);
+            $id = $toolCall['id'] ?? '';
+            $type = $toolCall['type'] ?? 'function';
+            $static = new static($name, $arguments, $id, $type);
             $toolCallsResult[] = $static;
         }
         return $toolCallsResult;
@@ -54,8 +60,11 @@ class ToolCall implements Arrayable
     {
         return [
             'id' => $this->getId(),
-            'name' => $this->getName(),
-            'arguments' => $this->getArguments(),
+            'function' => [
+                'name' => $this->getName(),
+                'arguments' => $this->getSerializedArguments(),
+            ],
+            'type' => $this->getType(),
         ];
     }
 
@@ -75,6 +84,11 @@ class ToolCall implements Arrayable
         return $this->arguments;
     }
 
+    public function getSerializedArguments(): string
+    {
+        return json_encode($this->arguments);
+    }
+
     public function setArguments(array $arguments): static
     {
         $this->arguments = $arguments;
@@ -89,6 +103,17 @@ class ToolCall implements Arrayable
     public function setId(string $id): static
     {
         $this->id = $id;
+        return $this;
+    }
+
+    public function getType(): string
+    {
+        return $this->type;
+    }
+
+    public function setType(string $type): static
+    {
+        $this->type = $type;
         return $this;
     }
 }

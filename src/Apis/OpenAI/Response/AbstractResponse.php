@@ -26,12 +26,13 @@ abstract class AbstractResponse implements ResponseInterface
     public function setContent($content): static
     {
         $this->content = $content;
+        $this->parseContent();
         return $this;
     }
 
-    public function __construct(PsrResponseInterface $response)
+    public function __construct(?PsrResponseInterface $response = null)
     {
-        $this->setOriginResponse($response);
+        $response && $this->setOriginResponse($response);
     }
 
     public function getOriginResponse(): PsrResponseInterface
