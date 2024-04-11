@@ -9,6 +9,7 @@ declare(strict_types=1);
  * @contact  group@hyperf.io
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
+
 namespace Hyperf\Odin\VectorStore\Qdrant;
 
 use Hyperf\Qdrant\ConfigInterface;
@@ -19,7 +20,8 @@ class Config implements ConfigInterface
         protected string $host = '127.0.0.1',
         protected int $port = 6333,
         protected string $scheme = 'http',
-    ) {
+    )
+    {
     }
 
     public function getScheme(): string

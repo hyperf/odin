@@ -65,6 +65,12 @@ return [
                     'base_url' => env('OLLAMA_BASE_URL'),
                 ],
             ],
+            'qwen:32b-chat' => [
+                'implementation' => OllamaModel::class,
+                'config' => [
+                    'base_url' => env('OLLAMA_BASE_URL'),
+                ],
+            ],
             'qwen:72b-chat' => [
                 'implementation' => OllamaModel::class,
                 'config' => [

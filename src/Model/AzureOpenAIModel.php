@@ -3,10 +3,10 @@
 namespace Hyperf\Odin\Model;
 
 
-use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAI;
-use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAIConfig;
-use Hyperf\Odin\Apis\AzureOpenAI\Client as AzureOpenAIClient;
-use Hyperf\Odin\Apis\OpenAI\Response\ChatCompletionResponse;
+use Hyperf\Odin\Api\AzureOpenAI\AzureOpenAI;
+use Hyperf\Odin\Api\AzureOpenAI\AzureOpenAIConfig;
+use Hyperf\Odin\Api\AzureOpenAI\Client as AzureOpenAIClient;
+use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
 
 class AzureOpenAIModel implements ModelInterface
 {

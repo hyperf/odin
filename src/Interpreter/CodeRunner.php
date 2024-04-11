@@ -14,10 +14,10 @@ namespace Hyperf\Odin\Interpreter;
 
 use Closure;
 use Exception;
-use Hyperf\Odin\Apis\OpenAI\Request\ToolDefinition;
-use Hyperf\Odin\Apis\OpenAI\Request\ToolParameter;
-use Hyperf\Odin\Apis\OpenAI\Request\ToolParameters;
-use Hyperf\Odin\Apis\OpenAI\Response\ToolCall;
+use Hyperf\Odin\Api\OpenAI\Request\ToolDefinition;
+use Hyperf\Odin\Api\OpenAI\Request\ToolParameter;
+use Hyperf\Odin\Api\OpenAI\Request\ToolParameters;
+use Hyperf\Odin\Api\OpenAI\Response\ToolCall;
 
 class CodeRunner
 {

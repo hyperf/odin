@@ -12,7 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Message;
 
-use Hyperf\Odin\Apis\OpenAI\Response\ToolCall;
+use Hyperf\Odin\Api\OpenAI\Response\ToolCall;
 
 class AssistantMessage extends AbstractMessage
 {

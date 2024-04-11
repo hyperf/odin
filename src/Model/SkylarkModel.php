@@ -12,9 +12,9 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Model;
 
-use Hyperf\Odin\Apis\Skylark\Client;
-use Hyperf\Odin\Apis\Skylark\Skylark;
-use Hyperf\Odin\Apis\Skylark\SkylarkConfig;
+use Hyperf\Odin\Api\Skylark\Client;
+use Hyperf\Odin\Api\Skylark\Skylark;
+use Hyperf\Odin\Api\Skylark\SkylarkConfig;
 use Hyperf\Odin\Message\AssistantMessage;
 
 class SkylarkModel implements ModelInterface

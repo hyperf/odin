@@ -12,10 +12,11 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Agent;
 
-use Hyperf\Odin\Apis\OpenAI\Request\ToolDefinition;
-use Hyperf\Odin\Apis\OpenAI\Response\ChatCompletionChoice;
-use Hyperf\Odin\Apis\OpenAI\Response\ChatCompletionResponse;
-use Hyperf\Odin\Apis\OpenAI\Response\ToolCall;
+use Hyperf\Odin\Api\OpenAI\Request\ToolDefinition;
+use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionChoice;
+use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
+use Hyperf\Odin\Api\OpenAI\Response\ToolCall;
+use Hyperf\Odin\Knowledge\Knowledge;
 use Hyperf\Odin\Memory\MemoryInterface;
 use Hyperf\Odin\Message\AssistantMessage;
 use Hyperf\Odin\Message\FunctionMessage;
@@ -24,33 +25,56 @@ use Hyperf\Odin\Model\ModelInterface;
 use Hyperf\Odin\Model\SkylarkModel;
 use Hyperf\Odin\Observer;
 use Hyperf\Odin\Prompt\PromptInterface;
-use Hyperf\Odin\Tools\ToolInterface;
+use Hyperf\Odin\Tool\ToolInterface;
 use InvalidArgumentException;
 
 class ToolsAgent
 {
-    protected bool $debug = false;
+    protected bool $debug = true;
 
     protected int $currentIteration = 0;
-
-    protected $messageBuffer = [];
 
     public function __construct(
         public ModelInterface $model,
         public PromptInterface $prompt,
         public MemoryInterface $memory,
+        public ?Knowledge $knowledge,
         public ?Observer $observer,
         public array $tools = [],
         public int $maxIterations = 10,
     ) {
     }
 
-    public function invoke(array $inputs, string $conversationId)
+    public function invoke(array $inputs, string $conversationId): ChatCompletionResponse
     {
         $currentStageUserMessage = $this->prompt->getUserPrompt($inputs['input'] ?? '');
         $this->memory->setSystemMessage($this->prompt->getSystemPrompt(), $conversationId);
         $conversationMessages = $this->memory->getConversations($conversationId);
-        $response = $this->chat(array_merge($conversationMessages, [$currentStageUserMessage]), conversationId: $conversationId, tools: $this->tools);
+        $currentConversationMessages = array_merge($conversationMessages, [$currentStageUserMessage]);
+        if ($this->knowledge) {
+            $this->observer?->info('Searching knowledge');
+            $searchResults = $this->knowledge->similaritySearch(implode("\n", $currentConversationMessages), 'knowledge');
+            if ($searchResults) {
+                $this->observer?->info(sprintf('Found %d knowledge items', count($searchResults)));
+                $this->observer?->debug(json_encode($searchResults, JSON_UNESCAPED_UNICODE));
+                // Transfer the knowledge to the conversation
+                $knowledgeMessages = [
+                    '以下是搜索到的可能相关资料，你可结合资料来回答用户的问题：',
+                    '```',
+                ];
+                foreach ($searchResults as $searchResult) {
+                    $knowledgeMessages[] = $searchResult['payload']['content'];
+                }
+                $knowledgeMessages[] = '```';
+                $knowledgeMessages[] = 'Begin !!!';
+                $knowledgeMessages[] = 'User Input:';
+                $knowledgeMessages[] = $currentStageUserMessage->getContent();
+                $currentStageUserMessageWithKnowledge = clone $currentStageUserMessage;
+                $currentStageUserMessageWithKnowledge->setContent(implode("\n", $knowledgeMessages));
+                $currentConversationMessages = array_merge($conversationMessages, [$currentStageUserMessageWithKnowledge]);
+            }
+        }
+        $response = $this->chat($currentConversationMessages, conversationId: $conversationId, tools: $this->tools);
         // Handle tool calls
         if ($response->getChoices()) {
             foreach ($response->getChoices() as $choice) {
@@ -108,7 +132,7 @@ class ToolsAgent
                         $messages = $this->memory->getConversations($conversationId);
                         $innerChatResponse = $this->innerChat(array_merge($messages, [
                             $currentStageUserMessage,
-                            $response->getFirstChoice()->getMessage()
+                            $response->getFirstChoice()->getMessage(),
                         ], $toolCallsMessages), conversationId: $conversationId);
                         $response = $innerChatResponse;
                     }

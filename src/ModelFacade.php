@@ -13,13 +13,13 @@ declare(strict_types=1);
 namespace Hyperf\Odin;
 
 use Hyperf\Contract\ConfigInterface;
-use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAI;
-use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAIConfig;
-use Hyperf\Odin\Apis\AzureOpenAI\Client as AzureOpenAIClient;
-use Hyperf\Odin\Apis\ClientInterface;
-use Hyperf\Odin\Apis\OpenAI\Client as OpenAIClient;
-use Hyperf\Odin\Apis\OpenAI\OpenAI;
-use Hyperf\Odin\Apis\OpenAI\OpenAIConfig;
+use Hyperf\Odin\Api\AzureOpenAI\AzureOpenAI;
+use Hyperf\Odin\Api\AzureOpenAI\AzureOpenAIConfig;
+use Hyperf\Odin\Api\AzureOpenAI\Client as AzureOpenAIClient;
+use Hyperf\Odin\Api\ClientInterface;
+use Hyperf\Odin\Api\OpenAI\Client as OpenAIClient;
+use Hyperf\Odin\Api\OpenAI\OpenAI;
+use Hyperf\Odin\Api\OpenAI\OpenAIConfig;
 use Hyperf\Odin\Conversation\Conversation;
 
 class ModelFacade
@@ -38,7 +38,8 @@ class ModelFacade
         array $stop = [],
         array $functions = [],
         string $model = '',
-    ): Apis\OpenAI\Response\ChatCompletionResponse {
+    ): Api\OpenAI\Response\ChatCompletionResponse
+    {
         $client = null;
         if (! $model) {
             $model = $this->defaultModelName;
