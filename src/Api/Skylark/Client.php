@@ -13,7 +13,6 @@ declare(strict_types=1);
 namespace Hyperf\Odin\Api\Skylark;
 
 use GuzzleHttp\Client as GuzzleClient;
-use Hyperf\Codec\Json;
 use Hyperf\Odin\Api\ClientInterface;
 use Hyperf\Odin\Api\OpenAI\Request\ToolDefinition;
 use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
@@ -83,7 +82,7 @@ class Client implements ClientInterface
             $json['stop'] = $stop;
         }
         $this->debug && $this->logger?->debug(sprintf("Send Messages: %s\nTools: %s", json_encode($messagesArr, JSON_UNESCAPED_UNICODE), json_encode($tools, JSON_UNESCAPED_UNICODE)));
-        $response = $this->request(method: 'POST', path: sprintf('/api/v2/endpoint/%s/chat', $this->config->getEndpoint()), body: Json::encode($json, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE));
+        $response = $this->request(method: 'POST', path: sprintf('/api/v2/endpoint/%s/chat', $this->config->getEndpoint()), body: json_encode($json, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE));
         $chatCompletionResponse = new ChatCompletionResponse($response);
         $this->debug && $this->logger?->debug('Receive: ' . $chatCompletionResponse);
         return $chatCompletionResponse;
