@@ -22,8 +22,8 @@
         "ext-bcmath": "*",
         "ext-mbstring": "*",
         "guzzlehttp/guzzle": "^7.0",
-        "hyperf/di": "~2.2.0 || 3.0.*",
-        "hyperf/config": "~2.2.0 || 3.0.*",
+        "hyperf/di": "~2.2.0 || 3.0.* || 3.1.*",
+        "hyperf/config": "~2.2.0 || 3.0.* || 3.1.*",
         "hyperf/qdrant-client": "*",
         "yethee/tiktoken": "^0.1.2"
     },
