@@ -35,6 +35,7 @@ class Client implements ClientInterface
     protected ?LoggerInterface $logger;
 
     protected bool $debug = true;
+
     protected string $model;
 
     public function __construct(ChatglmConfig $config, LoggerInterface $logger, string $model)
@@ -42,24 +43,6 @@ class Client implements ClientInterface
         $this->logger = $logger;
         $this->model = $model;
         $this->initConfig($config);
-    }
-
-    protected function initConfig(ChatglmConfig $config): static
-    {
-        if (! $config instanceof ChatglmConfig) {
-            throw new InvalidArgumentException('ChatglmConfig is required');
-        }
-        $this->config = $config;
-        $headers = [
-            'Authorization' => 'Bearer ' . $config->getApiKey(),
-            'Content-Type' => 'application/json',
-            'User-Agent' => 'Hyperf-Odin/1.0',
-        ];
-        $this->clients[$this->model] = new GuzzleClient([
-            'base_uri' => $config->getHost(),
-            'headers' => $headers,
-        ]);
-        return $this;
     }
 
     public function chat(
@@ -114,11 +97,6 @@ class Client implements ClientInterface
         return $chatCompletionResponse;
     }
 
-    protected function getClient(string $model): ?GuzzleClient
-    {
-        return $this->clients[$model];
-    }
-
     public function models(): ListResponse
     {
         throw new NotImplementedException();
@@ -130,13 +108,11 @@ class Client implements ClientInterface
         ?string $user = null
     ): ListResponse {
         $json = [
+            'model' => $model,
             'input' => $input,
         ];
         $user && $json['user'] = $user;
         $response = $this->getClient($model)->post('/api/paas/v4/embeddings', [
-            'query' => [
-                'api-version' => $this->config->getApiVersion($model),
-            ],
             'json' => $json,
             'verify' => false,
         ]);
@@ -154,8 +130,27 @@ class Client implements ClientInterface
         return $this;
     }
 
-    protected function buildDeploymentPath(string $model = 'glm-4'): string
+    protected function initConfig(ChatglmConfig $config): static
     {
-        return 'openai/deployments/' . $this->config->getDeploymentName($model);
+        if (! $config instanceof ChatglmConfig) {
+            throw new InvalidArgumentException('ChatglmConfig is required');
+        }
+        $this->config = $config;
+        $headers = [
+            'Authorization' => 'Bearer ' . $config->getApiKey(),
+            'Content-Type' => 'application/json',
+            'User-Agent' => 'Hyperf-Odin/1.0',
+        ];
+        $this->clients[$this->model] = new GuzzleClient([
+            'base_uri' => $config->getHost(),
+            'headers' => $headers,
+        ]);
+        return $this;
     }
+
+    protected function getClient(string $model): ?GuzzleClient
+    {
+        return $this->clients[$model];
+    }
+
 }
