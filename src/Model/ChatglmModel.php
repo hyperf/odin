@@ -12,13 +12,13 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Model;
 
-use Hyperf\Odin\Api\AzureOpenAI\AzureOpenAI;
-use Hyperf\Odin\Api\AzureOpenAI\AzureOpenAIConfig;
-use Hyperf\Odin\Api\AzureOpenAI\Client as AzureOpenAIClient;
+use Hyperf\Odin\Api\Chatglm\Chatglm;
+use Hyperf\Odin\Api\Chatglm\ChatglmConfig;
+use Hyperf\Odin\Api\Chatglm\Client as ChatglmClient;
 use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\OpenAI\Response\ListResponse;
 
-class AzureOpenAIModel implements ModelInterface, EmbeddingInterface
+class ChatglmModel implements ModelInterface, EmbeddingInterface
 {
     public function __construct(public string $model, public array $config)
     {
@@ -31,13 +31,20 @@ class AzureOpenAIModel implements ModelInterface, EmbeddingInterface
         array $stop = [],
         array $tools = [],
     ): ChatCompletionResponse {
-        $client = $this->getAzureOpenAIClient();
+        $client = $this->getChatglmClient();
         return $client->chat($messages, $this->model, $temperature, $maxTokens, $stop, $tools);
+    }
+
+    public function getChatglmClient(): ChatglmClient
+    {
+        $openAI = new Chatglm();
+        $config = new ChatglmConfig($this->config['api_key'] ?? '');
+        return $openAI->getClient($config, $this->model);
     }
 
     public function embedding(string $input): Embedding
     {
-        $client = $this->getAzureOpenAIClient();
+        $client = $this->getChatglmClient();
         /** @var ListResponse $response */
         $response = $client->embedding($input, $this->model);
         $embeddings = [];
@@ -49,13 +56,6 @@ class AzureOpenAIModel implements ModelInterface, EmbeddingInterface
             }
         }
         return new Embedding($embeddings);
-    }
-
-    public function getAzureOpenAIClient(): AzureOpenAIClient
-    {
-        $openAI = new AzureOpenAI();
-        $config = new AzureOpenAIConfig($this->config);
-        return $openAI->getClient($config, $this->model);
     }
 
     public function getSpecifiedModelName(): string

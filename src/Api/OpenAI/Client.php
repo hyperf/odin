@@ -136,6 +136,7 @@ class Client implements ClientInterface
         $this->client = new GuzzleClient([
             'base_uri' => $config->getBaseUrl(),
             'headers' => $headers,
+            'verify' => false,
         ]);
         $this->config = $config;
         return $this;

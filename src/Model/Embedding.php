@@ -12,9 +12,14 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Model;
 
-interface EmbeddingInterface
+class Embedding
 {
-    public function embedding(string $input): Embedding;
+    public function __construct(public array $embeddings)
+    {
+    }
 
-    public function getSpecifiedModelName(): string;
+    public function getEmbeddings(): array
+    {
+        return $this->embeddings;
+    }
 }

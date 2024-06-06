@@ -10,14 +10,13 @@ declare(strict_types=1);
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
 
-namespace Hyperf\Odin\Api\AzureOpenAI;
+namespace Hyperf\Odin\Api\Chatglm;
 
 use GuzzleHttp\Client as GuzzleClient;
 use Hyperf\Odin\Api\ClientInterface;
 use Hyperf\Odin\Api\OpenAI\Request\ToolDefinition;
 use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\OpenAI\Response\ListResponse;
-use Hyperf\Odin\Api\OpenAI\Response\TextCompletionResponse;
 use Hyperf\Odin\Exception\NotImplementedException;
 use Hyperf\Odin\Message\MessageInterface;
 use Hyperf\Odin\Tool\ToolInterface;
@@ -26,7 +25,7 @@ use Psr\Log\LoggerInterface;
 
 class Client implements ClientInterface
 {
-    protected AzureOpenAIConfig $config;
+    protected ChatglmConfig $config;
 
     /**
      * @var GuzzleClient[]
@@ -38,11 +37,29 @@ class Client implements ClientInterface
     protected bool $debug = true;
     protected string $model;
 
-    public function __construct(AzureOpenAIConfig $config, LoggerInterface $logger, string $model)
+    public function __construct(ChatglmConfig $config, LoggerInterface $logger, string $model)
     {
         $this->logger = $logger;
         $this->model = $model;
         $this->initConfig($config);
+    }
+
+    protected function initConfig(ChatglmConfig $config): static
+    {
+        if (! $config instanceof ChatglmConfig) {
+            throw new InvalidArgumentException('ChatglmConfig is required');
+        }
+        $this->config = $config;
+        $headers = [
+            'Authorization' => 'Bearer ' . $config->getApiKey(),
+            'Content-Type' => 'application/json',
+            'User-Agent' => 'Hyperf-Odin/1.0',
+        ];
+        $this->clients[$this->model] = new GuzzleClient([
+            'base_uri' => $config->getHost(),
+            'headers' => $headers,
+        ]);
+        return $this;
     }
 
     public function chat(
@@ -54,7 +71,6 @@ class Client implements ClientInterface
         array $tools = [],
         bool $stream = false,
     ): ChatCompletionResponse {
-        $deploymentPath = $this->buildDeploymentPath($model);
         $messagesArr = [];
         foreach ($messages as $message) {
             if ($message instanceof MessageInterface) {
@@ -89,10 +105,7 @@ class Client implements ClientInterface
             $json['stop'] = $stop;
         }
         $this->debug && $this->logger?->debug(sprintf("Send Messages: %s\nTools: %s", json_encode($messagesArr, JSON_UNESCAPED_UNICODE), json_encode($tools, JSON_UNESCAPED_UNICODE)));
-        $response = $this->getClient($model)->post($deploymentPath . '/chat/completions', [
-            'query' => [
-                'api-version' => $this->config->getApiVersion($model),
-            ],
+        $response = $this->getClient($model)->post('/api/paas/v4/chat/completions', [
             'json' => $json,
             'verify' => false,
         ]);
@@ -101,26 +114,9 @@ class Client implements ClientInterface
         return $chatCompletionResponse;
     }
 
-    public function completions(
-        string $prompt,
-        string $model,
-        float $temperature = 0.9,
-        int $maxTokens = 200
-    ): TextCompletionResponse {
-        $deploymentPath = $this->buildDeploymentPath($model);
-        $response = $this->getClient($model)->post($deploymentPath . '/completions', [
-            'query' => [
-                'api-version' => $this->config->getApiVersion($model),
-            ],
-            'json' => [
-                'prompt' => $prompt,
-                'model' => $model,
-                'temperature' => $temperature,
-                'max_tokens' => $maxTokens,
-            ],
-            'verify' => false,
-        ]);
-        return new TextCompletionResponse($response);
+    protected function getClient(string $model): ?GuzzleClient
+    {
+        return $this->clients[$model];
     }
 
     public function models(): ListResponse
@@ -130,15 +126,14 @@ class Client implements ClientInterface
 
     public function embedding(
         string $input,
-        string $model = 'text-embedding-ada-002',
+        string $model = 'embedding-2',
         ?string $user = null
     ): ListResponse {
-        $deploymentPath = $this->buildDeploymentPath($model);
         $json = [
             'input' => $input,
         ];
         $user && $json['user'] = $user;
-        $response = $this->getClient($model)->post($deploymentPath . '/embeddings', [
+        $response = $this->getClient($model)->post('/api/paas/v4/embeddings', [
             'query' => [
                 'api-version' => $this->config->getApiVersion($model),
             ],
@@ -159,30 +154,7 @@ class Client implements ClientInterface
         return $this;
     }
 
-    protected function initConfig(AzureOpenAIConfig $config): static
-    {
-        if (! $config instanceof AzureOpenAIConfig) {
-            throw new InvalidArgumentException('AzureOpenAIConfig is required');
-        }
-        $this->config = $config;
-        $headers = [
-            'api-key' => $config->getApiKey(),
-            'Content-Type' => 'application/json',
-            'User-Agent' => 'Hyperf-Odin/1.0',
-        ];
-        $this->clients[$this->model] = new GuzzleClient([
-            'base_uri' => $config->getBaseUrl(),
-            'headers' => $headers,
-        ]);
-        return $this;
-    }
-
-    protected function getClient(string $model): ?GuzzleClient
-    {
-        return $this->clients[$model];
-    }
-
-    protected function buildDeploymentPath(string $model = 'gpt-3.5-turbo'): string
+    protected function buildDeploymentPath(string $model = 'glm-4'): string
     {
         return 'openai/deployments/' . $this->config->getDeploymentName($model);
     }

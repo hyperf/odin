@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Model;
 
+use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\Skylark\Client;
 use Hyperf\Odin\Api\Skylark\Skylark;
 use Hyperf\Odin\Api\Skylark\SkylarkConfig;
@@ -29,7 +30,8 @@ class SkylarkModel implements ModelInterface
         int $maxTokens = 0,
         array $stop = [],
         array $tools = [],
-    ) {
+    ): ChatCompletionResponse
+    {
         $client = $this->getSkylarkClient();
         return $client->chat($messages, $this->model, $temperature, $maxTokens, $stop, $tools);
     }

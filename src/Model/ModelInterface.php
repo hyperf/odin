@@ -12,6 +12,8 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Model;
 
+use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
+
 interface ModelInterface
 {
     public function chat(
@@ -20,5 +22,5 @@ interface ModelInterface
         int $maxTokens = 0,
         array $stop = [],
         array $tools = [],
-    );
+    ): ChatCompletionResponse;
 }

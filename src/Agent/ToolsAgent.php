@@ -42,7 +42,8 @@ class ToolsAgent
         public ?Observer $observer,
         public array $tools = [],
         public int $maxIterations = 10,
-    ) {
+    )
+    {
     }
 
     public function invoke(array $inputs, string $conversationId): ChatCompletionResponse
@@ -52,10 +53,40 @@ class ToolsAgent
         $conversationMessages = $this->memory->getConversations($conversationId);
         $currentConversationMessages = array_merge($conversationMessages, [$currentStageUserMessage]);
         if ($this->knowledge) {
-            $this->observer?->info('Searching knowledge');
-            $searchResults = $this->knowledge->similaritySearch(implode("\n", $currentConversationMessages), 'knowledge');
+            $this->observer?->info('Searching knowledge_qa');
+            $searchResults = $this->knowledge->similaritySearch(implode("\n", $currentConversationMessages), collection: 'knowledge_qa', limit: 3, score: 0.75);
+            $knowledgeQAMessages = [];
             if ($searchResults) {
-                $this->observer?->info(sprintf('Found %d knowledge items', count($searchResults)));
+                $docsNameAndScores = implode(', ', array_map(function ($searchResult) {
+                    return sprintf('%s: %s', $searchResult['payload']['file_name'], $searchResult['score']);
+                }, $searchResults));
+                $this->observer?->info(sprintf('Found %d knowledge_qa items, %s', count($searchResults), $docsNameAndScores));
+                $this->observer?->debug(json_encode($searchResults, JSON_UNESCAPED_UNICODE));
+                // Transfer the knowledge to the conversation
+                $knowledgeQAMessages = [
+                    '以下是搜索到的可能相关的问答对话，你可结合问答对话来回答用户的问题：',
+                    '```',
+                ];
+                foreach ($searchResults as $searchResult) {
+                    $knowledgeQAMessages[] = $searchResult['payload']['__content__'];
+                }
+                $knowledgeQAMessages[] = '```';
+            }
+            $searchKnowledgeLimit = 3;
+            if (count($knowledgeQAMessages) >= 3) {
+                $searchKnowledgeLimit = 0;
+            }
+            $searchResults = null;
+            if ($searchKnowledgeLimit) {
+                $this->observer?->info('Searching knowledge');
+                $searchResults = $this->knowledge->similaritySearch(implode("\n", $currentConversationMessages), collection: 'knowledge', limit: $searchKnowledgeLimit, score: 0.75);
+            }
+            $knowledgeMessages = [];
+            if ($searchResults) {
+                $docsNameAndScores = implode(', ', array_map(function ($searchResult) {
+                    return sprintf('%s: %s', $searchResult['payload']['file_name'], $searchResult['score']);
+                }, $searchResults));
+                $this->observer?->info(sprintf('Found %d knowledge items, %s', count($searchResults), $docsNameAndScores));
                 $this->observer?->debug(json_encode($searchResults, JSON_UNESCAPED_UNICODE));
                 // Transfer the knowledge to the conversation
                 $knowledgeMessages = [
@@ -63,16 +94,20 @@ class ToolsAgent
                     '```',
                 ];
                 foreach ($searchResults as $searchResult) {
-                    $knowledgeMessages[] = $searchResult['payload']['content'];
+                    $knowledgeMessages[] = $searchResult['payload']['__content__'];
                 }
                 $knowledgeMessages[] = '```';
-                $knowledgeMessages[] = 'Begin !!!';
-                $knowledgeMessages[] = 'User Input:';
-                $knowledgeMessages[] = $currentStageUserMessage->getContent();
-                $currentStageUserMessageWithKnowledge = clone $currentStageUserMessage;
-                $currentStageUserMessageWithKnowledge->setContent(implode("\n", $knowledgeMessages));
-                $currentConversationMessages = array_merge($conversationMessages, [$currentStageUserMessageWithKnowledge]);
             }
+            $knowledgeMessages[] = 'Begin !!!';
+            $knowledgeMessages[] = 'User Input:';
+            $knowledgeMessages[] = $currentStageUserMessage->getContent();
+            $currentStageUserMessageWithKnowledge = clone $currentStageUserMessage;
+            $currentStageUserMessageWithKnowledge->setContent(implode("\n", array_merge($knowledgeQAMessages, $knowledgeMessages, [
+                            'Begin !!!',
+                            'User Input:',
+                            $currentStageUserMessage->getContent(),
+                        ])));
+            $currentConversationMessages = array_merge($conversationMessages, [$currentStageUserMessageWithKnowledge]);
         }
         $response = $this->chat($currentConversationMessages, conversationId: $conversationId, tools: $this->tools);
         // Handle tool calls

@@ -15,7 +15,7 @@ namespace Hyperf\Odin\Model;
 use Hyperf\Odin\Api\Ollama\Client;
 use Hyperf\Odin\Api\Ollama\Ollama;
 use Hyperf\Odin\Api\Ollama\OllamaConfig;
-use Hyperf\Odin\Api\Ollama\Response\EmbeddingResponse;
+use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
 
 class OllamaModel implements ModelInterface, EmbeddingInterface
 {
@@ -29,15 +29,17 @@ class OllamaModel implements ModelInterface, EmbeddingInterface
         int $maxTokens = 0,
         array $stop = [],
         array $tools = [],
-    ) {
+    ): ChatCompletionResponse
+    {
         $client = $this->getOllamaClient();
         return $client->chat($messages, $this->model, $temperature, $maxTokens, $stop, $tools);
     }
 
-    public function embedding(string $input): EmbeddingResponse
+    public function embedding(string $input): Embedding
     {
         $client = $this->getOllamaClient();
-        return $client->embedding($input, $this->model);
+        $response = $client->embedding($input, $this->model);
+        return new Embedding($response->getEmbeddings());
     }
 
     public function getOllamaClient(): Client
