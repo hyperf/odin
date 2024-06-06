@@ -53,6 +53,7 @@ class Client implements ClientInterface
         array $stop = [],
         array $tools = [],
         bool $stream = false,
+        array $meta = [],
     ): ChatCompletionResponse {
         $messagesArr = [];
         foreach ($messages as $message) {
@@ -65,6 +66,9 @@ class Client implements ClientInterface
             'model' => $model,
             'temperature' => $temperature,
         ];
+        if ($meta) {
+            $json['meta'] = $meta;
+        }
         if ($maxTokens) {
             $json['max_tokens'] = $maxTokens;
         }
