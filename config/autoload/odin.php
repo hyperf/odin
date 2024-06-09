@@ -68,6 +68,7 @@ $glmModels = value(function () {
         'glm-4-air',
         'glm-4-airx',
         'glm-4-flash',
+        'charglm-3'
     ];
     foreach ($names as $name) {
         $prefix = strtoupper(str_replace('-', '_', $name));
@@ -126,6 +127,13 @@ $models = [
             'api_base' => env('AZURE_OPENAI_TEXT_EMBEDDING_ADA_002_API_BASE'),
             'api_version' => env('AZURE_OPENAI_TEXT_EMBEDDING_ADA_002_API_VERSION', '2023-08-01-preview'),
             'deployment_name' => env('AZURE_OPENAI_TEXT_EMBEDDING_ADA_002_DEPLOYMENT_NAME'),
+        ],
+    ],
+    'glm-4-9b' => [
+        'implementation' => OpenAIModel::class,
+        'config' => [
+            'api_key' => env('GLM_4_9B_API_KEY'),
+            'base_url' => env('GLM_4_9B_BASE_URL'),
         ],
     ],
     'skylark:character-4k' => [

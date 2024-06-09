@@ -14,11 +14,12 @@ namespace Hyperf\Odin\Api\OpenAI;
 
 use GuzzleHttp\Client as GuzzleClient;
 use Hyperf\Odin\Api\ClientInterface;
+use Hyperf\Odin\Api\OpenAI\Request\ToolDefinition;
 use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\OpenAI\Response\ListResponse;
 use Hyperf\Odin\Api\OpenAI\Response\TextCompletionResponse;
 use Hyperf\Odin\Message\MessageInterface;
-use InvalidArgumentException;
+use Hyperf\Odin\Tool\ToolInterface;
 use Psr\Log\LoggerInterface;
 
 class Client implements ClientInterface
@@ -29,7 +30,7 @@ class Client implements ClientInterface
 
     protected ?LoggerInterface $logger;
 
-    protected bool $debug = false;
+    protected bool $debug = true;
 
     public function __construct(OpenAIConfig $config, LoggerInterface $logger = null)
     {
@@ -56,14 +57,33 @@ class Client implements ClientInterface
             'messages' => $messagesArr,
             'model' => $model,
             'temperature' => $temperature,
-            'max_tokens' => $maxTokens,
         ];
+        if ($maxTokens) {
+            $json['max_tokens'] = $maxTokens;
+        }
+        if (! empty($tools)) {
+            $toolsArray = [];
+            foreach ($tools as $tool) {
+                if ($tool instanceof ToolInterface) {
+                    $toolsArray[] = $tool->toToolDefinition()->toArray();
+                } elseif ($tool instanceof ToolDefinition) {
+                    $toolsArray[] = $tool->toArray();
+                } else {
+                    $toolsArray[] = $tool;
+                }
+            }
+            if (! empty($toolsArray)) {
+                $json['tools'] = $toolsArray;
+                $json['tool_choice'] = 'auto';
+            }
+        }
         if ($stop) {
             $json['stop'] = $stop;
         }
         $this->debug && $this->logger?->debug(sprintf("Send: \nSystem Message: %s\nUser Message: %s", $messages['system'] ?? '', $messages['user'] ?? ''));
         $response = $this->client->post('/v1/chat/completions', [
             'json' => $json,
+            'verify' => false,
         ]);
         $chatCompletionResponse = new ChatCompletionResponse($response);
         $this->debug && $this->logger?->debug('Receive: ' . $chatCompletionResponse);
@@ -122,14 +142,14 @@ class Client implements ClientInterface
 
     protected function initConfig(OpenAIConfig $config): static
     {
-        if (! $config->getApiKey()) {
-            throw new InvalidArgumentException('API key of OpenAI api is required');
-        }
         $headers = [
-            'Authorization' => 'Bearer ' . $config->getApiKey(),
             'Content-Type' => 'application/json',
             'User-Agent' => 'Hyperf-Odin/1.0',
         ];
+        // Because there are many models that are also compatible with the specification of OpenAI, but not necessarily have an API_KEY.
+        if ($config->getApiKey()) {
+            $headers['Authorization'] = 'Bearer ' . $config->getApiKey();
+        }
         if ($config->getOrganization()) {
             $headers['OpenAI-Organization'] = $config->getOrganization();
         }

@@ -41,7 +41,7 @@ class ToolsAgent
         public ?Knowledge $knowledge,
         public ?Observer $observer,
         public array $tools = [],
-        public int $maxIterations = 10,
+        public int $maxIterations = 100,
     )
     {
     }
