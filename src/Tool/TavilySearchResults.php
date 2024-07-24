@@ -22,7 +22,7 @@ class TavilySearchResults extends AbstractTool
 
     public string $description
         = <<<'EOF'
-When you answer non-logical questions or non-chat questions, especially current affairs, economics, business, academic, scientific research, and political questions, call this tool to search for real time information from the Internet to assist in answering. The input should be a search query.
+When you answer non-logical questions or non-chat questions, especially current affairs, economics, business, academic, scientific research, and political questions, call this tool to search for real time information from the Internet to assist in answering. The input should be a search query that min length is 5 characters, if the search query is less than 5 characters you should expand the search keyword.
 EOF;
 
     public array $parameters
@@ -81,7 +81,7 @@ EOF;
     public function invoke(string $query, bool $throwException = false): array
     {
         try {
-            if ($this->isValidQuery($query)) {
+            if (true || $this->isValidQuery($query)) {
                 $result = $this->apiWrapper->results($query, $this->getMaxResults(), $this->getSearchDepth(), $this->isUseAnswerDirectly());
                 if ($this->isUseAnswerDirectly()) {
                     $answer = $result['answer'] ?? '';
@@ -101,7 +101,7 @@ EOF;
     protected function isValidQuery(string $query): bool
     {
         // Query is too short. Min query length is 5 characters.
-        if (strlen($query) < 5) {
+        if (mb_strlen($query, 'utf8') < 5) {
             throw new InvalidArgumentException('Query is too short. Min query length is 5 characters.');
         }
         return true;

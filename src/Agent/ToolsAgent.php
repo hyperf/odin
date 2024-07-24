@@ -119,7 +119,7 @@ class ToolsAgent
                 }
                 $toolCalls = $choice->getMessage()->getToolCalls();
                 if ($toolCalls) {
-                    $toolCallsResults = [];
+                    $toolCallsMessages = [];
                     $toolsWithKey = [];
                     foreach ($this->tools as $tool) {
                         if ($tool instanceof ToolInterface) {
@@ -142,35 +142,25 @@ class ToolsAgent
                             $this->observer?->info(sprintf('Invoking tool %s with arguments %s', $toolCall->getName(), json_encode($toolCall->getArguments(), JSON_UNESCAPED_UNICODE)));
                             $result = call_user_func($toolHandler, ...$toolCall->getArguments());
                             if ($result) {
-                                $toolCallsResults[$toolCall->getId()] = [
-                                    'call' => sprintf('%s(%s)', $toolCall->getName(), implode(', ', $toolCall->getArguments())),
-                                    'result' => $result,
-                                ];
+                                $callResult = sprintf('%s(%s)', $toolCall->getName(), implode(', ', $toolCall->getArguments()));
+                                $toolCallsMessages[] = new ToolMessage(sprintf("Tool Call: %s\nObservation: %s\nYou could answer the user question according to the Observation.", $callResult, json_encode($result, JSON_UNESCAPED_UNICODE)), $toolCall->getId());
                                 if ($this->isDebug()) {
                                     $this->observer?->debug(sprintf('Tool %s returned %s', $toolCall->getName(), json_encode($result, JSON_UNESCAPED_UNICODE)));
                                 } else {
                                     $this->observer?->info(sprintf('Tool %s returned', $toolCall->getName()));
                                 }
                             } else {
+                                $toolCallsMessages[] = new ToolMessage('Tool Call: Response Nothing', $toolCall->getId());
                                 $this->observer?->info(sprintf('Tool %s returned nothing', $toolCall->getName()));
                             }
                         }
                     }
-                    if ($toolCallsResults) {
-                        $toolCallsMessages = [];
-                        foreach ($toolCallsResults as $toolCallId => $toolCallResult) {
-                            if (! $toolCallResult['call'] || ! $toolCallResult['result']) {
-                                continue;
-                            }
-                            $toolCallsMessages[] = new ToolMessage(sprintf("Tool Call: %s\nObservation: %s", $toolCallResult['call'], json_encode($toolCallResult['result'], JSON_UNESCAPED_UNICODE)), $toolCallId);
-                        }
-                        $messages = $this->memory->getConversations($conversationId);
-                        $innerChatResponse = $this->innerChat(array_merge($messages, [
-                            $currentStageUserMessage,
-                            $response->getFirstChoice()->getMessage(),
-                        ], $toolCallsMessages), conversationId: $conversationId);
-                        $response = $innerChatResponse;
-                    }
+                    $messages = $this->memory->getConversations($conversationId);
+                    $innerChatResponse = $this->innerChat(array_merge($messages, [
+                        $currentStageUserMessage,
+                        $response->getFirstChoice()->getMessage(),
+                    ], $toolCallsMessages), conversationId: $conversationId);
+                    $response = $innerChatResponse;
                 }
             }
         }
@@ -216,11 +206,6 @@ class ToolsAgent
         $response = $this->model->chat($messages, $temperature, $maxTokens, $stop, $tools);
         if ($response instanceof ChatCompletionResponse) {
             $message = $response->getFirstChoice()->getMessage();
-            if ($this->isDebug()) {
-                $this->observer?->debug(sprintf('Model response %s message: %s', $message->getRole()->value, $message->getContent()));
-            } else {
-                $this->observer?->info('Model has responded');
-            }
         }
         ++$this->currentIteration;
         return $response;

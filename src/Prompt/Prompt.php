@@ -17,6 +17,16 @@ use Hyperf\Odin\Message\UserMessage;
 
 class Prompt
 {
+
+    public static function parse(array $inputs, string $prompt): string
+    {
+        foreach ($inputs as $keyword => $value) {
+            $prompt = str_replace("{ $keyword }", $value, $prompt);
+            $prompt = str_replace("{$keyword}", $value, $prompt);
+        }
+        return $prompt;
+    }
+
     public static function input(string $input): array
     {
         $defaultSystemMessage = self::getPrompt('DefaultSystemMessage');
@@ -32,6 +42,7 @@ class Prompt
             'DefaultSystemMessage' => file_get_contents(__DIR__ . '/DefaultSystemMessage.prompt'),
             'CodeInterpreter' => file_get_contents(__DIR__ . '/CodeInterpreter.prompt'),
             'AfterCodeExecuted' => file_get_contents(__DIR__ . '/AfterCodeExecuted.prompt'),
+            'KnowledgeAutoQA' => file_get_contents(__DIR__ . '/KnowledgeAutoQA.prompt'),
         };
         if ($arguments) {
             foreach ($arguments as $key => $value) {

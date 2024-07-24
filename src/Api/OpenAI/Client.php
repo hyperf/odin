@@ -80,7 +80,7 @@ class Client implements ClientInterface
         if ($stop) {
             $json['stop'] = $stop;
         }
-        $this->debug && $this->logger?->debug(sprintf("Send: \nSystem Message: %s\nUser Message: %s", $messages['system'] ?? '', $messages['user'] ?? ''));
+        $this->debug && $this->logger?->debug(sprintf("Send Messages: %s\nTools: %s", json_encode($messagesArr, JSON_UNESCAPED_UNICODE), json_encode($tools, JSON_UNESCAPED_UNICODE)));
         $response = $this->client->post('/v1/chat/completions', [
             'json' => $json,
             'verify' => false,

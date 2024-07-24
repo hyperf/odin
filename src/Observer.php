@@ -19,6 +19,16 @@ class Observer
         $this->logger->info($message, $context);
     }
 
+    public function warning(Stringable|string $message, array $context = []): void
+    {
+        $this->logger->warning($message, $context);
+    }
+
+    public function error(Stringable|string $message, array $context = []): void
+    {
+        $this->logger->error($message, $context);
+    }
+
     public function debug(Stringable|string $message, array $context = []): void
     {
         if (! $this->isDebug()) {

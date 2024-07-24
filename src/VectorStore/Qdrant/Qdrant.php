@@ -21,10 +21,13 @@ use Hyperf\Qdrant\Struct\Collections\CollectionInfo;
 use Hyperf\Qdrant\Struct\Collections\Enums\Distance;
 use Hyperf\Qdrant\Struct\Collections\VectorParams;
 use Hyperf\Qdrant\Struct\Points\ExtendedPointId;
+use Hyperf\Qdrant\Struct\Points\ExtendedPointIds;
 use Hyperf\Qdrant\Struct\Points\Point\PointStruct;
+use Hyperf\Qdrant\Struct\Points\Point\Record;
 use Hyperf\Qdrant\Struct\Points\Point\ScoredPoint;
 use Hyperf\Qdrant\Struct\Points\VectorStruct;
 use Hyperf\Qdrant\Struct\Points\WithPayload;
+use Hyperf\Qdrant\Struct\Points\WithVector;
 use Hyperf\Qdrant\Struct\UpdateResult;
 use RuntimeException;
 
@@ -83,6 +86,29 @@ class Qdrant
         return $this->collections->createCollection($name, new VectorParams($vectorSize, $vectorDistance));
     }
 
+    public function getPoint(string $collectionName, ExtendedPointId $pointId): Record
+    {
+        return $this->points->getPoint($collectionName, $pointId);
+    }
+
+    public function getPoints(
+        string $collectionName,
+        array $pointIds,
+        bool $withPayload = true,
+        bool $withVector = false
+    ): array {
+        $pointIds = new ExtendedPointIds($pointIds);
+        return $this->points->getPoints($collectionName, $pointIds, new WithPayload($withPayload), new WithVector($withVector));
+    }
+
+    public function scrollPoints(
+        string $collectionName,
+        ?ExtendedPointId $offset = null,
+        int $limit = 10,
+    ): array {
+        return $this->points->scrollPoints(collectionName: $collectionName, offset: $offset, limit: $limit, withPayload: new WithPayload(true), withVector: new WithVector(false),);
+    }
+
     public function upsertPointsByDocument(
         string $collectionName,
         Document $document,
@@ -94,14 +120,17 @@ class Qdrant
             $pointId = $this->generatePointId($block);
             $pointId = new ExtendedPointId($pointId);
             try {
-                $point = $this->points->getPoint($collectionName, $pointId);
+                $point = $this->getPoint($collectionName, $pointId);
                 return null;
             } catch (ClientException $exception) {
                 if ($exception->getCode() !== 404) {
                     throw $exception;
                 }
                 $embedding = $embeddingModel->embedding($block)->getEmbeddings();
-                $payload = array_merge(['content' => $block], $document->getMetadata());
+                $payload = array_merge([
+                    '__content__' => $block,
+                    '__model__' => $embeddingModel->getSpecifiedModelName()
+                ], $document->getMetadata());
                 return new PointStruct($pointId, new VectorStruct($embedding), $payload);
             }
         }, $splitBlocks, array_keys($splitBlocks));
