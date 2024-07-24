@@ -12,13 +12,13 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Document;
 
-use Hyperf\Odin\TextSplitter\MarkdownSplitter;
+use Hyperf\Odin\TextSplitter\RecursiveCharacterTextSplitter;
 
 class MarkdownDocument extends Document
 {
     public function split(): array
     {
-        $recursiveCharacterTextSplitter = new MarkdownSplitter();
+        $recursiveCharacterTextSplitter = new RecursiveCharacterTextSplitter('markdown');
         return $recursiveCharacterTextSplitter->splitText($this->getContent());
     }
 
