@@ -27,7 +27,7 @@ function chat(string $message): string
 }
 
 
-$json = <<<JSON
+$json = <<<ARRAY
 [
     'name' => 'run_code',
     'description' => 'Executes code and returns the output.',
@@ -54,7 +54,7 @@ $json = <<<JSON
         ]
     ]
 ]
-JSON;
+ARRAY;
 
 // ARRAY/JSON 转为 PHP 对象的 Prompt
 $prompt = <<<PROMPT
