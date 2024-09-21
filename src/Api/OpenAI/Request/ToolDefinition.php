@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Api\OpenAI\Request;
 
+use Closure;
 use Hyperf\Contract\Arrayable;
 use InvalidArgumentException;
 
@@ -26,7 +27,8 @@ class ToolDefinition implements Arrayable
     /**
      * @var callable[]
      */
-    protected array $toolHandler = [];
+    protected array|Closure $toolHandler = [];
+
     protected array $examples;
 
     public function __construct(
@@ -34,7 +36,7 @@ class ToolDefinition implements Arrayable
         string $description = '',
         ?ToolParameters $parameters = null,
         array $examples = [],
-        callable|array $toolHandler = [],
+        array|callable|Closure $toolHandler = [],
     ) {
         $this->name = $name;
         $this->description = $description;
@@ -51,7 +53,7 @@ class ToolDefinition implements Arrayable
                 'name' => $this->getName(),
                 'description' => $this->getDescription(),
                 'parameters' => $this->getParameters()?->toArray(),
-            ]
+            ],
         ];
     }
 
@@ -64,16 +66,16 @@ class ToolDefinition implements Arrayable
                 'description' => $this->getDescription(),
                 'parameters' => $this->getParameters()?->toArray(),
                 'examples' => $this->getExamples(),
-            ]
+            ],
         ];
     }
 
-    public function getToolHandler(): array
+    public function getToolHandler(): array|callable|Closure
     {
         return $this->toolHandler;
     }
 
-    public function setToolHandler(array|callable $toolHandler): static
+    public function setToolHandler(array|callable|Closure $toolHandler): static
     {
         if (! is_callable($toolHandler)) {
             throw new InvalidArgumentException('Tool handler must be callable.');
@@ -87,7 +89,7 @@ class ToolDefinition implements Arrayable
         return $this->name;
     }
 
-    public function setName(string $name)
+    public function setName(string $name): static
     {
         $this->name = $name;
         return $this;
@@ -120,7 +122,7 @@ class ToolDefinition implements Arrayable
         return $this->examples;
     }
 
-    public function setExamples(array $examples)
+    public function setExamples(array $examples): static
     {
         $this->examples = $examples;
         return $this;
