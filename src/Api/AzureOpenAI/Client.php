@@ -35,7 +35,7 @@ class Client implements ClientInterface
 
     protected ?LoggerInterface $logger;
 
-    protected bool $debug = true;
+    protected bool $debug = false;
     protected string $model;
 
     public function __construct(AzureOpenAIConfig $config, LoggerInterface $logger, string $model)
