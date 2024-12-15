@@ -121,6 +121,7 @@ $models = [
         ],
     ],
     'text-embedding-ada-002' => [
+        'type' => 'embedding',
         'implementation' => AzureOpenAIModel::class,
         'config' => [
             'api_key' => env('AZURE_OPENAI_TEXT_EMBEDDING_ADA_002_API_KEY'),
