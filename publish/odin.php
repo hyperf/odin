@@ -204,6 +204,7 @@ $models = array_merge($models, $ollamaModels, $glmModels);
 return [
     'llm' => [
         'default' => 'gpt-4',
+        'default_embedding' => 'text-embedding-ada-002',
         // Modify this according to your needs
         'models' => $models,
     ],
