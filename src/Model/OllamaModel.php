@@ -42,6 +42,11 @@ class OllamaModel implements ModelInterface, EmbeddingInterface
         return new Embedding($response->getEmbeddings());
     }
 
+    public function getVectorSize(): int
+    {
+        return 1536;
+    }
+
     public function getOllamaClient(): Client
     {
         $ollama = new Ollama();
@@ -49,7 +54,7 @@ class OllamaModel implements ModelInterface, EmbeddingInterface
         return $ollama->getClient($config);
     }
 
-    public function getSpecifiedModelName(): string
+    public function getModelName(): string
     {
         return $this->model;
     }

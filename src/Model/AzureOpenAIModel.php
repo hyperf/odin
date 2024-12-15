@@ -58,8 +58,14 @@ class AzureOpenAIModel implements ModelInterface, EmbeddingInterface
         return $openAI->getClient($config, $this->model);
     }
 
-    public function getSpecifiedModelName(): string
+    public function getModelName(): string
     {
         return $this->model;
     }
+
+    public function getVectorSize(): int
+    {
+        return 1536;
+    }
+
 }

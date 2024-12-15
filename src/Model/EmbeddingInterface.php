@@ -16,5 +16,7 @@ interface EmbeddingInterface
 {
     public function embedding(string $input): Embedding;
 
-    public function getSpecifiedModelName(): string;
+    public function getModelName(): string;
+
+    public function getVectorSize(): int;
 }

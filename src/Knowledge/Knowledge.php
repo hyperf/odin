@@ -45,7 +45,7 @@ class Knowledge
 
     public function upsert(string $collection, Document $document): ?UpdateResult
     {
-        $this->qdrant->getOrCreateCollection($collection, $this->vectorSizeMap[$this->embeddingModel->getSpecifiedModelName()]);
+        $this->qdrant->getOrCreateCollection($collection, $this->vectorSizeMap[$this->embeddingModel->getModelName()]);
         return $this->qdrant->upsertPointsByDocument($collection, $document, $this->embeddingModel);
     }
 

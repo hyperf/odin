@@ -129,7 +129,7 @@ class Qdrant
                 $embedding = $embeddingModel->embedding($block)->getEmbeddings();
                 $payload = array_merge([
                     '__content__' => $block,
-                    '__model__' => $embeddingModel->getSpecifiedModelName()
+                    '__model__' => $embeddingModel->getModelName()
                 ], $document->getMetadata());
                 return new PointStruct($pointId, new VectorStruct($embedding), $payload);
             }
