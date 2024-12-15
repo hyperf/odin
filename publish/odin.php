@@ -207,17 +207,6 @@ return [
         // Modify this according to your needs
         'models' => $models,
     ],
-    'azure' => [
-        'text-embedding-ada-002' => [
-            'api_key' => env('AZURE_OPENAI_TEXT_EMBEDDING_ADA_002_API_KEY'),
-            'api_base' => env('AZURE_OPENAI_TEXT_EMBEDDING_ADA_002_API_BASE'),
-            'api_version' => env('AZURE_OPENAI_TEXT_EMBEDDING_ADA_002_API_VERSION', '2023-08-01-preview'),
-            'deployment_name' => env('AZURE_OPENAI_TEXT_EMBEDDING_ADA_002_DEPLOYMENT_NAME'),
-        ],
-    ],
-    'openai' => [
-        'api_key' => env('OPENAI_API_KEY'),
-    ],
     'tavily' => [
         'api_key' => env('TAVILY_API_KEY'),
     ],
