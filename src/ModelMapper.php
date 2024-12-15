@@ -57,7 +57,7 @@ class ModelMapper
 
     public function getDefaultEmbeddingModel(): EmbeddingInterface
     {
-        return $this->getModel($this->defaultEmbeddingModel);
+        return $this->getEmbeddingModel($this->defaultEmbeddingModel);
     }
 
     /**
