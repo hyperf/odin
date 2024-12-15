@@ -116,24 +116,49 @@ class Qdrant
         bool $wait = true
     ): ?UpdateResult {
         $splitBlocks = $document->split();
-        $pointStructs = array_map(function (string $block) use ($embeddingModel, $document, $collectionName) {
-            $pointId = $this->generatePointId($block);
-            $pointId = new ExtendedPointId($pointId);
+        $items = [];
+        $payloads = [];
+        // Generate the point id
+        foreach ($splitBlocks as $item) {
+            $pointId = $this->generatePointId($item);
+            $items[$pointId] = $item;
+            $payloads[$pointId] = $document->getMetadata();
+        }
+        unset($splitBlocks);
+        return $this->upsertPoints($collectionName, $items, $payloads, $embeddingModel, $wait);
+    }
+
+    /**
+     * @param array $points ['point_id' => 'content']
+     * @param array $payloads ['point_id' => ['payload_key' => 'payload_value']]
+     */
+    public function upsertPoints(
+        string $collectionName,
+        array $points,
+        array $payloads,
+        EmbeddingInterface $embeddingModel,
+        bool $wait = true
+    ): ?UpdateResult {
+        $pointStructs = [];
+        foreach ($points as $pointId => $item) {
+            $extendedPointId = new ExtendedPointId($pointId);
             try {
-                $point = $this->getPoint($collectionName, $pointId);
+                $point = $this->getPoint($collectionName, $extendedPointId);
                 return null;
             } catch (ClientException $exception) {
                 if ($exception->getCode() !== 404) {
                     throw $exception;
                 }
-                $embedding = $embeddingModel->embedding($block)->getEmbeddings();
-                $payload = array_merge([
-                    '__content__' => $block,
-                    '__model__' => $embeddingModel->getModelName()
-                ], $document->getMetadata());
-                return new PointStruct($pointId, new VectorStruct($embedding), $payload);
             }
-        }, $splitBlocks, array_keys($splitBlocks));
+            // Not found, then create a new point
+            $embedding = $embeddingModel->embedding($item)->getEmbeddings();
+            $defaultPayload = [
+                '__content__' => $item,
+                '__model__' => $embeddingModel->getModelName()
+            ];
+            $payload = array_merge($defaultPayload, $payloads[$pointId] ?? []);
+            $pointStructs[$pointId] = new PointStruct($extendedPointId, new VectorStruct($embedding), $payload);
+        }
         $pointStructs = array_filter($pointStructs);
         if (! $pointStructs) {
             return null;
