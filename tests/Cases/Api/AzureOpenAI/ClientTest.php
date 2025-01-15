@@ -23,6 +23,7 @@ use Hyperf\Odin\Logger;
 use Hyperf\Odin\Message\AssistantMessage;
 use Hyperf\Odin\Message\SystemMessage;
 use Hyperf\Odin\Message\UserMessage;
+use Hyperf\Odin\Message\UserMessageContent;
 use Hyperf\Odin\Tool\AbstractTool;
 use HyperfTest\Odin\Cases\AbstractTestCase;
 
@@ -398,5 +399,39 @@ JSON,
         $this->assertSame(['slat' => 'hello'], $toolCalls[0]->getArguments());
         $this->assertSame('get_rand_string', $toolCalls[1]->getName());
         $this->assertSame(['slat' => 'hi'], $toolCalls[1]->getArguments());
+    }
+
+    public function testChatVision()
+    {
+        $client = new Client($this->config, new Logger(), $this->model);
+
+        $guzzleClientMock = $this->createMock(GuzzleClient::class);
+        $response = new Response(
+            200,
+            [],
+            <<<'JSON'
+{"choices":[{"content_filter_results":{"hate":{"filtered":false,"severity":"safe"},"self_harm":{"filtered":false,"severity":"safe"},"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"}},"finish_reason":"stop","index":0,"logprobs":null,"message":{"content":"图片中展示了一家人围坐在餐桌前，共同享用丰盛的中国菜肴。桌上摆满了各式各样的美食，包括整条烤鱼、炒虾、蔬菜拼盘、炒饭、汤等。每个人面前都有一副筷子，他们正享用着这顿美味的晚餐。桌上还有饮料，如橙汁，整个场景呈现出一种温馨祥和的家庭聚餐氛围。背景中可以看到传统的中式装修风格。","refusal":null,"role":"assistant"}}],"created":1736939844,"id":"chatcmpl-ApvgijBkXxrnuOdJmkcIkHJp10eSD","model":"gpt-4o-2024-08-06","object":"chat.completion","prompt_filter_results":[{"prompt_index":0,"content_filter_result":{"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"},"hate":{"filtered":false,"severity":"safe"},"self_harm":{"filtered":false,"severity":"safe"},"jailbreak":{"filtered":false,"detected":false}}},{"prompt_index":2,"content_filter_result":{"sexual":{"filtered":false,"severity":"safe"},"violence":{"filtered":false,"severity":"safe"},"hate":{"filtered":false,"severity":"safe"},"self_harm":{"filtered":false,"severity":"safe"}}}],"system_fingerprint":"fp_f3927aa00d","usage":{"completion_tokens":114,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens":1301,"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0},"total_tokens":1415}}
+JSON
+        );
+        $guzzleClientMock->method('post')->willReturn($response);
+        $this->setNonpublicPropertyValue($client, 'clients', [$this->model => $guzzleClientMock]);
+
+        $userMessage = new UserMessage();
+        $userMessage->addContent(UserMessageContent::text('这个图片里面有什么'));
+        $userMessage->addContent(UserMessageContent::imageUrl(base64_decode('aHR0cHM6Ly92Y2cwMi5jZnAuY24vY3JlYXRpdmUvdmNnLzgwMC9uZXcvVkNHMjExMjU4OTAwOTQwLmpwZw==')));
+
+        $messages = [
+            new SystemMessage(''),
+            $userMessage,
+        ];
+        $result = $client->chat(messages: $messages, model: $this->model);
+
+        $this->assertInstanceOf(ChatCompletionResponse::class, $result);
+        var_dump((string) $result);
+        $this->assertNotEmpty($result->getChoices()[0]->getMessage()->getContent());
+
+        $this->assertNotEmpty($result->getId());
+        $this->assertNotEmpty($result->getModel());
+        $this->assertNotEmpty($result->getObject());
     }
 }
