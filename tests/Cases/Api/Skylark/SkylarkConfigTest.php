@@ -21,15 +21,6 @@ use HyperfTest\Odin\Cases\AbstractTestCase;
  */
 class SkylarkConfigTest extends AbstractTestCase
 {
-    public function testDefaultValues()
-    {
-        $config = new SkylarkConfig();
-
-        $this->assertNull($config->getApiKey());
-        $this->assertSame('https://ark.cn-beijing.volces.com/', $config->getBaseUrl());
-        $this->assertSame('', $config->getModel());
-    }
-
     public function testCustomValues()
     {
         $config = new SkylarkConfig('test_api_key', 'https://custom.url/', 'test_model');

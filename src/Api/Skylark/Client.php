@@ -81,7 +81,6 @@ class Client implements ClientInterface
         $this->debug && $this->logger?->debug(sprintf("Send Messages: %s\nTools: %s", json_encode($messagesArr, JSON_UNESCAPED_UNICODE), json_encode($tools, JSON_UNESCAPED_UNICODE)));
         $response = $this->client->post('/api/v3/chat/completions', [
             'json' => $json,
-            'verify' => false,
         ]);
         $chatCompletionResponse = new ChatCompletionResponse($response);
         $this->debug && $this->logger?->debug('Receive: ' . $chatCompletionResponse);

@@ -33,6 +33,7 @@ class OpenAIModel implements ModelInterface
     ): ChatCompletionResponse
     {
         $client = $this->getOpenAIClient();
+        // todo stream 待实现
         return $client->chat($messages, $this->model, $temperature, $maxTokens, $stop, $tools);
     }
 

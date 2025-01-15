@@ -33,6 +33,7 @@ class ChatglmModel implements ModelInterface, EmbeddingInterface
         bool $stream = false,
     ): ChatCompletionResponse {
         $client = $this->getChatglmClient();
+        // todo stream 待实现
         return $client->chat($messages, $this->model, $temperature, $maxTokens, $stop, $tools);
     }
 

@@ -33,6 +33,7 @@ class OllamaModel implements ModelInterface, EmbeddingInterface
     ): ChatCompletionResponse
     {
         $client = $this->getOllamaClient();
+        // todo stream 待实现
         return $client->chat($messages, $this->model, $temperature, $maxTokens, $stop, $tools);
     }
 

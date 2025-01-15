@@ -15,12 +15,12 @@ namespace Hyperf\Odin\Api\Skylark;
 class SkylarkConfig
 {
     public function __construct(
-        protected ?string $apiKey = null,
-        protected string $baseUrl = 'https://ark.cn-beijing.volces.com/',
-        protected string $model = ''
+        protected string $apiKey,
+        protected string $baseUrl,
+        protected string $model
     ) {}
 
-    public function getApiKey(): ?string
+    public function getApiKey(): string
     {
         return $this->apiKey;
     }
