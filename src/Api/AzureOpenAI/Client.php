@@ -21,7 +21,6 @@ use Hyperf\Odin\Api\OpenAI\Response\TextCompletionResponse;
 use Hyperf\Odin\Exception\NotImplementedException;
 use Hyperf\Odin\Message\MessageInterface;
 use Hyperf\Odin\Tool\ToolInterface;
-use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 
 class Client implements ClientInterface
@@ -33,12 +32,13 @@ class Client implements ClientInterface
      */
     protected array $clients = [];
 
-    protected ?LoggerInterface $logger;
+    protected ?LoggerInterface $logger = null;
 
     protected bool $debug = false;
+
     protected string $model;
 
-    public function __construct(AzureOpenAIConfig $config, LoggerInterface $logger, string $model)
+    public function __construct(AzureOpenAIConfig $config, ?LoggerInterface $logger, string $model)
     {
         $this->logger = $logger;
         $this->model = $model;
@@ -54,7 +54,7 @@ class Client implements ClientInterface
         array $tools = [],
         bool $stream = false,
     ): ChatCompletionResponse {
-        $deploymentPath = $this->buildDeploymentPath($model);
+        $deploymentPath = $this->buildDeploymentPath();
         $messagesArr = [];
         foreach ($messages as $message) {
             if ($message instanceof MessageInterface) {
@@ -65,6 +65,7 @@ class Client implements ClientInterface
             'messages' => $messagesArr,
             'model' => $model,
             'temperature' => $temperature,
+            'stream' => $stream,
         ];
         if ($maxTokens) {
             $json['max_tokens'] = $maxTokens;
@@ -91,7 +92,7 @@ class Client implements ClientInterface
         $this->debug && $this->logger?->debug(sprintf("Send Messages: %s\nTools: %s", json_encode($messagesArr, JSON_UNESCAPED_UNICODE), json_encode($tools, JSON_UNESCAPED_UNICODE)));
         $response = $this->getClient($model)->post($deploymentPath . '/chat/completions', [
             'query' => [
-                'api-version' => $this->config->getApiVersion($model),
+                'api-version' => $this->config->getApiVersion(),
             ],
             'json' => $json,
             'verify' => false,
@@ -107,10 +108,10 @@ class Client implements ClientInterface
         float $temperature = 0.9,
         int $maxTokens = 200
     ): TextCompletionResponse {
-        $deploymentPath = $this->buildDeploymentPath($model);
+        $deploymentPath = $this->buildDeploymentPath();
         $response = $this->getClient($model)->post($deploymentPath . '/completions', [
             'query' => [
-                'api-version' => $this->config->getApiVersion($model),
+                'api-version' => $this->config->getApiVersion(),
             ],
             'json' => [
                 'prompt' => $prompt,
@@ -133,14 +134,14 @@ class Client implements ClientInterface
         string $model = 'text-embedding-ada-002',
         ?string $user = null
     ): ListResponse {
-        $deploymentPath = $this->buildDeploymentPath($model);
+        $deploymentPath = $this->buildDeploymentPath();
         $json = [
             'input' => $input,
         ];
         $user && $json['user'] = $user;
         $response = $this->getClient($model)->post($deploymentPath . '/embeddings', [
             'query' => [
-                'api-version' => $this->config->getApiVersion($model),
+                'api-version' => $this->config->getApiVersion(),
             ],
             'json' => $json,
             'verify' => false,
@@ -161,9 +162,6 @@ class Client implements ClientInterface
 
     protected function initConfig(AzureOpenAIConfig $config): static
     {
-        if (! $config instanceof AzureOpenAIConfig) {
-            throw new InvalidArgumentException('AzureOpenAIConfig is required');
-        }
         $this->config = $config;
         $headers = [
             'api-key' => $config->getApiKey(),
@@ -182,8 +180,8 @@ class Client implements ClientInterface
         return $this->clients[$model];
     }
 
-    protected function buildDeploymentPath(string $model = 'gpt-3.5-turbo'): string
+    protected function buildDeploymentPath(): string
     {
-        return 'openai/deployments/' . $this->config->getDeploymentName($model);
+        return 'openai/deployments/' . $this->config->getDeploymentName();
     }
 }

@@ -29,6 +29,7 @@ class OllamaModel implements ModelInterface, EmbeddingInterface
         int $maxTokens = 0,
         array $stop = [],
         array $tools = [],
+        bool $stream = false,
     ): ChatCompletionResponse
     {
         $client = $this->getOllamaClient();

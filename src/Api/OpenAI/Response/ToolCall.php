@@ -16,20 +16,13 @@ use Hyperf\Contract\Arrayable;
 
 class ToolCall implements Arrayable
 {
-
-    /**
-     * @param string $name
-     * @param array $arguments
-     * @param bool $shouldFix Sometimes the API will return a wrong function call. If this flag is true will attempt to fix that.
-     */
     public function __construct(
         protected string $name,
         protected array $arguments,
         protected string $id,
-        protected string $type = 'function'
-    )
-    {
-    }
+        protected string $type = 'function',
+        protected string $streamArguments = '',
+    ) {}
 
     public static function fromArray(array $toolCalls): array
     {
@@ -50,7 +43,7 @@ class ToolCall implements Arrayable
             $name = $function['name'] ?? '';
             $id = $toolCall['id'] ?? '';
             $type = $toolCall['type'] ?? 'function';
-            $static = new static($name, $arguments, $id, $type);
+            $static = new static($name, $arguments, $id, $type, $function['arguments']);
             $toolCallsResult[] = $static;
         }
         return $toolCallsResult;
@@ -81,12 +74,16 @@ class ToolCall implements Arrayable
 
     public function getArguments(): array
     {
+        if (! empty($this->streamArguments)) {
+            $arguments = json_decode($this->streamArguments, true);
+            return is_array($arguments) ? $arguments : [];
+        }
         return $this->arguments;
     }
 
     public function getSerializedArguments(): string
     {
-        return json_encode($this->arguments);
+        return json_encode($this->getArguments(), JSON_UNESCAPED_UNICODE);
     }
 
     public function setArguments(array $arguments): static
@@ -115,5 +112,15 @@ class ToolCall implements Arrayable
     {
         $this->type = $type;
         return $this;
+    }
+
+    public function getStreamArguments(): string
+    {
+        return $this->streamArguments;
+    }
+
+    public function appendStreamArguments(string $arguments): void
+    {
+        $this->streamArguments .= $arguments;
     }
 }

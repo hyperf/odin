@@ -1,52 +1,37 @@
 <?php
 
-namespace Hyperf\Odin\Api\Skylark;
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
 
+namespace Hyperf\Odin\Api\Skylark;
 
 class SkylarkConfig
 {
-
     public function __construct(
-        public string $ak,
-        public string $sk,
-        public string $endpoint,
-        public string $host = 'https://maas-api.ml-platform-cn-beijing.volces.com',
-        public string $region = 'cn-beijing',
-        public string $service = 'ml_maas',
-    ) {
+        protected ?string $apiKey = null,
+        protected string $baseUrl = 'https://ark.cn-beijing.volces.com/',
+        protected string $model = ''
+    ) {}
+
+    public function getApiKey(): ?string
+    {
+        return $this->apiKey;
     }
 
-    public function getAk(): string
+    public function getBaseUrl(): string
     {
-        return $this->ak;
+        return $this->baseUrl;
     }
 
-    public function getSk(): string
+    public function getModel(): string
     {
-        return $this->sk;
-    }
-
-    public function getEndpoint(): string
-    {
-        return $this->endpoint;
-    }
-
-    public function getRegion(): string
-    {
-        return $this->region;
-    }
-
-    public function getHost(bool $withSchema = true): string
-    {
-        if ($withSchema) {
-            return $this->host;
-        } else {
-            return str_replace(['http://', 'https://'], '', $this->host);
-        }
-    }
-
-    public function getService(): string
-    {
-        return $this->service;
+        return $this->model;
     }
 }

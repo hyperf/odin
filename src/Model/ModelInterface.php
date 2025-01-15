@@ -22,5 +22,6 @@ interface ModelInterface
         int $maxTokens = 0,
         array $stop = [],
         array $tools = [],
+        bool $stream = false,
     ): ChatCompletionResponse;
 }

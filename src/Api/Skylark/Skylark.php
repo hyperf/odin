@@ -25,11 +25,11 @@ class Skylark extends AbstractApi
 
     public function getClient(SkylarkConfig $config): Client
     {
-        if ($config->getEndpoint() && isset($this->clients[$config->getEndpoint()])) {
-            return $this->clients[$config->getEndpoint()];
+        if ($config->getApiKey() && isset($this->clients[$config->getApiKey()])) {
+            return $this->clients[$config->getApiKey()];
         }
         $client = new Client($config, new Logger());
-        $this->clients[$config->getEndpoint()] = $client;
+        $this->clients[$config->getApiKey()] = $client;
         return $client;
     }
 }

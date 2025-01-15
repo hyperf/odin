@@ -1,0 +1,41 @@
+<?php
+
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
+
+namespace HyperfTest\Odin\Cases\Api\Skylark;
+
+use Hyperf\Odin\Api\Skylark\SkylarkConfig;
+use HyperfTest\Odin\Cases\AbstractTestCase;
+
+/**
+ * @internal
+ * @coversNothing
+ */
+class SkylarkConfigTest extends AbstractTestCase
+{
+    public function testDefaultValues()
+    {
+        $config = new SkylarkConfig();
+
+        $this->assertNull($config->getApiKey());
+        $this->assertSame('https://ark.cn-beijing.volces.com/', $config->getBaseUrl());
+        $this->assertSame('', $config->getModel());
+    }
+
+    public function testCustomValues()
+    {
+        $config = new SkylarkConfig('test_api_key', 'https://custom.url/', 'test_model');
+
+        $this->assertSame('test_api_key', $config->getApiKey());
+        $this->assertSame('https://custom.url/', $config->getBaseUrl());
+        $this->assertSame('test_model', $config->getModel());
+    }
+}
