@@ -38,8 +38,8 @@ class UserMessageTest extends AbstractTestCase
         $content = UserMessageContent::text('Hello, World!');
         $message->addContent($content);
 
-        $this->assertCount(1, $message->toArray());
-        $this->assertSame('Hello, World!', $message->toArray()[0]['text']);
+        $this->assertCount(1, $message->toArray()['content']);
+        $this->assertSame('Hello, World!', $message->toArray()['content'][0]['text']);
     }
 
     public function testToArray()
@@ -62,7 +62,7 @@ class UserMessageTest extends AbstractTestCase
             ],
         ];
 
-        $this->assertSame($expected, $message->toArray());
+        $this->assertSame($expected, $message->toArray()['content']);
     }
 
     public function testFromArray()
@@ -85,7 +85,7 @@ class UserMessageTest extends AbstractTestCase
         $message = UserMessage::fromArray($data);
 
         $this->assertCount(2, $message->toArray());
-        $this->assertSame('Hello, World!', $message->toArray()[0]['text']);
-        $this->assertSame('https://example.com/image.jpg', $message->toArray()[1]['image_url']['url']);
+        $this->assertSame('Hello, World!', $message->toArray()['content'][0]['text']);
+        $this->assertSame('https://example.com/image.jpg', $message->toArray()['content'][1]['image_url']['url']);
     }
 }
