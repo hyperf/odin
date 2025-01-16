@@ -12,10 +12,10 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Model;
 
-use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\Doubao\Client;
 use Hyperf\Odin\Api\Doubao\Doubao;
 use Hyperf\Odin\Api\Doubao\DoubaoConfig;
+use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
 
 class DoubaoModel implements ModelInterface
 {
