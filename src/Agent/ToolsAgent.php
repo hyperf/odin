@@ -22,7 +22,7 @@ use Hyperf\Odin\Message\AssistantMessage;
 use Hyperf\Odin\Message\FunctionMessage;
 use Hyperf\Odin\Message\ToolMessage;
 use Hyperf\Odin\Model\ModelInterface;
-use Hyperf\Odin\Model\SkylarkModel;
+use Hyperf\Odin\Model\DoubaoModel;
 use Hyperf\Odin\Observer;
 use Hyperf\Odin\Prompt\PromptInterface;
 use Hyperf\Odin\Tool\ToolInterface;
@@ -254,7 +254,7 @@ class ToolsAgent
 
     protected function response(ChatCompletionResponse $response): ChatCompletionResponse
     {
-        if ($this->model instanceof SkylarkModel) {
+        if ($this->model instanceof DoubaoModel) {
             $choices = $response->getChoices();
             // 取 <|Answer|>: 后面的内容作为回答
             foreach ($choices as $key => $choice) {
@@ -279,7 +279,7 @@ class ToolsAgent
 
     protected function transferMessages(array $messages): array
     {
-        if ($this->model instanceof SkylarkModel) {
+        if ($this->model instanceof DoubaoModel) {
             // 把里面的 ToolMessage 转为 FunctionMessage
             foreach ($messages as $key => $message) {
                 if ($message instanceof ToolMessage) {

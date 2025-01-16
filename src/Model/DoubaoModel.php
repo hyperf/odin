@@ -13,11 +13,11 @@ declare(strict_types=1);
 namespace Hyperf\Odin\Model;
 
 use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
-use Hyperf\Odin\Api\Skylark\Client;
-use Hyperf\Odin\Api\Skylark\Skylark;
-use Hyperf\Odin\Api\Skylark\SkylarkConfig;
+use Hyperf\Odin\Api\Doubao\Client;
+use Hyperf\Odin\Api\Doubao\Doubao;
+use Hyperf\Odin\Api\Doubao\DoubaoConfig;
 
-class SkylarkModel implements ModelInterface
+class DoubaoModel implements ModelInterface
 {
     public function __construct(public string $model, public array $config) {}
 
@@ -35,8 +35,8 @@ class SkylarkModel implements ModelInterface
 
     public function getSkylarkClient(): Client
     {
-        $skylark = new Skylark();
-        $config = new SkylarkConfig(
+        $skylark = new Doubao();
+        $config = new DoubaoConfig(
             apiKey: $this->config['api_key'] ?? null,
             baseUrl: $this->config['base_url'] ?? '',
             model: $this->config['model'] ?? '',

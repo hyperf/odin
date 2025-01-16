@@ -10,15 +10,15 @@ declare(strict_types=1);
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
 
-namespace HyperfTest\Odin\Cases\Api\Skylark;
+namespace HyperfTest\Odin\Cases\Api\Doubao;
 
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Psr7\Response;
 use GuzzleHttp\Psr7\Utils;
 use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\OpenAI\Response\ToolCall;
-use Hyperf\Odin\Api\Skylark\Client;
-use Hyperf\Odin\Api\Skylark\SkylarkConfig;
+use Hyperf\Odin\Api\Doubao\Client;
+use Hyperf\Odin\Api\Doubao\DoubaoConfig;
 use Hyperf\Odin\Logger;
 use Hyperf\Odin\Message\AssistantMessage;
 use Hyperf\Odin\Message\SystemMessage;
@@ -37,13 +37,13 @@ class ClientTest extends AbstractTestCase
 {
     private string $model;
 
-    private SkylarkConfig $config;
+    private DoubaoConfig $config;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->model = env('SKYLARK_PRO_32K_ENDPOINT');
-        $this->config = new SkylarkConfig(
+        $this->config = new DoubaoConfig(
             apiKey: env('SKYLARK_API_KEY'),
             baseUrl: env('SKYLARK_HOST'),
             model: $this->model

@@ -10,7 +10,7 @@ declare(strict_types=1);
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
 
-namespace Hyperf\Odin\Api\Skylark;
+namespace Hyperf\Odin\Api\Doubao;
 
 use GuzzleHttp\Client as GuzzleClient;
 use Hyperf\Odin\Api\ClientInterface;
@@ -24,13 +24,13 @@ class Client implements ClientInterface
 {
     protected GuzzleClient $client;
 
-    protected SkylarkConfig $config;
+    protected DoubaoConfig $config;
 
     protected ?LoggerInterface $logger;
 
     protected bool $debug = false;
 
-    public function __construct(SkylarkConfig $config, ?LoggerInterface $logger = null)
+    public function __construct(DoubaoConfig $config, ?LoggerInterface $logger = null)
     {
         $this->logger = $logger;
         $this->initConfig($config);
@@ -98,7 +98,7 @@ class Client implements ClientInterface
         return $this;
     }
 
-    protected function initConfig(SkylarkConfig $config): static
+    protected function initConfig(DoubaoConfig $config): static
     {
         $headers = [
             'Content-Type' => 'application/json',

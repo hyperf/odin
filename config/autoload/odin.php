@@ -15,7 +15,7 @@ use Hyperf\Odin\Model\AzureOpenAIModel;
 use Hyperf\Odin\Model\ChatglmModel;
 use Hyperf\Odin\Model\OllamaModel;
 use Hyperf\Odin\Model\OpenAIModel;
-use Hyperf\Odin\Model\SkylarkModel;
+use Hyperf\Odin\Model\DoubaoModel;
 use function Hyperf\Support\env;
 use function Hyperf\Support\value;
 
@@ -137,7 +137,7 @@ $models = [
         ],
     ],
     'skylark:character-4k' => [
-        'implementation' => SkylarkModel::class,
+        'implementation' => DoubaoModel::class,
         'config' => [
             'host' => env('SKYLARK_PRO_CHARACTER_4K_HOST', env('SKYLARK_PRO_HOST')),
             'ak' => env('SKYLARK_PRO_CHARACTER_4K_AK', env('SKYLARK_PRO_AK')),
@@ -148,7 +148,7 @@ $models = [
         ],
     ],
     'skylark:turbo-8k' => [
-        'implementation' => SkylarkModel::class,
+        'implementation' => DoubaoModel::class,
         'config' => [
             'host' => env('SKYLARK_PRO_TURBO_8K_HOST', env('SKYLARK_PRO_HOST')),
             'ak' => env('SKYLARK_PRO_TURBO_8K_AK', env('SKYLARK_PRO_AK')),
@@ -159,7 +159,7 @@ $models = [
         ],
     ],
     'skylark:32k' => [
-        'implementation' => SkylarkModel::class,
+        'implementation' => DoubaoModel::class,
         'config' => [
             'host' => env('SKYLARK_PRO_32K_HOST', env('SKYLARK_PRO_HOST')),
             'ak' => env('SKYLARK_PRO_32K_AK', env('SKYLARK_PRO_AK')),
@@ -170,7 +170,7 @@ $models = [
         ],
     ],
     'skylark:4k' => [
-        'implementation' => SkylarkModel::class,
+        'implementation' => DoubaoModel::class,
         'config' => [
             'host' => env('SKYLARK_PRO_4K_HOST', env('SKYLARK_PRO_HOST')),
             'ak' => env('SKYLARK_PRO_4K_AK', env('SKYLARK_PRO_AK')),
@@ -181,7 +181,7 @@ $models = [
         ],
     ],
     'skylark:lite-8k' => [
-        'implementation' => SkylarkModel::class,
+        'implementation' => DoubaoModel::class,
         'config' => [
             'host' => env('SKYLARK_PRO_LITE_8K_HOST', env('SKYLARK_PRO_HOST')),
             'ak' => env('SKYLARK_PRO_LITE_8K_AK', env('SKYLARK_PRO_AK')),

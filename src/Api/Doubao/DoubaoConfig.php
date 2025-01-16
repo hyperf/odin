@@ -10,9 +10,9 @@ declare(strict_types=1);
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
 
-namespace Hyperf\Odin\Api\Skylark;
+namespace Hyperf\Odin\Api\Doubao;
 
-class SkylarkConfig
+class DoubaoConfig
 {
     public function __construct(
         protected string $apiKey,

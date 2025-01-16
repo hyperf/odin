@@ -14,7 +14,7 @@ namespace HyperfTest\Odin\Cases\Model;
 
 use Hyperf\Odin\Message\SystemMessage;
 use Hyperf\Odin\Message\UserMessage;
-use Hyperf\Odin\Model\SkylarkModel;
+use Hyperf\Odin\Model\DoubaoModel;
 use HyperfTest\Odin\Cases\AbstractTestCase;
 
 use function Hyperf\Support\env;
@@ -23,7 +23,7 @@ use function Hyperf\Support\env;
  * @internal
  * @coversNothing
  */
-class SkylarkModelTest extends AbstractTestCase
+class DoubaoModelTest extends AbstractTestCase
 {
     private array $config;
 
@@ -44,7 +44,7 @@ class SkylarkModelTest extends AbstractTestCase
     {
         $this->markTestSkipped('Difficulties to mock');
 
-        $skylarkModel = new SkylarkModel($this->model, $this->config);
+        $skylarkModel = new DoubaoModel($this->model, $this->config);
 
         $messages = [
             new SystemMessage(''),
@@ -59,7 +59,7 @@ class SkylarkModelTest extends AbstractTestCase
     {
         $this->markTestSkipped('Difficulties to mock');
 
-        $skylarkModel = new SkylarkModel($this->model, $this->config);
+        $skylarkModel = new DoubaoModel($this->model, $this->config);
 
         $messages = [
             new SystemMessage(''),

@@ -10,12 +10,12 @@ declare(strict_types=1);
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
 
-namespace Hyperf\Odin\Api\Skylark;
+namespace Hyperf\Odin\Api\Doubao;
 
 use Hyperf\Odin\Api\AbstractApi;
 use Hyperf\Odin\Logger;
 
-class Skylark extends AbstractApi
+class Doubao extends AbstractApi
 {
     /**
      * @var Client[]
@@ -23,7 +23,7 @@ class Skylark extends AbstractApi
     protected array $clients
         = [];
 
-    public function getClient(SkylarkConfig $config): Client
+    public function getClient(DoubaoConfig $config): Client
     {
         if ($config->getApiKey() && isset($this->clients[$config->getApiKey()])) {
             return $this->clients[$config->getApiKey()];

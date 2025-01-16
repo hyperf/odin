@@ -10,23 +10,23 @@ declare(strict_types=1);
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
 
-namespace HyperfTest\Odin\Cases\Api\Skylark;
+namespace HyperfTest\Odin\Cases\Api\Doubao;
 
-use Hyperf\Odin\Api\Skylark\Client;
-use Hyperf\Odin\Api\Skylark\Skylark;
-use Hyperf\Odin\Api\Skylark\SkylarkConfig;
+use Hyperf\Odin\Api\Doubao\Client;
+use Hyperf\Odin\Api\Doubao\Doubao;
+use Hyperf\Odin\Api\Doubao\DoubaoConfig;
 use HyperfTest\Odin\Cases\AbstractTestCase;
 
 /**
  * @internal
  * @coversNothing
  */
-class SkylarkTest extends AbstractTestCase
+class DoubaoTest extends AbstractTestCase
 {
     public function testGetClientWithNewConfig()
     {
-        $config = new SkylarkConfig('test_api_key', 'https://custom.url/', 'test_model');
-        $skylark = new Skylark();
+        $config = new DoubaoConfig('test_api_key', 'https://custom.url/', 'test_model');
+        $skylark = new Doubao();
 
         $client = $skylark->getClient($config);
 
@@ -35,8 +35,8 @@ class SkylarkTest extends AbstractTestCase
 
     public function testGetClientWithExistingConfig()
     {
-        $config = new SkylarkConfig('test_api_key', 'https://custom.url/', 'test_model');
-        $skylark = new Skylark();
+        $config = new DoubaoConfig('test_api_key', 'https://custom.url/', 'test_model');
+        $skylark = new Doubao();
 
         $client1 = $skylark->getClient($config);
         $client2 = $skylark->getClient($config);
