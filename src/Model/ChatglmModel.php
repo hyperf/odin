@@ -17,6 +17,8 @@ use Hyperf\Odin\Api\Chatglm\ChatglmConfig;
 use Hyperf\Odin\Api\Chatglm\Client as ChatglmClient;
 use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\OpenAI\Response\ListResponse;
+use Hyperf\Odin\Exception\OdinException;
+use Hyperf\Odin\Exception\RuntimeException;
 
 class ChatglmModel implements ModelInterface, EmbeddingInterface
 {
@@ -33,7 +35,9 @@ class ChatglmModel implements ModelInterface, EmbeddingInterface
         bool $stream = false,
     ): ChatCompletionResponse {
         $client = $this->getChatglmClient();
-        // todo stream 待实现
+        if ($stream) {
+            throw new RuntimeException('Stream is temporarily not supported');
+        }
         return $client->chat($messages, $this->model, $temperature, $maxTokens, $stop, $tools);
     }
 

@@ -16,6 +16,7 @@ use Hyperf\Odin\Api\OpenAI\Client;
 use Hyperf\Odin\Api\OpenAI\OpenAI;
 use Hyperf\Odin\Api\OpenAI\OpenAIConfig;
 use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
+use Hyperf\Odin\Exception\RuntimeException;
 
 class OpenAIModel implements ModelInterface
 {
@@ -33,7 +34,9 @@ class OpenAIModel implements ModelInterface
     ): ChatCompletionResponse
     {
         $client = $this->getOpenAIClient();
-        // todo stream 待实现
+        if ($stream) {
+            throw new RuntimeException('Stream is temporarily not supported');
+        }
         return $client->chat($messages, $this->model, $temperature, $maxTokens, $stop, $tools);
     }
 
