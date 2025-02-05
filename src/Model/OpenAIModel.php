@@ -20,9 +20,7 @@ use Hyperf\Odin\Exception\RuntimeException;
 
 class OpenAIModel implements ModelInterface
 {
-    public function __construct(public string $model, public array $config)
-    {
-    }
+    public function __construct(public string $model, public array $config) {}
 
     public function chat(
         array $messages,
@@ -31,19 +29,15 @@ class OpenAIModel implements ModelInterface
         array $stop = [],
         array $tools = [],
         bool $stream = false,
-    ): ChatCompletionResponse
-    {
+    ): ChatCompletionResponse {
         $client = $this->getOpenAIClient();
-        if ($stream) {
-            throw new RuntimeException('Stream is temporarily not supported');
-        }
-        return $client->chat($messages, $this->model, $temperature, $maxTokens, $stop, $tools);
+        return $client->chat($messages, $this->model, $temperature, $maxTokens, $stop, $tools, $stream);
     }
 
     protected function getOpenAIClient(): Client
     {
         $openAI = new OpenAI();
-        $config = new OpenAIConfig($this->config['api_key'] ?? null, $this->config['organization'] ?? null, $this->config['base_url'] ?? 'https://api.openai.com/',);
-        return $openAI->getClient($config, $this->model);
+        $config = new OpenAIConfig($this->config['api_key'] ?? null, $this->config['organization'] ?? null, $this->config['base_url'] ?? 'https://api.openai.com/');
+        return $openAI->getClient($config);
     }
 }

@@ -32,7 +32,7 @@ class Client implements ClientInterface
 
     protected bool $debug = false;
 
-    public function __construct(OpenAIConfig $config, LoggerInterface $logger = null)
+    public function __construct(OpenAIConfig $config, ?LoggerInterface $logger = null)
     {
         $this->logger = $logger;
         $this->initConfig($config);
@@ -57,6 +57,7 @@ class Client implements ClientInterface
             'messages' => $messagesArr,
             'model' => $model,
             'temperature' => $temperature,
+            'stream' => $stream,
         ];
         if ($maxTokens) {
             $json['max_tokens'] = $maxTokens;
