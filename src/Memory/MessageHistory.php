@@ -25,7 +25,9 @@ class MessageHistory extends AbstractMemory
         protected int $maxTokens = 1000,
         array $conversations = []
     ) {
-        // @todo validate $maxTokens
+        if ($maxTokens <= 0) {
+            throw new InvalidArgumentException('maxTokens must be greater than zero.');
+        }
     }
 
     public function setSystemMessage(MessageInterface $message, string|Stringable $conversationId): static
@@ -52,8 +54,9 @@ class MessageHistory extends AbstractMemory
 
         foreach ($messages as $message) {
             $this->conversations[$conversationId][] = $message;
+            // Ensure the number of messages does not exceed maxRecord
             if (count($this->conversations[$conversationId]) > $this->maxRecord) {
-                array_shift($this->conversations[$conversationId]);
+                $this->conversations[$conversationId] = array_slice($this->conversations[$conversationId], -$this->maxRecord);
             }
         }
 
