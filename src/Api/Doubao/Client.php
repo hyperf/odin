@@ -10,14 +10,12 @@ declare(strict_types=1);
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
 
-namespace Hyperf\Odin\Api\OpenAI;
+namespace Hyperf\Odin\Api\Doubao;
 
 use GuzzleHttp\Client as GuzzleClient;
 use Hyperf\Odin\Api\ClientInterface;
 use Hyperf\Odin\Api\OpenAI\Request\ToolDefinition;
 use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
-use Hyperf\Odin\Api\OpenAI\Response\ListResponse;
-use Hyperf\Odin\Api\OpenAI\Response\TextCompletionResponse;
 use Hyperf\Odin\Message\MessageInterface;
 use Hyperf\Odin\Tool\ToolInterface;
 use Psr\Log\LoggerInterface;
@@ -26,13 +24,13 @@ class Client implements ClientInterface
 {
     protected GuzzleClient $client;
 
-    protected OpenAIConfig $config;
+    protected DoubaoConfig $config;
 
     protected ?LoggerInterface $logger;
 
     protected bool $debug = false;
 
-    public function __construct(OpenAIConfig $config, ?LoggerInterface $logger = null)
+    public function __construct(DoubaoConfig $config, ?LoggerInterface $logger = null)
     {
         $this->logger = $logger;
         $this->initConfig($config);
@@ -42,7 +40,7 @@ class Client implements ClientInterface
         array $messages,
         string $model,
         float $temperature = 0.9,
-        int $maxTokens = 1000,
+        int $maxTokens = 4096,
         array $stop = [],
         array $tools = [],
         bool $stream = false,
@@ -54,10 +52,10 @@ class Client implements ClientInterface
             }
         }
         $json = [
-            'messages' => $messagesArr,
-            'model' => $model,
-            'temperature' => $temperature,
             'stream' => $stream,
+            'model' => $model,
+            'messages' => $messagesArr,
+            'temperature' => $temperature,
         ];
         if ($maxTokens) {
             $json['max_tokens'] = $maxTokens;
@@ -75,59 +73,18 @@ class Client implements ClientInterface
             }
             if (! empty($toolsArray)) {
                 $json['tools'] = $toolsArray;
-                $json['tool_choice'] = 'auto';
             }
         }
         if ($stop) {
             $json['stop'] = $stop;
         }
         $this->debug && $this->logger?->debug(sprintf("Send Messages: %s\nTools: %s", json_encode($messagesArr, JSON_UNESCAPED_UNICODE), json_encode($tools, JSON_UNESCAPED_UNICODE)));
-        $response = $this->client->post('/v1/chat/completions', [
+        $response = $this->client->post('/api/v3/chat/completions', [
             'json' => $json,
-            'verify' => false,
         ]);
         $chatCompletionResponse = new ChatCompletionResponse($response);
         $this->debug && $this->logger?->debug('Receive: ' . $chatCompletionResponse);
         return $chatCompletionResponse;
-    }
-
-    public function completions(
-        string $prompt,
-        string $model,
-        float $temperature = 0.9,
-        int $maxTokens = 200
-    ): TextCompletionResponse {
-        $response = $this->client->post('/v1/completions', [
-            'json' => [
-                'prompt' => $prompt,
-                'model' => $model,
-                'temperature' => $temperature,
-                'max_tokens' => $maxTokens,
-            ],
-        ]);
-        return new TextCompletionResponse($response);
-    }
-
-    public function models(): ListResponse
-    {
-        $response = $this->client->get('/v1/models');
-        return new ListResponse($response);
-    }
-
-    public function embedding(
-        string $input,
-        string $model = 'text-embedding-ada-002',
-        ?string $user = null
-    ): ListResponse {
-        $json = [
-            'input' => $input,
-            'model' => $model,
-        ];
-        $user && $json['user'] = $user;
-        $response = $this->client->post('/v1/embeddings', [
-            'json' => $json,
-        ]);
-        return new ListResponse($response);
     }
 
     public function isDebug(): bool
@@ -141,23 +98,18 @@ class Client implements ClientInterface
         return $this;
     }
 
-    protected function initConfig(OpenAIConfig $config): static
+    protected function initConfig(DoubaoConfig $config): static
     {
         $headers = [
             'Content-Type' => 'application/json',
             'User-Agent' => 'Hyperf-Odin/1.0',
         ];
-        // Because there are many models that are also compatible with the specification of OpenAI, but not necessarily have an API_KEY.
         if ($config->getApiKey()) {
             $headers['Authorization'] = 'Bearer ' . $config->getApiKey();
-        }
-        if ($config->getOrganization()) {
-            $headers['OpenAI-Organization'] = $config->getOrganization();
         }
         $this->client = new GuzzleClient([
             'base_uri' => $config->getBaseUrl(),
             'headers' => $headers,
-            'verify' => false,
         ]);
         $this->config = $config;
         return $this;

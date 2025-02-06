@@ -12,13 +12,12 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Model;
 
-use Hyperf\Odin\Api\OpenAI\Client;
-use Hyperf\Odin\Api\OpenAI\OpenAI;
-use Hyperf\Odin\Api\OpenAI\OpenAIConfig;
+use Hyperf\Odin\Api\Doubao\Client;
+use Hyperf\Odin\Api\Doubao\Doubao;
+use Hyperf\Odin\Api\Doubao\DoubaoConfig;
 use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
-use Hyperf\Odin\Exception\RuntimeException;
 
-class OpenAIModel implements ModelInterface
+class DoubaoModel implements ModelInterface
 {
     public function __construct(public string $model, public array $config) {}
 
@@ -30,14 +29,18 @@ class OpenAIModel implements ModelInterface
         array $tools = [],
         bool $stream = false,
     ): ChatCompletionResponse {
-        $client = $this->getOpenAIClient();
+        $client = $this->getSkylarkClient();
         return $client->chat($messages, $this->model, $temperature, $maxTokens, $stop, $tools, $stream);
     }
 
-    protected function getOpenAIClient(): Client
+    public function getSkylarkClient(): Client
     {
-        $openAI = new OpenAI();
-        $config = new OpenAIConfig($this->config['api_key'] ?? null, $this->config['organization'] ?? null, $this->config['base_url'] ?? 'https://api.openai.com/');
-        return $openAI->getClient($config);
+        $skylark = new Doubao();
+        $config = new DoubaoConfig(
+            apiKey: $this->config['api_key'] ?? null,
+            baseUrl: $this->config['base_url'] ?? '',
+            model: $this->config['model'] ?? '',
+        );
+        return $skylark->getClient($config);
     }
 }

@@ -16,9 +16,7 @@ class AzureOpenAIConfig
 {
     public function __construct(
         protected array $config = [],
-    ) {
-
-    }
+    ) {}
 
     public function getApiKey(): ?string
     {

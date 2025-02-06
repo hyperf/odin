@@ -16,6 +16,7 @@ use Hyperf\Odin\Api\Ollama\Client;
 use Hyperf\Odin\Api\Ollama\Ollama;
 use Hyperf\Odin\Api\Ollama\OllamaConfig;
 use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
+use Hyperf\Odin\Exception\RuntimeException;
 
 class OllamaModel implements ModelInterface, EmbeddingInterface
 {
@@ -29,9 +30,13 @@ class OllamaModel implements ModelInterface, EmbeddingInterface
         int $maxTokens = 0,
         array $stop = [],
         array $tools = [],
+        bool $stream = false,
     ): ChatCompletionResponse
     {
         $client = $this->getOllamaClient();
+        if ($stream) {
+            throw new RuntimeException('Stream is temporarily not supported');
+        }
         return $client->chat($messages, $this->model, $temperature, $maxTokens, $stop, $tools);
     }
 

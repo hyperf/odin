@@ -16,13 +16,10 @@ use Hyperf\Odin\Api\AzureOpenAI\AzureOpenAI;
 use Hyperf\Odin\Api\AzureOpenAI\AzureOpenAIConfig;
 use Hyperf\Odin\Api\AzureOpenAI\Client as AzureOpenAIClient;
 use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
-use Hyperf\Odin\Api\OpenAI\Response\ListResponse;
 
 class AzureOpenAIModel implements ModelInterface, EmbeddingInterface
 {
-    public function __construct(public string $model, public array $config)
-    {
-    }
+    public function __construct(public string $model, public array $config) {}
 
     public function chat(
         array $messages,
@@ -30,15 +27,15 @@ class AzureOpenAIModel implements ModelInterface, EmbeddingInterface
         int $maxTokens = 0,
         array $stop = [],
         array $tools = [],
+        bool $stream = false,
     ): ChatCompletionResponse {
         $client = $this->getAzureOpenAIClient();
-        return $client->chat($messages, $this->model, $temperature, $maxTokens, $stop, $tools);
+        return $client->chat($messages, $this->model, $temperature, $maxTokens, $stop, $tools, $stream);
     }
 
     public function embedding(string $input): Embedding
     {
         $client = $this->getAzureOpenAIClient();
-        /** @var ListResponse $response */
         $response = $client->embedding($input, $this->model);
         $embeddings = [];
         $data = $response->getData();
@@ -67,5 +64,4 @@ class AzureOpenAIModel implements ModelInterface, EmbeddingInterface
     {
         return 1536;
     }
-
 }

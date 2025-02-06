@@ -12,6 +12,10 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Api\OpenAI\Response;
 
+use Generator;
+use Hyperf\Odin\Exception\RuntimeException;
+use Psr\Http\Message\ResponseInterface as PsrResponseInterface;
+use Psr\Http\Message\StreamInterface;
 use Stringable;
 
 class ChatCompletionResponse extends AbstractResponse implements Stringable
@@ -24,13 +28,15 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
 
     protected ?string $model = null;
 
-    protected array|null $choices = [];
+    protected ?array $choices = [];
 
     protected ?Usage $usage = null;
 
+    protected bool $isChunked = false;
+
     public function __toString(): string
     {
-        return trim($this->getChoices()[0]?->getMessage()?->getContent() ? : '');
+        return trim($this->getChoices()[0]?->getMessage()?->getContent() ?: '');
     }
 
     public function getId(): ?string
@@ -82,6 +88,9 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
         return $this->choices[0] ?? null;
     }
 
+    /**
+     * @return null|ChatCompletionChoice[]
+     */
     public function getChoices(): ?array
     {
         return $this->choices;
@@ -104,8 +113,59 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
         return $this;
     }
 
+    public function isChunked(): bool
+    {
+        return $this->isChunked;
+    }
+
+    public function getStreamIterator(): Generator
+    {
+        while (! $this->originResponse->getBody()->eof()) {
+            $line = $this->readLine($this->originResponse->getBody());
+
+            if (! str_starts_with($line, 'data:')) {
+                continue;
+            }
+            $data = trim(substr($line, strlen('data:')));
+            if (str_starts_with('[DONE]', $data)) {
+                break;
+            }
+            $content = json_decode($data, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new RuntimeException('Invalid JSON response | ' . $line);
+            }
+            if (isset($content['error'])) {
+                throw new RuntimeException('Steam Error | ' . $content['error']);
+            }
+            $this->setId($content['id'] ?? null);
+            $this->setObject($content['object'] ?? null);
+            $this->setCreated($content['created'] ?? null);
+            $this->setModel($content['model'] ?? null);
+            if (empty($content['choices'])) {
+                continue;
+            }
+            foreach ($content['choices'] as $choice) {
+                yield ChatCompletionChoice::fromArray($choice);
+            }
+        }
+    }
+
+    public function setOriginResponse(PsrResponseInterface $originResponse): static
+    {
+        $this->originResponse = $originResponse;
+        $this->success = $originResponse->getStatusCode() === 200;
+        $this->parseContent();
+        return $this;
+    }
+
     protected function parseContent(): static
     {
+        if ($this->originResponse->hasHeader('Transfer-Encoding')
+            && $this->originResponse->getHeaderLine('Transfer-Encoding') === 'chunked') {
+            $this->isChunked = true;
+            return $this;
+        }
+        $this->content = $this->originResponse->getBody()->getContents();
         $content = json_decode($this->content, true);
         if (isset($content['id'])) {
             $this->setId($content['id']);
@@ -137,4 +197,18 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
         return $result;
     }
 
+    private function readLine(StreamInterface $stream): string
+    {
+        $buffer = '';
+        while (! $stream->eof()) {
+            if ('' === ($byte = $stream->read(1))) {
+                return $buffer;
+            }
+            $buffer .= $byte;
+            if ($byte === "\n") {
+                break;
+            }
+        }
+        return $buffer;
+    }
 }

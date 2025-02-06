@@ -22,12 +22,20 @@ class ChatCompletionChoice
         public ?int $index = null,
         public ?string $logprobs = null,
         public ?string $finishReason = null
-    ) {
-    }
+    ) {}
 
     public static function fromArray(array $choice): static
     {
-        return new static(Message::fromArray($choice['message']), $choice['index'] ?? null, $choice['logprobs'] ?? null, $choice['finish_reason'] ?? null);
+        $message = $choice['message'] ?? [];
+        if (isset($choice['delta'])) {
+            $message = [
+                'role' => $choice['delta']['role'] ?? 'assistant',
+                'content' => $choice['delta']['content'] ?? '',
+                'tool_calls' => $choice['delta']['tool_calls'] ?? [],
+            ];
+        }
+
+        return new static(Message::fromArray($message), $choice['index'] ?? null, $choice['logprobs'] ?? null, $choice['finish_reason'] ?? null);
     }
 
     public function getMessage(): MessageInterface
