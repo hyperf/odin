@@ -1,29 +1,24 @@
 <?php
 
-namespace Hyperf\Odin\Api\OpenAI\Response;
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
 
+namespace Hyperf\Odin\Api\OpenAI\Response;
 
 class ListResponse extends AbstractResponse
 {
-
     protected array $data = [];
-    protected ?string $model;
-    protected ?Usage $usage;
 
-    protected function parseContent(): static
-    {
-        $content = json_decode($this->content, true);
-        if (isset($content['data'])) {
-            $this->setData($content['data']);
-        }
-        if (isset($content['model'])) {
-            $this->setModel($content['model']);
-        }
-        if (isset($content['usage'])) {
-            $this->setUsage(Usage::fromArray($content['usage']));
-        }
-        return $this;
-    }
+    protected ?string $model;
+
+    protected ?Usage $usage;
 
     public function getData(): array
     {
@@ -71,4 +66,18 @@ class ListResponse extends AbstractResponse
         return $this;
     }
 
+    protected function parseContent(): static
+    {
+        $content = json_decode($this->content, true);
+        if (isset($content['data'])) {
+            $this->setData($content['data']);
+        }
+        if (isset($content['model'])) {
+            $this->setModel($content['model']);
+        }
+        if (isset($content['usage'])) {
+            $this->setUsage(Usage::fromArray($content['usage']));
+        }
+        return $this;
+    }
 }

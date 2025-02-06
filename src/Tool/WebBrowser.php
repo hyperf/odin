@@ -56,6 +56,17 @@ EOF;
         }
     }
 
+    public function getLlm(): ModelInterface
+    {
+        return $this->llm;
+    }
+
+    public function setLlm(ModelInterface $llm): static
+    {
+        $this->llm = $llm;
+        return $this;
+    }
+
     protected function cleanHtmlCode(null|bool|string $result): string
     {
         // 清理 HTML 代码，包括 CSS、JS、注释等
@@ -67,25 +78,14 @@ EOF;
         if ($this->llm) {
             try {
                 $result = $this->llm->chat([
-                        new SystemMessage('According to the code of the web page, organize the information'),
-                        new UserMessage($result),
-                    ]);
+                    new SystemMessage('According to the code of the web page, organize the information'),
+                    new UserMessage($result),
+                ]);
                 $result = $result->getContent();
             } catch (Throwable $throwable) {
                 $this->observer?->error($throwable->getMessage());
             }
         }
         return $result;
-    }
-
-    public function getLlm(): ModelInterface
-    {
-        return $this->llm;
-    }
-
-    public function setLlm(ModelInterface $llm): static
-    {
-        $this->llm = $llm;
-        return $this;
     }
 }

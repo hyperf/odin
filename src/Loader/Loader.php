@@ -21,11 +21,11 @@ class Loader
         $content = file_get_contents($path);
         $fileInfo = pathinfo($path);
         return new MarkdownDocument($content, [
-                'file_name' => $fileInfo['filename'],
-                'file_extension' => $fileInfo['extension'],
-                'file_hash' => md5($fileInfo['basename'] . $content),
-                'create_time' => $currentTime = date('Y-m-d H:i:s'),
-                'update_time' => $currentTime,
-            ]);
+            'file_name' => $fileInfo['filename'],
+            'file_extension' => $fileInfo['extension'],
+            'file_hash' => md5($fileInfo['basename'] . $content),
+            'create_time' => $currentTime = date('Y-m-d H:i:s'),
+            'update_time' => $currentTime,
+        ]);
     }
 }

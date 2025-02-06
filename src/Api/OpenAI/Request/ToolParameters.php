@@ -1,15 +1,25 @@
 <?php
 
-namespace Hyperf\Odin\Api\OpenAI\Request;
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
 
+namespace Hyperf\Odin\Api\OpenAI\Request;
 
 use Hyperf\Contract\Arrayable;
 
 class ToolParameters implements Arrayable
 {
-
     protected string $type;
+
     protected array $properties = [];
+
     protected array $required = [];
 
     public function __construct(array $properties = [], string $type = 'object')
@@ -87,5 +97,4 @@ class ToolParameters implements Arrayable
     {
         $this->required = $required;
     }
-
 }

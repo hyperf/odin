@@ -9,7 +9,16 @@ declare(strict_types=1);
  * @contact  group@hyperf.io
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
+use Hyperf\Odin\ModelFacade;
 
+/**
+ * This file is part of Hyperf.
+ *
+ * @see     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
 $container = require_once dirname(dirname(__FILE__)) . '/bin/init.php';
 
 $prompt = <<<'PROMPT'
@@ -35,6 +44,6 @@ Begin!
     Question: 1+12=?，以及东莞明天的天气如何？
 PROMPT;
 
-$llm = $container->get(\Hyperf\Odin\ModelFacade::class);
+$llm = $container->get(ModelFacade::class);
 $response = $llm->chat(Prompt::input($prompt), temperature: 0);
 echo $response;

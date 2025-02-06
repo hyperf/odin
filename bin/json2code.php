@@ -1,8 +1,19 @@
 <?php
 
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
 use Hyperf\Context\ApplicationContext;
+use Hyperf\Di\ClassLoader;
 use Hyperf\Di\Container;
 use Hyperf\Di\Definition\DefinitionSourceFactory;
+use Hyperf\Odin\LLM;
 use Hyperf\Odin\Message\SystemMessage;
 use Hyperf\Odin\Message\UserMessage;
 
@@ -10,24 +21,23 @@ use Hyperf\Odin\Message\UserMessage;
 
 require_once dirname(dirname(__FILE__)) . '/vendor/autoload.php';
 
-\Hyperf\Di\ClassLoader::init();
+ClassLoader::init();
 
 $container = ApplicationContext::setContainer(new Container((new DefinitionSourceFactory())()));
 
 function chat(string $message): string
 {
     $container = ApplicationContext::getContainer();
-    $llm = $container->get(\Hyperf\Odin\LLM::class);
+    $llm = $container->get(LLM::class);
     $result = $llm->chat([
-            'system' => new SystemMessage('You are a low-code generator developed by Hyperf. Follow the format requirements to return content.'),
-            'user' => new UserMessage($message),
-        ], temperature: 0) . PHP_EOL;
+        'system' => new SystemMessage('You are a low-code generator developed by Hyperf. Follow the format requirements to return content.'),
+        'user' => new UserMessage($message),
+    ], temperature: 0) . PHP_EOL;
     echo '[AI]: ' . $result;
     return $result;
 }
 
-
-$json = <<<ARRAY
+$json = <<<'ARRAY'
 [
     'name' => 'run_code',
     'description' => 'Executes code and returns the output.',
@@ -61,7 +71,7 @@ $prompt = <<<PROMPT
 Requirements: Transform PHP Array / JSON to PHP object, the object should be an clean object without any property value, should not includes the value, all object class should includes setter and getter, and strong type, output the PHP object code directly, no need to provide the use cases.
 ClassName: FunctionCallDefinition, FunctionCallParameters, FunctionCallParameter
 Array: ```array
-$json
+{$json}
 ```
 Output Format: Put the code into ```php ``` tag, and output the code directly.
 Output:
@@ -69,4 +79,4 @@ PROMPT;
 
 $result = chat($prompt);
 var_dump($result);
-exit();
+exit;

@@ -1,15 +1,20 @@
 <?php
 
-namespace Hyperf\Odin\Api\OpenAI\Response;
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
 
+namespace Hyperf\Odin\Api\OpenAI\Response;
 
 class Usage
 {
-
-    public function __construct(public int $promptTokens, public int $completionTokens, public int $totalTokens)
-    {
-
-    }
+    public function __construct(public int $promptTokens, public int $completionTokens, public int $totalTokens) {}
 
     public static function fromArray(array $usage): static
     {
@@ -30,5 +35,4 @@ class Usage
     {
         return $this->totalTokens;
     }
-
 }

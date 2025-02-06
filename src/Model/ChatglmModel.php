@@ -17,14 +17,11 @@ use Hyperf\Odin\Api\Chatglm\ChatglmConfig;
 use Hyperf\Odin\Api\Chatglm\Client as ChatglmClient;
 use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\OpenAI\Response\ListResponse;
-use Hyperf\Odin\Exception\OdinException;
 use Hyperf\Odin\Exception\RuntimeException;
 
 class ChatglmModel implements ModelInterface, EmbeddingInterface
 {
-    public function __construct(public string $model, public array $config)
-    {
-    }
+    public function __construct(public string $model, public array $config) {}
 
     public function chat(
         array $messages,
@@ -73,5 +70,4 @@ class ChatglmModel implements ModelInterface, EmbeddingInterface
     {
         return 1536;
     }
-
 }

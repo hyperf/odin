@@ -1,15 +1,24 @@
 <?php
 
-namespace Hyperf\Odin\Action;
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
 
+namespace Hyperf\Odin\Action;
 
 use GuzzleHttp\Client;
 use Hyperf\Odin\Message\UserMessage;
 
 class WeatherAction extends AbstractAction
 {
-
     public string $name = 'Weather';
+
     public string $desc = '如果需要查询天气可以使用，格式: {"name": "Weather", "args": {"location": "string", "date": "string"}}，如果用户没有指定某一天，则代表为今天，location 必须为明确的真实存在的城市名称，不能是不具体的名称';
 
     public function handle(string $location, string $date = 'now'): string
@@ -72,8 +81,7 @@ class WeatherAction extends AbstractAction
         }
         $result = $weatherForecast . '，以上是' . $cityName . '的天气预报，今天是' . date('Y-m-d') . '。';
         return $this->getClient()->chat([
-            'user' => new UserMessage(sprintf("你需要根据下面的信息简洁的返回对应的天气预报情况，直接简洁的返回核心指标即可，不需要返回所有数据，返回内容为一行一句话，%s", $result))
+            'user' => new UserMessage(sprintf('你需要根据下面的信息简洁的返回对应的天气预报情况，直接简洁的返回核心指标即可，不需要返回所有数据，返回内容为一行一句话，%s', $result)),
         ], 'gpt-3.5-turbo');
     }
-
 }

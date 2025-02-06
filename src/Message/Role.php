@@ -1,7 +1,16 @@
 <?php
 
-namespace Hyperf\Odin\Message;
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
 
+namespace Hyperf\Odin\Message;
 
 enum Role: string
 {
@@ -10,5 +19,4 @@ enum Role: string
     case Assistant = 'assistant';
     case Function = 'function';
     case Tool = 'tool';
-
 }

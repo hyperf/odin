@@ -38,8 +38,7 @@ class ModelFacade
         array $stop = [],
         array $functions = [],
         string $model = '',
-    ): Api\OpenAI\Response\ChatCompletionResponse
-    {
+    ): Api\OpenAI\Response\ChatCompletionResponse {
         $client = null;
         if (! $model) {
             $model = $this->defaultModelName;
@@ -61,7 +60,7 @@ class ModelFacade
         return $openAI->getClient($config);
     }
 
-    public function getAzureOpenAIClient(string|Model $model = ''): AzureOpenAIClient
+    public function getAzureOpenAIClient(Model|string $model = ''): AzureOpenAIClient
     {
         $openAI = new AzureOpenAI();
         $config = new AzureOpenAIConfig($this->config->get('odin.azure', []));

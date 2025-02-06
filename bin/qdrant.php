@@ -9,11 +9,12 @@ declare(strict_types=1);
  * @contact  group@hyperf.io
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
-
 use GuzzleHttp\Exception\ClientException;
 use Hyperf\Context\ApplicationContext;
+use Hyperf\Di\ClassLoader;
 use Hyperf\Di\Container;
 use Hyperf\Di\Definition\DefinitionSourceFactory;
+use Hyperf\Odin\ModelFacade;
 use Hyperf\Odin\VectorStore\Qdrant\Config;
 use Hyperf\Qdrant\Api\Collections;
 use Hyperf\Qdrant\Api\Points;
@@ -30,10 +31,10 @@ use Hyperf\Qdrant\Struct\Points\WithPayload;
 
 require_once dirname(dirname(__FILE__)) . '/vendor/autoload.php';
 
-\Hyperf\Di\ClassLoader::init();
+ClassLoader::init();
 $container = ApplicationContext::setContainer(new Container((new DefinitionSourceFactory())()));
 
-$llm = $container->get(\Hyperf\Odin\ModelFacade::class);
+$llm = $container->get(ModelFacade::class);
 
 $client = $llm->getAzureOpenAIClient('text-embedding-ada-002');
 $conversionId = uniqid();
@@ -55,9 +56,9 @@ $data = array_slice($data, 0, 3);
 $vectors = array_map(function (string $datum, int $key) use ($client) {
     return new PointStruct(new ExtendedPointId($key + 10000), new VectorStruct($client->embedding($datum)
         ->getData()[0]->embedding), [
-        'behavior' => explode(':::', $datum)[0],
-        'content' => explode(':::', $datum)[1],
-    ]);
+            'behavior' => explode(':::', $datum)[0],
+            'content' => explode(':::', $datum)[1],
+        ]);
 }, $data, array_keys($data));
 
 // Collections

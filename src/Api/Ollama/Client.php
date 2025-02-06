@@ -34,7 +34,7 @@ class Client implements ClientInterface
 
     protected bool $debug = false;
 
-    public function __construct(OllamaConfig $config, LoggerInterface $logger = null)
+    public function __construct(OllamaConfig $config, ?LoggerInterface $logger = null)
     {
         $this->logger = $logger;
         $this->initConfig($config);

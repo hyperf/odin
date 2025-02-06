@@ -59,7 +59,7 @@ class Logger implements LoggerInterface
 
     public function log($level, string|Stringable $message, array $context = []): void
     {
-        $message = (string)$message;
+        $message = (string) $message;
         $datetime = date('Y-m-d H:i:s');
         $message = sprintf('[%s] %s %s', $level, $datetime, $message);
         if ($context) {

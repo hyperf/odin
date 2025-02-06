@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 /**
  * This file is part of Hyperf.
  *
@@ -10,7 +9,6 @@ declare(strict_types=1);
  * @contact  group@hyperf.io
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
-
 use Hyperf\Odin\Conversation\Conversation;
 use Hyperf\Odin\Conversation\Option;
 use Hyperf\Odin\Interpreter\CodeRunner;
@@ -34,8 +32,8 @@ while (true) {
     echo 'Human: ';
     $input = trim(fgets(STDIN, 1024));
     $response = $conversation->chat(messages: [
-            $systemPrompt,
-            new UserMessage($input),
-        ], model: 'gpt-4', option: new Option(temperature: 0, maxTokens: 3000, functions: [CodeRunner::toFunctionCallDefinition()]), conversationId: $conversationId);
+        $systemPrompt,
+        new UserMessage($input),
+    ], model: 'gpt-4', option: new Option(temperature: 0, maxTokens: 3000, functions: [CodeRunner::toFunctionCallDefinition()]), conversationId: $conversationId);
     echo 'AI: ' . $response . PHP_EOL;
 }

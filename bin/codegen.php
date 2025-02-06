@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 /**
  * This file is part of Hyperf.
  *
@@ -10,7 +9,7 @@ declare(strict_types=1);
  * @contact  group@hyperf.io
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
-
+use Hyperf\Di\ClassLoader;
 use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAI;
 use Hyperf\Odin\Apis\AzureOpenAI\AzureOpenAIConfig;
 use Hyperf\Odin\Apis\AzureOpenAI\Client as AzureOpenAIClient;
@@ -19,13 +18,14 @@ use Hyperf\Odin\Apis\OpenAI\OpenAI;
 use Hyperf\Odin\Apis\OpenAI\OpenAIConfig;
 use Hyperf\Odin\Message\SystemMessage;
 use Hyperf\Odin\Message\UserMessage;
+
 use function Hyperf\Support\env;
 
 ! defined('BASE_PATH') && define('BASE_PATH', dirname(__DIR__, 1));
 
 require_once dirname(dirname(__FILE__)) . '/vendor/autoload.php';
 
-\Hyperf\Di\ClassLoader::init();
+ClassLoader::init();
 
 class LLM
 {
@@ -61,9 +61,9 @@ PROMPT;
 
     $llm = new LLM();
     $result = $llm->chat([
-            'system' => new SystemMessage('You are a low-code generator developed by Hyperf. Follow the format requirements to return content.'),
-            'user' => new UserMessage($prefixPrompt . PHP_EOL . $message),
-        ], temperature: 0) . PHP_EOL;
+        'system' => new SystemMessage('You are a low-code generator developed by Hyperf. Follow the format requirements to return content.'),
+        'user' => new UserMessage($prefixPrompt . PHP_EOL . $message),
+    ], temperature: 0) . PHP_EOL;
     echo '[AI]: ' . $result;
     return $result;
 }

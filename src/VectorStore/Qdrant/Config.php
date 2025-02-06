@@ -20,9 +20,7 @@ class Config implements ConfigInterface
         protected string $host = '127.0.0.1',
         protected int $port = 6333,
         protected string $scheme = 'http',
-    )
-    {
-    }
+    ) {}
 
     public function getScheme(): string
     {

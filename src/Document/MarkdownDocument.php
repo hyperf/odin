@@ -21,5 +21,4 @@ class MarkdownDocument extends Document
         $recursiveCharacterTextSplitter = new RecursiveCharacterTextSplitter('markdown');
         return $recursiveCharacterTextSplitter->splitText($this->getContent());
     }
-
 }

@@ -156,5 +156,4 @@ class Client implements ClientInterface
     {
         return $this->clients[$model];
     }
-
 }

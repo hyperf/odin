@@ -14,9 +14,7 @@ namespace Hyperf\Odin\Model;
 
 class Embedding
 {
-    public function __construct(public array $embeddings)
-    {
-    }
+    public function __construct(public array $embeddings) {}
 
     public function getEmbeddings(): array
     {

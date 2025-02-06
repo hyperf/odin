@@ -17,15 +17,13 @@ use Yethee\Tiktoken\EncoderProvider;
 
 class ModelSelector
 {
-    public function __construct(protected EncoderProvider $encoderProvider)
-    {
-    }
+    public function __construct(protected EncoderProvider $encoderProvider) {}
 
     public function select(string $text, array $availableModels = []): Model
     {
         // Filter $availableModels to only include Model object
-        $availableModels = array_filter($availableModels, fn($model) => $model instanceof Model);
-        $modelNames = array_map(fn(Model $model) => $model->getName(), $availableModels);
+        $availableModels = array_filter($availableModels, fn ($model) => $model instanceof Model);
+        $modelNames = array_map(fn (Model $model) => $model->getName(), $availableModels);
         $encoder = $this->encoderProvider->getForModel('gpt-3.5-turbo');
         $tokens = $encoder->encode($text);
         $totalTokens = count($tokens);
@@ -58,7 +56,7 @@ class ModelSelector
     protected function getModelByName(string $name, array $models = []): ?Model
     {
         // Filter $models to only include Model object
-        $models = array_filter($models, fn($model) => $model instanceof Model);
+        $models = array_filter($models, fn ($model) => $model instanceof Model);
         foreach ($models as $model) {
             if ($model->getName() === $name) {
                 return $model;

@@ -1,17 +1,31 @@
 <?php
 
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
+
 namespace Hyperf\Odin\Api\OpenAI\Response;
 
 use Psr\Http\Message\ResponseInterface as PsrResponseInterface;
 
 abstract class AbstractResponse implements ResponseInterface
 {
-
     protected PsrResponseInterface $originResponse;
 
     protected bool $success = false;
 
     protected ?string $content = null;
+
+    public function __construct(?PsrResponseInterface $response = null)
+    {
+        $response && $this->setOriginResponse($response);
+    }
 
     public function isSuccess(): bool
     {
@@ -30,11 +44,6 @@ abstract class AbstractResponse implements ResponseInterface
         return $this;
     }
 
-    public function __construct(?PsrResponseInterface $response = null)
-    {
-        $response && $this->setOriginResponse($response);
-    }
-
     public function getOriginResponse(): PsrResponseInterface
     {
         return $this->originResponse;
@@ -50,5 +59,4 @@ abstract class AbstractResponse implements ResponseInterface
     }
 
     abstract protected function parseContent(): static;
-
 }

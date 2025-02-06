@@ -1,18 +1,33 @@
 <?php
 
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
+
 namespace Hyperf\Odin\Api\OpenAI\Response;
 
 use Psr\Http\Message\ResponseInterface as PsrResponseInterface;
 
 class TextCompletionResponse extends AbstractResponse
 {
-
     protected bool $success = false;
+
     protected ?string $content = null;
+
     protected ?string $id = null;
+
     protected ?string $object = null;
+
     protected ?string $created = null;
-    protected array|null $choices = [];
+
+    protected ?array $choices = [];
+
     protected ?Usage $usage = null;
 
     public function setOriginResponse(PsrResponseInterface $originResponse): static
@@ -22,36 +37,6 @@ class TextCompletionResponse extends AbstractResponse
         $this->content = $originResponse->getBody()->getContents();
         $this->parseContent();
         return $this;
-    }
-
-    protected function parseContent(): static
-    {
-        $content = json_decode($this->content, true);
-        if (isset($content['id'])) {
-            $this->setId($content['id']);
-        }
-        if (isset($content['object'])) {
-            $this->setObject($content['object']);
-        }
-        if (isset($content['created'])) {
-            $this->setCreated($content['created']);
-        }
-        if (isset($content['choices'])) {
-            $this->setChoices($this->buildChoices($content['choices']));
-        }
-        if (isset($content['usage'])) {
-            $this->setUsage(Usage::fromArray($content['usage']));
-        }
-        return $this;
-    }
-
-    protected function buildChoices(mixed $choices): array
-    {
-        $result = [];
-        foreach ($choices as $choice) {
-            $result[] = TextCompletionChoice::fromArray($choice);
-        }
-        return $result;
     }
 
     public function isSuccess(): bool
@@ -123,5 +108,35 @@ class TextCompletionResponse extends AbstractResponse
     {
         $this->usage = $usage;
         return $this;
+    }
+
+    protected function parseContent(): static
+    {
+        $content = json_decode($this->content, true);
+        if (isset($content['id'])) {
+            $this->setId($content['id']);
+        }
+        if (isset($content['object'])) {
+            $this->setObject($content['object']);
+        }
+        if (isset($content['created'])) {
+            $this->setCreated($content['created']);
+        }
+        if (isset($content['choices'])) {
+            $this->setChoices($this->buildChoices($content['choices']));
+        }
+        if (isset($content['usage'])) {
+            $this->setUsage(Usage::fromArray($content['usage']));
+        }
+        return $this;
+    }
+
+    protected function buildChoices(mixed $choices): array
+    {
+        $result = [];
+        foreach ($choices as $choice) {
+            $result[] = TextCompletionChoice::fromArray($choice);
+        }
+        return $result;
     }
 }

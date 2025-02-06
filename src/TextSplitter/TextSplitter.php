@@ -60,7 +60,7 @@ abstract class TextSplitter
 
     public function createDocuments(array $texts, array $metadata = []): array
     {
-        $metadata = $metadata ? : array_fill(0, count($texts), []);
+        $metadata = $metadata ?: array_fill(0, count($texts), []);
         $documents = [];
         foreach ($texts as $i => $text) {
             $index = 0;
@@ -74,7 +74,7 @@ abstract class TextSplitter
                 }
                 if (is_array($chunk)) {
                     var_dump($chunk);
-                    exit();
+                    exit;
                 }
                 $documents[] = new Document($chunk, $metadata[$i]);
             }

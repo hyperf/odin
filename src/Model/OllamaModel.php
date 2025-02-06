@@ -20,9 +20,7 @@ use Hyperf\Odin\Exception\RuntimeException;
 
 class OllamaModel implements ModelInterface, EmbeddingInterface
 {
-    public function __construct(public string $model, public array $config)
-    {
-    }
+    public function __construct(public string $model, public array $config) {}
 
     public function chat(
         array $messages,
@@ -31,8 +29,7 @@ class OllamaModel implements ModelInterface, EmbeddingInterface
         array $stop = [],
         array $tools = [],
         bool $stream = false,
-    ): ChatCompletionResponse
-    {
+    ): ChatCompletionResponse {
         $client = $this->getOllamaClient();
         if ($stream) {
             throw new RuntimeException('Stream is temporarily not supported');

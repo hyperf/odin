@@ -16,9 +16,7 @@ use Hyperf\Odin\TextSplitter\RecursiveCharacterTextSplitter;
 
 class Document
 {
-    public function __construct(protected string $content, protected array $metadata = [])
-    {
-    }
+    public function __construct(protected string $content, protected array $metadata = []) {}
 
     public function split(): array
     {

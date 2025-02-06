@@ -14,6 +14,7 @@ namespace Hyperf\Odin\Api\Ollama\Response;
 
 use GuzzleHttp\Psr7\Response;
 use Hyperf\Contract\Arrayable;
+use RuntimeException;
 
 class EmbeddingResponse implements Arrayable
 {
@@ -23,7 +24,7 @@ class EmbeddingResponse implements Arrayable
     {
         $decoded = json_decode($response->getBody()->getContents(), true);
         if (json_last_error() !== JSON_ERROR_NONE || ! isset($decoded['embedding'])) {
-            throw new \RuntimeException('Failed to decode response body.');
+            throw new RuntimeException('Failed to decode response body.');
         }
         $this->setEmbeddings($decoded['embedding']);
     }

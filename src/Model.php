@@ -17,8 +17,7 @@ class Model
     public function __construct(
         public string $name,
         public string $apiType,
-    ) {
-    }
+    ) {}
 
     public function getName(): string
     {

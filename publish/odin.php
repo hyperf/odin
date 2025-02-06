@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 /**
  * This file is part of Hyperf.
  *
@@ -10,12 +9,12 @@ declare(strict_types=1);
  * @contact  group@hyperf.io
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
-
 use Hyperf\Odin\Model\AzureOpenAIModel;
 use Hyperf\Odin\Model\ChatglmModel;
+use Hyperf\Odin\Model\DoubaoModel;
 use Hyperf\Odin\Model\OllamaModel;
 use Hyperf\Odin\Model\OpenAIModel;
-use Hyperf\Odin\Model\DoubaoModel;
+
 use function Hyperf\Support\env;
 use function Hyperf\Support\value;
 
@@ -68,7 +67,7 @@ $glmModels = value(function () {
         'glm-4-air',
         'glm-4-airx',
         'glm-4-flash',
-        'charglm-3'
+        'charglm-3',
     ];
     foreach ($names as $name) {
         $prefix = strtoupper(str_replace('-', '_', $name));

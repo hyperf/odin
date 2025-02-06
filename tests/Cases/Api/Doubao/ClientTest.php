@@ -15,10 +15,10 @@ namespace HyperfTest\Odin\Cases\Api\Doubao;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Psr7\Response;
 use GuzzleHttp\Psr7\Utils;
-use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
-use Hyperf\Odin\Api\OpenAI\Response\ToolCall;
 use Hyperf\Odin\Api\Doubao\Client;
 use Hyperf\Odin\Api\Doubao\DoubaoConfig;
+use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
+use Hyperf\Odin\Api\OpenAI\Response\ToolCall;
 use Hyperf\Odin\Logger;
 use Hyperf\Odin\Message\AssistantMessage;
 use Hyperf\Odin\Message\SystemMessage;
@@ -157,7 +157,7 @@ JSON
             new UserMessage('帮我生成 1 个随机字符串，其中 slat 为 hello'),
         ];
         $tool = [
-            new class extends AbstractTool {
+            new class() extends AbstractTool {
                 public string $name = 'get_rand_string';
 
                 public string $description = '生成随机字符串';
@@ -278,7 +278,7 @@ JSON,
             new UserMessage('帮我生成 1 个随机字符串， slat 为 hello'),
         ];
         $tool = [
-            new class extends AbstractTool {
+            new class() extends AbstractTool {
                 public string $name = 'get_rand_string';
 
                 public string $description = '生成随机字符串';

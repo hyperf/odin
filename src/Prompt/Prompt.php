@@ -17,11 +17,10 @@ use Hyperf\Odin\Message\UserMessage;
 
 class Prompt
 {
-
     public static function parse(array $inputs, string $prompt): string
     {
         foreach ($inputs as $keyword => $value) {
-            $prompt = str_replace("{ $keyword }", $value, $prompt);
+            $prompt = str_replace("{ {$keyword} }", $value, $prompt);
             $prompt = str_replace("{$keyword}", $value, $prompt);
         }
         return $prompt;
@@ -54,6 +53,4 @@ class Prompt
         }
         return $prompt;
     }
-
-
 }

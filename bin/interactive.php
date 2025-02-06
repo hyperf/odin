@@ -9,7 +9,6 @@ declare(strict_types=1);
  * @contact  group@hyperf.io
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
-
 use Hyperf\Odin\Agent\ToolsAgent;
 use Hyperf\Odin\Knowledge\Knowledge;
 use Hyperf\Odin\Loader\Loader;
@@ -35,7 +34,7 @@ $enables = [
 
 /** @var ModelMapper $modelMapper */
 $modelMapper = $container->get(ModelMapper::class);
-#$modelName = 'qwen:32b-chat';
+# $modelName = 'qwen:32b-chat';
 $modelName = 'gpt-4-turbo';
 $llm = $modelMapper->getModel($modelName);
 $embeddingModel = $modelMapper->getModel($modelName);
@@ -82,7 +81,7 @@ $defaultInputs = [];
 while (true) {
     echo 'Human: ';
     // 如果 $defaultInputs 有值，就用 $defaultInputs 的值，否则就读取用户输入
-    $input = array_shift($defaultInputs) ? : trim(fgets(STDIN));
+    $input = array_shift($defaultInputs) ?: trim(fgets(STDIN));
     $isCommand = false;
     switch ($input) {
         case 'dump-messages':

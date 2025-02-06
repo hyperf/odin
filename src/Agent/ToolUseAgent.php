@@ -1,7 +1,18 @@
 <?php
 
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
+
 namespace Hyperf\Odin\Agent;
 
+use Exception;
 use Hyperf\Odin\Api\OpenAI\Request\ToolDefinition;
 use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
 use Hyperf\Odin\Message\AssistantMessage;
@@ -12,7 +23,10 @@ use Hyperf\Odin\Model\ModelInterface;
 use Hyperf\Odin\ModelMapper;
 use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
+use RuntimeException;
+
 use function json_encode;
+
 use const JSON_UNESCAPED_UNICODE;
 
 class ToolUseAgent
@@ -40,7 +54,7 @@ class ToolUseAgent
         return $this;
     }
 
-    public function chat(array|string|MessageInterface $messages, float $temperature = 0.2): ChatCompletionResponse
+    public function chat(array|MessageInterface|string $messages, float $temperature = 0.2): ChatCompletionResponse
     {
         $this->handleMessages($messages);
 
@@ -87,7 +101,7 @@ class ToolUseAgent
                 }
                 // 检查是否所有的 ToolCall 都有对应 CallID 的 ToolMessage
                 $toolCalls = $response->getFirstChoice()->getMessage()->getToolCalls();
-                $toolCallIds = array_map(fn($toolCall) => $toolCall->getId(), $toolCalls);
+                $toolCallIds = array_map(fn ($toolCall) => $toolCall->getId(), $toolCalls);
                 $toolMessageIds = [];
                 foreach ($this->messages as $message) {
                     if ($message instanceof ToolMessage) {
@@ -95,7 +109,7 @@ class ToolUseAgent
                     }
                 }
                 $missingToolCallIds = array_diff($toolCallIds, $toolMessageIds);
-                if (!empty($missingToolCallIds)) {
+                if (! empty($missingToolCallIds)) {
                     // 构造空的 ToolMessage 加到 $this->messages 中
                     foreach ($missingToolCallIds as $missingToolCallId) {
                         $this->messages[] = new ToolMessage('No Result.', $missingToolCallId);
@@ -105,41 +119,15 @@ class ToolUseAgent
                 $this->trimMessages();
                 goto chat_call;
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $errorMessage = is_array($e->getMessage()) ? json_encode($e->getMessage()) : $e->getMessage();
             $this->logger?->error('Error during chat: ' . $errorMessage);
-            throw new \RuntimeException('Error during chat: ' . $errorMessage, previous: $e);
+            throw new RuntimeException('Error during chat: ' . $errorMessage, previous: $e);
         }
         return $response;
     }
 
-    protected function callTool(ChatCompletionResponse $response, array $tools): array
-    {
-        $message = $response->getFirstChoice()->getMessage();
-        if (! $message instanceof AssistantMessage) {
-            return [];
-        }
-        $result = [];
-        $toolCalls = $message->getToolCalls();
-        foreach ($toolCalls as $toolCall) {
-            // Find the tool that matches the tool call
-            foreach ($tools as $tool) {
-                if ($tool instanceof ToolDefinition) {
-                    if ($tool->getName() === $toolCall->getName()) {
-                        // Execute the tool
-                        $callToolResult = call_user_func($tool->getToolHandler(), $toolCall->getArguments());
-                        $result[$toolCall->getId()] = $callToolResult;
-
-                        // Log the tool call result
-                        $this->logger?->debug(sprintf('Tool %s calling with arguments: %s', $tool->getName(), json_encode($toolCall->getArguments(), JSON_UNESCAPED_UNICODE)));
-                    }
-                }
-            }
-        }
-        return $result;
-    }
-
-    public function handleMessages(array|string|MessageInterface $messages): array
+    public function handleMessages(array|MessageInterface|string $messages): array
     {
         if (is_string($messages)) {
             $messages = new UserMessage($messages);
@@ -157,15 +145,6 @@ class ToolUseAgent
         return $this->messages;
     }
 
-    protected function validateTools(array $tools): void
-    {
-        foreach ($tools as $tool) {
-            if (! $tool instanceof ToolDefinition) {
-                throw new InvalidArgumentException('The tool must be an instance of ToolDefinition.');
-            }
-        }
-    }
-
     public function trimMessages(): void
     {
         if (count($this->messages) > $this->maxMessagesLimit) {
@@ -181,8 +160,8 @@ class ToolUseAgent
             foreach ($this->messages as $index => $message) {
                 if ($message instanceof AssistantMessage) {
                     $toolCalls = $message->getToolCalls();
-                    if (!empty($toolCalls)) {
-                        for ($i = $index + 1; $i < count($this->messages); $i++) {
+                    if (! empty($toolCalls)) {
+                        for ($i = $index + 1; $i < count($this->messages); ++$i) {
                             $nextMessage = $this->messages[$i];
                             if ($nextMessage instanceof ToolMessage) {
                                 foreach ($toolCalls as $toolCall) {
@@ -229,5 +208,40 @@ class ToolUseAgent
     {
         $this->maxMessagesLimit = $maxMessagesLimit;
         return $this;
+    }
+
+    protected function callTool(ChatCompletionResponse $response, array $tools): array
+    {
+        $message = $response->getFirstChoice()->getMessage();
+        if (! $message instanceof AssistantMessage) {
+            return [];
+        }
+        $result = [];
+        $toolCalls = $message->getToolCalls();
+        foreach ($toolCalls as $toolCall) {
+            // Find the tool that matches the tool call
+            foreach ($tools as $tool) {
+                if ($tool instanceof ToolDefinition) {
+                    if ($tool->getName() === $toolCall->getName()) {
+                        // Execute the tool
+                        $callToolResult = call_user_func($tool->getToolHandler(), $toolCall->getArguments());
+                        $result[$toolCall->getId()] = $callToolResult;
+
+                        // Log the tool call result
+                        $this->logger?->debug(sprintf('Tool %s calling with arguments: %s', $tool->getName(), json_encode($toolCall->getArguments(), JSON_UNESCAPED_UNICODE)));
+                    }
+                }
+            }
+        }
+        return $result;
+    }
+
+    protected function validateTools(array $tools): void
+    {
+        foreach ($tools as $tool) {
+            if (! $tool instanceof ToolDefinition) {
+                throw new InvalidArgumentException('The tool must be an instance of ToolDefinition.');
+            }
+        }
     }
 }

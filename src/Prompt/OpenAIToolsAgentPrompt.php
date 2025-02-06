@@ -63,5 +63,4 @@ PROMPT;
     {
         return new UserMessage(str_replace('{input}', $input, $this->userPrompt));
     }
-
 }

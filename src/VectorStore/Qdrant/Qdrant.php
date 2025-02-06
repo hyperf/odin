@@ -33,9 +33,7 @@ use RuntimeException;
 
 class Qdrant
 {
-    public function __construct(protected Points $points, protected Collections $collections)
-    {
-    }
+    public function __construct(protected Points $points, protected Collections $collections) {}
 
     public function search(
         string $query,
@@ -85,7 +83,7 @@ class Qdrant
     {
         return $this->collections->createCollection($name, new VectorParams($vectorSize, $vectorDistance));
     }
-    
+
     public function deleteCollection(string $name): bool
     {
         return $this->collections->deleteCollection($name);
@@ -111,7 +109,7 @@ class Qdrant
         ?ExtendedPointId $offset = null,
         int $limit = 10,
     ): array {
-        return $this->points->scrollPoints(collectionName: $collectionName, offset: $offset, limit: $limit, withPayload: new WithPayload(true), withVector: new WithVector(false),);
+        return $this->points->scrollPoints(collectionName: $collectionName, offset: $offset, limit: $limit, withPayload: new WithPayload(true), withVector: new WithVector(false));
     }
 
     public function upsertPointsByDocument(
@@ -159,7 +157,7 @@ class Qdrant
             $embedding = $embeddingModel->embedding($item)->getEmbeddings();
             $defaultPayload = [
                 '__content__' => $item,
-                '__model__' => $embeddingModel->getModelName()
+                '__model__' => $embeddingModel->getModelName(),
             ];
             $payload = array_merge($defaultPayload, $payloads[$pointId] ?? []);
             $pointStructs[$pointId] = new PointStruct($extendedPointId, new VectorStruct($embedding), $payload);

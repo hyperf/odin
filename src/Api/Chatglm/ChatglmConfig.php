@@ -17,8 +17,7 @@ class ChatglmConfig
     public function __construct(
         public string $apiKey,
         public string $host = 'https://open.bigmodel.cn',
-    ) {
-    }
+    ) {}
 
     public function getApiKey(): string
     {

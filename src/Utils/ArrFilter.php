@@ -14,7 +14,6 @@ namespace Hyperf\Odin\Utils;
 
 class ArrFilter
 {
-
     public static function filterInstance(string $class, array $instances): array
     {
         $result = [];

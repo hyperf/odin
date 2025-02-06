@@ -14,8 +14,6 @@ namespace Hyperf\Odin;
 
 use Hyperf\Odin\Api\AzureOpenAI\AzureOpenAIClientFactory;
 use Hyperf\Odin\Api\AzureOpenAI\Client as AzureOpenAIClient;
-use Hyperf\Odin\Api\AzureOpenAI\DeploymentMapper;
-use Hyperf\Odin\Api\AzureOpenAI\DeploymentMapperFactory;
 use Hyperf\Odin\Api\OpenAI\Client as OpenAIClient;
 use Hyperf\Odin\Api\OpenAI\OpenAIClientFactory;
 use Hyperf\Odin\VectorStore\Qdrant\Qdrant;

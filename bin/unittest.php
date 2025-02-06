@@ -1,7 +1,17 @@
 <?php
 
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ *
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
 use Hyperf\Odin\Message\SystemMessage;
 use Hyperf\Odin\Message\UserMessage;
+use Hyperf\Odin\ModelFacade;
 
 $container = require_once dirname(dirname(__FILE__)) . '/bin/init.php';
 
@@ -31,13 +41,13 @@ Do not explain your analysis logic, just generate the corresponding unit test co
 
 code:
 ```php
-$code
+{$code}
 ```
 PROMPT;
 
-$llm = $container->get(\Hyperf\Odin\ModelFacade::class);
+$llm = $container->get(ModelFacade::class);
 
 echo '[AI]: ' . $llm->chat([
-        'system' => new SystemMessage('You are a unit test generation robot developed by the Hyperf organization. You must return content strictly in accordance with the format requirements.'),
-        'user' => new UserMessage($prompt),
-    ]) . PHP_EOL;
+    'system' => new SystemMessage('You are a unit test generation robot developed by the Hyperf organization. You must return content strictly in accordance with the format requirements.'),
+    'user' => new UserMessage($prompt),
+]) . PHP_EOL;

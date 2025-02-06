@@ -69,11 +69,11 @@ class CodeRunner
     {
         return new ToolDefinition(name: 'run_code', description: 'Executes code and returns the value printed on STDOUT.', parameters: new ToolParameters([
             new ToolParameter(name: 'language', description: 'The programming language, PHP version is 8.2, Python version is 3.11', enum: [
-                            'php',
-                            'python',
-                            'shell'
-                        ]),
-            new ToolParameter(name: 'code', description: 'The code which needs to be executed.',),
+                'php',
+                'python',
+                'shell',
+            ]),
+            new ToolParameter(name: 'code', description: 'The code which needs to be executed.'),
         ]), examples: [], toolHandler: CodeRunner::handlers());
     }
 
@@ -123,7 +123,7 @@ class CodeRunner
         return $output;
     }
 
-    protected function runShell(string $code): bool|string|null
+    protected function runShell(string $code): null|bool|string
     {
         $code = trim($code);
         $tmpFile = tempnam(sys_get_temp_dir(), 'odin-interpreter-shell-execution-');

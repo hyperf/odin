@@ -21,8 +21,8 @@ use Hyperf\Odin\Memory\MemoryInterface;
 use Hyperf\Odin\Message\AssistantMessage;
 use Hyperf\Odin\Message\FunctionMessage;
 use Hyperf\Odin\Message\ToolMessage;
-use Hyperf\Odin\Model\ModelInterface;
 use Hyperf\Odin\Model\DoubaoModel;
+use Hyperf\Odin\Model\ModelInterface;
 use Hyperf\Odin\Observer;
 use Hyperf\Odin\Prompt\PromptInterface;
 use Hyperf\Odin\Tool\ToolInterface;
@@ -42,9 +42,7 @@ class ToolsAgent
         public ?Observer $observer,
         public array $tools = [],
         public int $maxIterations = 100,
-    )
-    {
-    }
+    ) {}
 
     public function invoke(array $inputs, string $conversationId): ChatCompletionResponse
     {
@@ -103,10 +101,10 @@ class ToolsAgent
             $knowledgeMessages[] = $currentStageUserMessage->getContent();
             $currentStageUserMessageWithKnowledge = clone $currentStageUserMessage;
             $currentStageUserMessageWithKnowledge->setContent(implode("\n", array_merge($knowledgeQAMessages, $knowledgeMessages, [
-                            'Begin !!!',
-                            'User Input:',
-                            $currentStageUserMessage->getContent(),
-                        ])));
+                'Begin !!!',
+                'User Input:',
+                $currentStageUserMessage->getContent(),
+            ])));
             $currentConversationMessages = array_merge($conversationMessages, [$currentStageUserMessageWithKnowledge]);
         }
         $response = $this->chat($currentConversationMessages, conversationId: $conversationId, tools: $this->tools);
@@ -114,7 +112,7 @@ class ToolsAgent
         if ($response->getChoices()) {
             foreach ($response->getChoices() as $choice) {
                 if (! $choice instanceof ChatCompletionChoice || ! $choice->getMessage() instanceof AssistantMessage || ! $choice->getMessage()
-                        ->hasToolCalls()) {
+                    ->hasToolCalls()) {
                     continue;
                 }
                 $toolCalls = $choice->getMessage()->getToolCalls();
@@ -195,10 +193,10 @@ class ToolsAgent
         }
         if ($this->isDebug()) {
             $this->observer?->debug('Inner call to the model with messages ' . implode("\r", array_map(function (
-                    $message
-                ) {
-                    return sprintf('%s Prompt: %s', $message->getRole()->name, $message->getContent());
-                }, $messages)));
+                $message
+            ) {
+                return sprintf('%s Prompt: %s', $message->getRole()->name, $message->getContent());
+            }, $messages)));
         } else {
             $this->observer?->info('Inner call to the model');
         }
@@ -227,10 +225,10 @@ class ToolsAgent
         }
         if ($this->isDebug()) {
             $this->observer?->debug('Chatting to the model with messages ' . implode("\r", array_map(function (
-                    $message
-                ) {
-                    return sprintf('%s Prompt: %s', $message->getRole()->name, $message->getContent());
-                }, $messages)));
+                $message
+            ) {
+                return sprintf('%s Prompt: %s', $message->getRole()->name, $message->getContent());
+            }, $messages)));
         } else {
             $this->observer?->info('Chatting to the model');
         }

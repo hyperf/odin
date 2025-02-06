@@ -51,13 +51,37 @@ class RecursiveCharacterTextSplitter extends TextSplitter
         $stripWhitespace = true
     ) {
         parent::__construct($chunkSize, $chunkOverlap, $keepSeparator, $addStartIndex, $stripWhitespace);
-        $this->separators = $separators ? : ["\n\n", "\n", ' ', ''];
+        $this->separators = $separators ?: ["\n\n", "\n", ' ', ''];
         $this->isSeparatorRegex = $isSeparatorRegex;
     }
 
     public function splitText(string $text): array
     {
         return $this->split($text, $this->separators);
+    }
+
+    protected function splitTextWithRegex(string $text, string $separator, bool $keepSeparator): array
+    {
+        $splits = [];
+        if ($separator) {
+            if ($keepSeparator) {
+                $_splits = preg_split('/(' . $separator . ')/', $text);
+                for ($i = 1; $i < count($_splits); $i += 2) {
+                    $splits[] = $_splits[$i] . $_splits[$i + 1];
+                }
+                if (count($_splits) % 2 === 0) {
+                    $splits[] = end($_splits);
+                }
+                array_unshift($splits, $_splits[0]);
+            } else {
+                $splits = preg_split('/' . $separator . '/', $text);
+            }
+        } else {
+            $splits = str_split($text);
+        }
+        return array_filter($splits, function ($value) {
+            return $value !== '';
+        });
     }
 
     private function split(string $text, array $separators): array
@@ -106,29 +130,5 @@ class RecursiveCharacterTextSplitter extends TextSplitter
             $finalChunks = array_merge($finalChunks, $mergedText);
         }
         return $finalChunks;
-    }
-
-    protected function splitTextWithRegex(string $text, string $separator, bool $keepSeparator): array
-    {
-        $splits = [];
-        if ($separator) {
-            if ($keepSeparator) {
-                $_splits = preg_split("/(" . $separator . ")/", $text);
-                for ($i = 1; $i < count($_splits); $i += 2) {
-                    $splits[] = $_splits[$i] . $_splits[$i + 1];
-                }
-                if (count($_splits) % 2 === 0) {
-                    $splits[] = end($_splits);
-                }
-                array_unshift($splits, $_splits[0]);
-            } else {
-                $splits = preg_split("/" . $separator . "/", $text);
-            }
-        } else {
-            $splits = str_split($text);
-        }
-        return array_filter($splits, function ($value) {
-            return $value !== "";
-        });
     }
 }

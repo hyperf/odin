@@ -39,8 +39,7 @@ EOF;
         public string $searchDepth = 'basic',
         public int $maxResults = 5,
         public bool $useAnswerDirectly = false,
-    ) {
-    }
+    ) {}
 
     public function setMaxResults(int $maxResults): static
     {

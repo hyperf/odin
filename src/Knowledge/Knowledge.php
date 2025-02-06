@@ -35,8 +35,7 @@ class Knowledge
         public EmbeddingInterface $embeddingModel,
         protected Qdrant $qdrant,
         public ?ModelInterface $llm = null
-    ) {
-    }
+    ) {}
 
     public function similaritySearch(string $query, string $collection, int $limit = 5, float $score = 0.1): array
     {
@@ -94,6 +93,5 @@ class Knowledge
             }
             fclose($fp);
         }
-
     }
 }

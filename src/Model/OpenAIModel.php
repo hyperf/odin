@@ -16,7 +16,6 @@ use Hyperf\Odin\Api\OpenAI\Client;
 use Hyperf\Odin\Api\OpenAI\OpenAI;
 use Hyperf\Odin\Api\OpenAI\OpenAIConfig;
 use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
-use Hyperf\Odin\Exception\RuntimeException;
 
 class OpenAIModel implements ModelInterface
 {
