@@ -85,6 +85,11 @@ class Qdrant
     {
         return $this->collections->createCollection($name, new VectorParams($vectorSize, $vectorDistance));
     }
+    
+    public function deleteCollection(string $name): bool
+    {
+        return $this->collections->deleteCollection($name);
+    }
 
     public function getPoint(string $collectionName, ExtendedPointId $pointId): Record
     {
