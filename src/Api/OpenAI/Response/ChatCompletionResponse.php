@@ -160,8 +160,7 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
 
     protected function parseContent(): static
     {
-        if ($this->originResponse->hasHeader('Transfer-Encoding')
-            && $this->originResponse->getHeaderLine('Transfer-Encoding') === 'chunked') {
+        if ($this->stream) {
             $this->isChunked = true;
             return $this;
         }

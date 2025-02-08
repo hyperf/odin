@@ -95,8 +95,9 @@ class Client implements ClientInterface
                 'api-version' => $this->config->getApiVersion(),
             ],
             'json' => $json,
+            'stream' => $stream,
         ]);
-        $chatCompletionResponse = new ChatCompletionResponse($response);
+        $chatCompletionResponse = new ChatCompletionResponse($response, $stream);
         $this->debug && $this->logger?->debug('Receive: ' . $chatCompletionResponse);
         return $chatCompletionResponse;
     }

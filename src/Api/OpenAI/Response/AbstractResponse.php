@@ -22,8 +22,11 @@ abstract class AbstractResponse implements ResponseInterface
 
     protected ?string $content = null;
 
-    public function __construct(?PsrResponseInterface $response = null)
+    protected bool $stream = false;
+
+    public function __construct(?PsrResponseInterface $response = null, bool $stream = false)
     {
+        $this->stream = $stream;
         $response && $this->setOriginResponse($response);
     }
 
