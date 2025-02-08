@@ -23,12 +23,12 @@ use function Hyperf\Support\env;
 
 ClassLoader::init();
 
-//$model = new AzureOpenAIModel('gpt-4o-global', [
+// $model = new AzureOpenAIModel('gpt-4o-global', [
 //    'api_key' => env('AZURE_OPENAI_4O_API_KEY'),
 //    'api_base' => env('AZURE_OPENAI_4O_API_BASE'),
 //    'api_version' => env('AZURE_OPENAI_4O_API_VERSION'),
 //    'deployment_name' => env('AZURE_OPENAI_4O_DEPLOYMENT_NAME'),
-//]);
+// ]);
 
 $model = new DoubaoModel(
     env('SKYLARK_PRO_32K_ENDPOINT'),
