@@ -23,15 +23,18 @@ class AssistantMessage extends AbstractMessage
      */
     protected array $toolCalls = [];
 
-    public function __construct(string $content, array $toolsCall = [])
+    protected ?string $reasoningContent = null;
+
+    public function __construct(string $content, array $toolsCall = [], ?string $reasoningContent = null)
     {
         parent::__construct($content);
         $this->toolCalls = $toolsCall;
+        $this->reasoningContent = $reasoningContent;
     }
 
     public static function fromArray(array $message): static
     {
-        return new static($message['content'] ?? '', ToolCall::fromArray($message['tool_calls'] ?? []));
+        return new static($message['content'] ?? '', ToolCall::fromArray($message['tool_calls'] ?? []), $message['reasoning_content'] ?? null);
     }
 
     public function toArray(): array
@@ -44,6 +47,9 @@ class AssistantMessage extends AbstractMessage
             'role' => $this->role->value,
             'content' => $this->content,
         ];
+        if (! is_null($this->reasoningContent)) {
+            $result['reasoning_content'] = $this->reasoningContent;
+        }
         $toolCalls && $result['tool_calls'] = $toolCalls;
         return $result;
     }
@@ -62,5 +68,15 @@ class AssistantMessage extends AbstractMessage
     {
         $this->toolCalls = $toolCalls;
         return $this;
+    }
+
+    public function getReasoningContent(): ?string
+    {
+        return $this->reasoningContent;
+    }
+
+    public function hasReasoningContent(): bool
+    {
+        return ! is_null($this->reasoningContent);
     }
 }

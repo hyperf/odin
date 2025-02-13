@@ -31,6 +31,7 @@ class ChatCompletionChoice
             $message = [
                 'role' => $choice['delta']['role'] ?? 'assistant',
                 'content' => $choice['delta']['content'] ?? '',
+                'reasoning_content' => $choice['delta']['reasoning_content'] ?? null,
                 'tool_calls' => $choice['delta']['tool_calls'] ?? [],
             ];
         }
