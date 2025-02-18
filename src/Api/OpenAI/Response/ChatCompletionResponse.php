@@ -125,6 +125,10 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
             [$break, $line] = $this->readLine($this->originResponse->getBody());
 
             if (! str_starts_with($line, 'data:')) {
+                $this->logger?->error('InvalidDataResponse', [
+                    'break' => $break,
+                    'line' => $line,
+                ]);
                 continue;
             }
             $data = trim(substr($line, strlen('data:')));
@@ -149,9 +153,10 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
                     $this->logger?->error('InvalidJsonResponse | ' . $jsonBuffer);
                     continue;
                 }
-                // 解析成功重置
-                $jsonBuffer = '';
+                $this->logger?->info('InvalidJsonResponseSuccess | ' . $jsonBuffer);
             }
+            // 解析成功重置
+            $jsonBuffer = '';
             if (isset($content['error'])) {
                 throw new RuntimeException('Stream Error | ' . $content['error']);
             }
