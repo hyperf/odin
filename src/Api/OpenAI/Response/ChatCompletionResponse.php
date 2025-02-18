@@ -15,7 +15,6 @@ namespace Hyperf\Odin\Api\OpenAI\Response;
 use Generator;
 use Hyperf\Odin\Exception\RuntimeException;
 use Psr\Http\Message\ResponseInterface as PsrResponseInterface;
-use Psr\Http\Message\StreamInterface;
 use Stringable;
 
 class ChatCompletionResponse extends AbstractResponse implements Stringable
@@ -121,14 +120,16 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
     public function getStreamIterator(): Generator
     {
         $jsonBuffer = '';
-        while (! $this->originResponse->getBody()->eof()) {
-            [$break, $line] = $this->readLine($this->originResponse->getBody());
+        while (! $this->eof()) {
+            [$break, $line] = $this->readLine();
 
             if (! str_starts_with($line, 'data:')) {
-                $this->logger?->error('InvalidDataResponse', [
-                    'break' => $break,
-                    'line' => $line,
-                ]);
+                if ($line !== "\n") {
+                    $this->logger?->error('InvalidDataResponse', [
+                        'break' => $break,
+                        'line' => $line,
+                    ]);
+                }
                 continue;
             }
             $data = trim(substr($line, strlen('data:')));
@@ -170,6 +171,9 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
             foreach ($content['choices'] as $choice) {
                 yield ChatCompletionChoice::fromArray($choice);
             }
+        }
+        if (isset($this->resource)) {
+            fclose($this->resource);
         }
     }
 
@@ -219,8 +223,20 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
         return $result;
     }
 
-    private function readLine(StreamInterface $stream): array
+    private function eof(): bool
     {
+        if (isset($this->resource)) {
+            return feof($this->resource);
+        }
+        return $this->originResponse->getBody()->eof();
+    }
+
+    private function readLine(): array
+    {
+        if (isset($this->resource)) {
+            return ['line', fgets($this->resource)];
+        }
+        $stream = $this->originResponse->getBody();
         $buffer = '';
         while (! $stream->eof()) {
             if ('' === ($byte = $stream->read(1))) {

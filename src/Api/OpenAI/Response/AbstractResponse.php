@@ -27,11 +27,23 @@ abstract class AbstractResponse implements ResponseInterface
 
     protected bool $stream = false;
 
+    /**
+     * @var resource a stream context resource
+     */
+    protected $resource;
+
     public function __construct(?PsrResponseInterface $response = null, bool $stream = false, ?LoggerInterface $logger = null)
     {
         $this->logger = $logger;
         $this->stream = $stream;
         $response && $this->setOriginResponse($response);
+    }
+
+    public function setResource(mixed $resource): void
+    {
+        if (is_resource($resource)) {
+            $this->resource = $resource;
+        }
     }
 
     public function isSuccess(): bool

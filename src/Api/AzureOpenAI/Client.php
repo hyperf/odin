@@ -18,9 +18,11 @@ use Hyperf\Odin\Api\OpenAI\Request\ToolDefinition;
 use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\OpenAI\Response\ListResponse;
 use Hyperf\Odin\Api\OpenAI\Response\TextCompletionResponse;
+use Hyperf\Odin\Api\StreamOption;
 use Hyperf\Odin\Exception\NotImplementedException;
 use Hyperf\Odin\Message\MessageInterface;
 use Hyperf\Odin\Tool\ToolInterface;
+use Hyperf\Odin\Utils\StreamUtil;
 use Psr\Log\LoggerInterface;
 
 class Client implements ClientInterface
@@ -90,14 +92,28 @@ class Client implements ClientInterface
             $json['stop'] = $stop;
         }
         $this->debug && $this->logger?->debug(sprintf("Send Messages: %s\nTools: %s", json_encode($messagesArr, JSON_UNESCAPED_UNICODE), json_encode($tools, JSON_UNESCAPED_UNICODE)));
-        $response = $this->getClient($model)->post($deploymentPath . '/chat/completions', [
+
+        $options = [
             'query' => [
                 'api-version' => $this->config->getApiVersion(),
             ],
             'json' => $json,
             'stream' => $stream,
-        ]);
+        ];
+        $url = $deploymentPath . '/chat/completions';
+
+        $resource = null;
+        $response = null;
+        if (StreamUtil::enabledContext($stream)) {
+            $baseUri = $this->getClient($model)->getConfig('base_uri');
+            $options['headers'] = $this->getClient($model)->getConfig('headers');
+            $resource = StreamUtil::createContext('POST', $baseUri . '/' . $url, $options);
+        } else {
+            $response = $this->getClient($model)->post($url, $options);
+        }
+
         $chatCompletionResponse = new ChatCompletionResponse($response, $stream, $this->logger);
+        $chatCompletionResponse->setResource($resource);
         $this->debug && $this->logger?->debug('Receive: ' . $chatCompletionResponse);
         return $chatCompletionResponse;
     }

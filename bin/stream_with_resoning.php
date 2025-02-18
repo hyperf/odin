@@ -13,7 +13,10 @@ declare(strict_types=1);
 
 require_once dirname(__FILE__, 2) . '/vendor/autoload.php';
 
+use Hyperf\Context\ApplicationContext;
 use Hyperf\Di\ClassLoader;
+use Hyperf\Di\Container;
+use Hyperf\Di\Definition\DefinitionSourceFactory;
 use Hyperf\Odin\Message\AssistantMessage;
 use Hyperf\Odin\Message\SystemMessage;
 use Hyperf\Odin\Message\UserMessage;
@@ -22,6 +25,7 @@ use Hyperf\Odin\Model\DoubaoModel;
 use function Hyperf\Support\env;
 
 ClassLoader::init();
+$container = ApplicationContext::setContainer(new Container((new DefinitionSourceFactory())()));
 
 $model = new DoubaoModel(
     env('DEEPSPEEK_R1_ENDPOINT'),
