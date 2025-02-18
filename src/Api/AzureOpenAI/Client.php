@@ -97,7 +97,7 @@ class Client implements ClientInterface
             'json' => $json,
             'stream' => $stream,
         ]);
-        $chatCompletionResponse = new ChatCompletionResponse($response, $stream);
+        $chatCompletionResponse = new ChatCompletionResponse($response, $stream, $this->logger);
         $this->debug && $this->logger?->debug('Receive: ' . $chatCompletionResponse);
         return $chatCompletionResponse;
     }

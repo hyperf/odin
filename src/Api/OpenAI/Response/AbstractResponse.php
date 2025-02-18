@@ -13,10 +13,13 @@ declare(strict_types=1);
 namespace Hyperf\Odin\Api\OpenAI\Response;
 
 use Psr\Http\Message\ResponseInterface as PsrResponseInterface;
+use Psr\Log\LoggerInterface;
 
 abstract class AbstractResponse implements ResponseInterface
 {
     protected PsrResponseInterface $originResponse;
+
+    protected ?LoggerInterface $logger = null;
 
     protected bool $success = false;
 
@@ -24,8 +27,9 @@ abstract class AbstractResponse implements ResponseInterface
 
     protected bool $stream = false;
 
-    public function __construct(?PsrResponseInterface $response = null, bool $stream = false)
+    public function __construct(?PsrResponseInterface $response = null, bool $stream = false, ?LoggerInterface $logger = null)
     {
+        $this->logger = $logger;
         $this->stream = $stream;
         $response && $this->setOriginResponse($response);
     }

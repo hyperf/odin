@@ -120,8 +120,9 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
 
     public function getStreamIterator(): Generator
     {
+        $jsonBuffer = '';
         while (! $this->originResponse->getBody()->eof()) {
-            $line = $this->readLine($this->originResponse->getBody());
+            [$break, $line] = $this->readLine($this->originResponse->getBody());
 
             if (! str_starts_with($line, 'data:')) {
                 continue;
@@ -132,10 +133,27 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
             }
             $content = json_decode($data, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new RuntimeException('Invalid JSON response | ' . $line);
+                $this->logger?->notice('InvalidJsonResponse', [
+                    'break' => $break,
+                    'line' => $line,
+                ]);
+                // 本行 json 解析失败，进行拼接
+                $jsonBuffer .= $data;
+                if ($jsonBuffer === $data) {
+                    continue;
+                }
+                // 再度尝试 json 解析
+                $content = json_decode($jsonBuffer, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    // 仍然解析失败，记录，继续下一次循环
+                    $this->logger?->error('InvalidJsonResponse | ' . $jsonBuffer);
+                    continue;
+                }
+                // 解析成功重置
+                $jsonBuffer = '';
             }
             if (isset($content['error'])) {
-                throw new RuntimeException('Steam Error | ' . $content['error']);
+                throw new RuntimeException('Stream Error | ' . $content['error']);
             }
             $this->setId($content['id'] ?? null);
             $this->setObject($content['object'] ?? null);
@@ -196,18 +214,18 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
         return $result;
     }
 
-    private function readLine(StreamInterface $stream): string
+    private function readLine(StreamInterface $stream): array
     {
         $buffer = '';
         while (! $stream->eof()) {
             if ('' === ($byte = $stream->read(1))) {
-                return $buffer;
+                return ['return', $buffer];
             }
             $buffer .= $byte;
             if ($byte === "\n") {
                 break;
             }
         }
-        return $buffer;
+        return ['line', $buffer];
     }
 }
