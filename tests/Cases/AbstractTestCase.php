@@ -12,6 +12,10 @@ declare(strict_types=1);
 
 namespace HyperfTest\Odin\Cases;
 
+use Hyperf\Context\ApplicationContext;
+use Hyperf\Di\ClassLoader;
+use Hyperf\Di\Container;
+use Hyperf\Di\Definition\DefinitionSourceFactory;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 
@@ -20,6 +24,13 @@ use ReflectionClass;
  */
 abstract class AbstractTestCase extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        ClassLoader::init();
+        ApplicationContext::setContainer(new Container((new DefinitionSourceFactory())()));
+    }
+
     protected function callNonpublicMethod(object $object, string $method)
     {
         $reflection = new ReflectionClass($object);

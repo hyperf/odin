@@ -230,7 +230,7 @@ JSON
             new UserMessage('帮我生成 1 个随机字符串，其中 slat 为 hello'),
         ];
         $tool = [
-            new class() extends AbstractTool {
+            new class extends AbstractTool {
                 public string $name = 'get_rand_string';
 
                 public string $description = '生成随机字符串';
@@ -351,7 +351,7 @@ JSON,
             new UserMessage('帮我生成 2 个随机字符串，第一个 slat 为 hello，第二个 slat 为 hi'),
         ];
         $tool = [
-            new class() extends AbstractTool {
+            new class extends AbstractTool {
                 public string $name = 'get_rand_string';
 
                 public string $description = '生成随机字符串';

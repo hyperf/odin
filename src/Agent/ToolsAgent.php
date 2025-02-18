@@ -20,6 +20,7 @@ use Hyperf\Odin\Knowledge\Knowledge;
 use Hyperf\Odin\Memory\MemoryInterface;
 use Hyperf\Odin\Message\AssistantMessage;
 use Hyperf\Odin\Message\FunctionMessage;
+use Hyperf\Odin\Message\MessageInterface;
 use Hyperf\Odin\Message\ToolMessage;
 use Hyperf\Odin\Model\DoubaoModel;
 use Hyperf\Odin\Model\ModelInterface;
@@ -210,7 +211,7 @@ class ToolsAgent
     }
 
     /**
-     * @param \Hyperf\Odin\Message\MessageInterface[] $messages
+     * @param MessageInterface[] $messages
      */
     protected function chat(
         array $messages,

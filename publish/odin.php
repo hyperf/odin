@@ -210,4 +210,7 @@ return [
     'tavily' => [
         'api_key' => env('TAVILY_API_KEY'),
     ],
+    'stream' => [
+        'enable_context' => env('STREAM_CONTEXT_ENABLE', false),
+    ],
 ];

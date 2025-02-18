@@ -15,7 +15,6 @@ namespace Hyperf\Odin\Api\OpenAI\Response;
 use Generator;
 use Hyperf\Odin\Exception\RuntimeException;
 use Psr\Http\Message\ResponseInterface as PsrResponseInterface;
-use Psr\Http\Message\StreamInterface;
 use Stringable;
 
 class ChatCompletionResponse extends AbstractResponse implements Stringable
@@ -120,10 +119,17 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
 
     public function getStreamIterator(): Generator
     {
-        while (! $this->originResponse->getBody()->eof()) {
-            $line = $this->readLine($this->originResponse->getBody());
+        $jsonBuffer = '';
+        while (! $this->eof()) {
+            [$break, $line] = $this->readLine();
 
             if (! str_starts_with($line, 'data:')) {
+                if ($line !== "\n") {
+                    $this->logger?->error('InvalidDataResponse', [
+                        'break' => $break,
+                        'line' => $line,
+                    ]);
+                }
                 continue;
             }
             $data = trim(substr($line, strlen('data:')));
@@ -132,10 +138,28 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
             }
             $content = json_decode($data, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new RuntimeException('Invalid JSON response | ' . $line);
+                $this->logger?->notice('InvalidJsonResponse', [
+                    'break' => $break,
+                    'line' => $line,
+                ]);
+                // 本行 json 解析失败，进行拼接
+                $jsonBuffer .= $data;
+                if ($jsonBuffer === $data) {
+                    continue;
+                }
+                // 再度尝试 json 解析
+                $content = json_decode($jsonBuffer, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    // 仍然解析失败，记录，继续下一次循环
+                    $this->logger?->error('InvalidJsonResponse | ' . $jsonBuffer);
+                    continue;
+                }
+                $this->logger?->info('InvalidJsonResponseSuccess | ' . $jsonBuffer);
             }
+            // 解析成功重置
+            $jsonBuffer = '';
             if (isset($content['error'])) {
-                throw new RuntimeException('Steam Error | ' . $content['error']);
+                throw new RuntimeException('Stream Error | ' . $content['error']);
             }
             $this->setId($content['id'] ?? null);
             $this->setObject($content['object'] ?? null);
@@ -147,6 +171,9 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
             foreach ($content['choices'] as $choice) {
                 yield ChatCompletionChoice::fromArray($choice);
             }
+        }
+        if (isset($this->resource)) {
+            fclose($this->resource);
         }
     }
 
@@ -160,8 +187,7 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
 
     protected function parseContent(): static
     {
-        if ($this->originResponse->hasHeader('Transfer-Encoding')
-            && $this->originResponse->getHeaderLine('Transfer-Encoding') === 'chunked') {
+        if ($this->stream) {
             $this->isChunked = true;
             return $this;
         }
@@ -197,18 +223,30 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
         return $result;
     }
 
-    private function readLine(StreamInterface $stream): string
+    private function eof(): bool
     {
+        if (isset($this->resource)) {
+            return feof($this->resource);
+        }
+        return $this->originResponse->getBody()->eof();
+    }
+
+    private function readLine(): array
+    {
+        if (isset($this->resource)) {
+            return ['line', fgets($this->resource)];
+        }
+        $stream = $this->originResponse->getBody();
         $buffer = '';
         while (! $stream->eof()) {
             if ('' === ($byte = $stream->read(1))) {
-                return $buffer;
+                return ['return', $buffer];
             }
             $buffer .= $byte;
             if ($byte === "\n") {
                 break;
             }
         }
-        return $buffer;
+        return ['line', $buffer];
     }
 }
