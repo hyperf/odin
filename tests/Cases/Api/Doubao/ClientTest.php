@@ -35,18 +35,31 @@ use function Hyperf\Support\env;
  */
 class ClientTest extends AbstractTestCase
 {
-    private string $model;
-
     private DoubaoConfig $config;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->model = env('SKYLARK_PRO_32K_ENDPOINT');
+
+        $model = env('SKYLARK_PRO_32K_ENDPOINT');
+        if ($model === null) {
+            $this->markTestSkipped('SKYLARK_PRO_32K_ENDPOINT 环境变量未设置');
+        }
+
+        $apiKey = env('SKYLARK_API_KEY');
+        if ($apiKey === null) {
+            $this->markTestSkipped('SKYLARK_API_KEY 环境变量未设置');
+        }
+
+        $baseUrl = env('SKYLARK_HOST');
+        if ($baseUrl === null) {
+            $this->markTestSkipped('SKYLARK_HOST 环境变量未设置');
+        }
+
         $this->config = new DoubaoConfig(
-            apiKey: env('SKYLARK_API_KEY'),
-            baseUrl: env('SKYLARK_HOST'),
-            model: $this->model
+            apiKey: $apiKey,
+            baseUrl: $baseUrl,
+            model: $model
         );
     }
 
@@ -126,7 +139,7 @@ JSON
             new SystemMessage(''),
             new UserMessage('hello'),
         ];
-        $result = $client->chat(messages: $messages, model: $this->model);
+        $result = $client->chat(messages: $messages, model: $this->config->getModel());
 
         $this->assertInstanceOf(ChatCompletionResponse::class, $result);
         var_dump((string) $result);
@@ -158,27 +171,27 @@ JSON
         ];
         $tool = [
             new class extends AbstractTool {
-                public string $name = 'get_rand_string';
+            public string $name = 'get_rand_string';
 
-                public string $description = '生成随机字符串';
+            public string $description = '生成随机字符串';
 
-                public array $parameters = [
-                    'slat' => [
-                        'type' => 'string',
-                        'description' => '盐值',
-                    ],
+            public array $parameters = [
+                'slat' => [
+                    'type' => 'string',
+                    'description' => '盐值',
+                ],
+            ];
+
+            public function invoke($args): ?array
+            {
+                var_dump($args);
+                return [
+                    uniqid(),
                 ];
-
-                public function invoke($args): ?array
-                {
-                    var_dump($args);
-                    return [
-                        uniqid(),
-                    ];
-                }
+            }
             },
         ];
-        $result = $client->chat(messages: $messages, model: $this->model, tools: $tool);
+        $result = $client->chat(messages: $messages, model: $this->config->getModel(), tools: $tool);
 
         $this->assertInstanceOf(ChatCompletionResponse::class, $result);
         $this->assertTrue($result->getFirstChoice()->isFinishedByToolCall());
@@ -232,7 +245,7 @@ JSON,
             new SystemMessage(''),
             new UserMessage('hello'),
         ];
-        $result = $client->chat($messages, $this->model, stream: true);
+        $result = $client->chat($messages, $this->config->getModel(), stream: true);
         $this->assertInstanceOf(ChatCompletionResponse::class, $result);
 
         $content = '';
@@ -285,27 +298,27 @@ JSON,
         ];
         $tool = [
             new class extends AbstractTool {
-                public string $name = 'get_rand_string';
+            public string $name = 'get_rand_string';
 
-                public string $description = '生成随机字符串';
+            public string $description = '生成随机字符串';
 
-                public array $parameters = [
-                    'slat' => [
-                        'type' => 'string',
-                        'description' => '盐值',
-                    ],
+            public array $parameters = [
+                'slat' => [
+                    'type' => 'string',
+                    'description' => '盐值',
+                ],
+            ];
+
+            public function invoke($args): ?array
+            {
+                var_dump($args);
+                return [
+                    uniqid(),
                 ];
-
-                public function invoke($args): ?array
-                {
-                    var_dump($args);
-                    return [
-                        uniqid(),
-                    ];
-                }
+            }
             },
         ];
-        $result = $client->chat(messages: $messages, model: $this->model, tools: $tool, stream: true);
+        $result = $client->chat(messages: $messages, model: $this->config->getModel(), tools: $tool, stream: true);
 
         $this->assertInstanceOf(ChatCompletionResponse::class, $result);
 
@@ -355,7 +368,7 @@ JSON
             new SystemMessage(''),
             $userMessage,
         ];
-        $result = $client->chat(messages: $messages, model: $this->model);
+        $result = $client->chat(messages: $messages, model: $this->config->getModel());
 
         $this->assertInstanceOf(ChatCompletionResponse::class, $result);
         var_dump((string) $result);

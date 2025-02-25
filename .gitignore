@@ -12,3 +12,4 @@ output/
 .DS_Store
 *.lock
 .phpunit*
+.vscode/launch.json
