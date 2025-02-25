@@ -13,6 +13,7 @@ declare(strict_types=1);
 namespace Hyperf\Odin\Utils;
 
 use RuntimeException;
+
 use function Hyperf\Config\config;
 
 class StreamUtil
@@ -24,8 +25,13 @@ class StreamUtil
 
     public static function createContext(string $method, string $url, array $options)
     {
+        // 强制 Connection: close。因为 PHP 的一个陈年 bug，使用 keep-alive 会导致超时。这里使用显性的 close。详情: https://bugs.php.net/bug.php?id=80931
+        $options['headers']['Connection'] = 'close';
         $header = '';
         foreach ($options['headers'] as $key => $value) {
+            if (strtolower($key) === 'connection') {
+                $value = 'close';
+            }
             $header .= $key . ': ' . $value . "\r\n";
         }
         if (isset($options['query'])) {
