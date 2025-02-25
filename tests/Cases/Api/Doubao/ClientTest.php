@@ -142,7 +142,6 @@ JSON
         $result = $client->chat(messages: $messages, model: $this->config->getModel());
 
         $this->assertInstanceOf(ChatCompletionResponse::class, $result);
-        var_dump((string) $result);
         $this->assertNotEmpty($result->getChoices()[0]->getMessage()->getContent());
 
         $this->assertNotEmpty($result->getId());
@@ -184,7 +183,6 @@ JSON
 
             public function invoke($args): ?array
             {
-                var_dump($args);
                 return [
                     uniqid(),
                 ];
@@ -253,7 +251,6 @@ JSON,
             $content .= $choice->getMessage()?->getContent() ?: '';
         }
         $content = trim($content);
-        var_dump($content);
         $this->assertNotEmpty($content);
         $this->assertNotEmpty($result->getId());
         $this->assertNotEmpty($result->getModel());
@@ -311,7 +308,6 @@ JSON,
 
             public function invoke($args): ?array
             {
-                var_dump($args);
                 return [
                     uniqid(),
                 ];
@@ -371,7 +367,6 @@ JSON
         $result = $client->chat(messages: $messages, model: $this->config->getModel());
 
         $this->assertInstanceOf(ChatCompletionResponse::class, $result);
-        var_dump((string) $result);
         $this->assertNotEmpty($result->getChoices()[0]->getMessage()->getContent());
 
         $this->assertNotEmpty($result->getId());
