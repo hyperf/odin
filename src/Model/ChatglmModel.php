@@ -12,62 +12,39 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Model;
 
-use Hyperf\Odin\Api\Chatglm\Chatglm;
-use Hyperf\Odin\Api\Chatglm\ChatglmConfig;
-use Hyperf\Odin\Api\Chatglm\Client as ChatglmClient;
-use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
-use Hyperf\Odin\Api\OpenAI\Response\ListResponse;
-use Hyperf\Odin\Exception\RuntimeException;
+use Hyperf\Odin\Api\Providers\OpenAI\OpenAI;
+use Hyperf\Odin\Api\Providers\OpenAI\OpenAIConfig;
+use Hyperf\Odin\Contract\Api\ClientInterface;
 
-class ChatglmModel implements ModelInterface, EmbeddingInterface
+/**
+ * ChatGLM模型实现.
+ */
+class ChatglmModel extends AbstractModel
 {
-    public function __construct(public string $model, public array $config) {}
+    /**
+     * 获取ChatGLM客户端实例.
+     */
+    protected function getClient(): ClientInterface
+    {
+        // 处理API基础URL，确保包含正确的版本路径
+        $config = $this->config;
+        $this->processApiBaseUrl($config);
 
-    public function chat(
-        array $messages,
-        float $temperature = 0.9,
-        int $maxTokens = 0,
-        array $stop = [],
-        array $tools = [],
-        bool $stream = false,
-    ): ChatCompletionResponse {
-        $client = $this->getChatglmClient();
-        if ($stream) {
-            throw new RuntimeException('Stream is temporarily not supported');
-        }
-        return $client->chat($messages, $this->model, $temperature, $maxTokens, $stop, $tools);
+        $openAI = new OpenAI();
+        $config = new OpenAIConfig(
+            apiKey: $config['api_key'] ?? '',
+            organization: '', // Chatglm不需要组织ID
+            baseUrl: $config['base_url'] ?? 'http://localhost:8000'
+        );
+        return $openAI->getClient($config, $this->getApiRequestOptions(), $this->logger);
     }
 
-    public function getChatglmClient(): ChatglmClient
+    /**
+     * 获取API版本路径.
+     * ChatGLM的API版本路径为 api/paas/v4.
+     */
+    protected function getApiVersionPath(): string
     {
-        $openAI = new Chatglm();
-        $config = new ChatglmConfig($this->config['api_key'] ?? '');
-        return $openAI->getClient($config, $this->model);
-    }
-
-    public function embedding(string $input): Embedding
-    {
-        $client = $this->getChatglmClient();
-        /** @var ListResponse $response */
-        $response = $client->embedding($input, $this->model);
-        $embeddings = [];
-        $data = $response->getData();
-        if (isset($data[0])) {
-            $embedding = $data[0];
-            if ($embedding instanceof \Hyperf\Odin\Api\OpenAI\Response\Embedding) {
-                $embeddings = $embedding->getEmbedding();
-            }
-        }
-        return new Embedding($embeddings);
-    }
-
-    public function getModelName(): string
-    {
-        return $this->model;
-    }
-
-    public function getVectorSize(): int
-    {
-        return 1536;
+        return 'api/paas/v4';
     }
 }

@@ -14,10 +14,17 @@ namespace Hyperf\Odin\Message;
 
 class UserMessageContent
 {
+    public const TEXT = 'text';
+
+    public const IMAGE_URL = 'image_url';
+
     private string $type;
 
     private string $text = '';
 
+    /**
+     * 可以是链接，可以是 base64.
+     */
     private string $imageUrl = '';
 
     public function __construct(string $type)
@@ -27,12 +34,12 @@ class UserMessageContent
 
     public static function text(string $text): self
     {
-        return (new self('text'))->setText($text);
+        return (new self(self::TEXT))->setText($text);
     }
 
     public static function imageUrl(string $url): self
     {
-        return (new self('image_url'))->setImageUrl($url);
+        return (new self(self::IMAGE_URL))->setImageUrl($url);
     }
 
     public function getType(): string
@@ -65,8 +72,8 @@ class UserMessageContent
     public function isValid(): bool
     {
         return match ($this->type) {
-            'text' => $this->text !== '',
-            'image_url' => $this->imageUrl !== '',
+            self::TEXT => $this->text !== '',
+            self::IMAGE_URL => $this->imageUrl !== '',
             default => false,
         };
     }
@@ -74,11 +81,11 @@ class UserMessageContent
     public function toArray(): array
     {
         return match ($this->type) {
-            'text' => [
+            self::TEXT => [
                 'type' => 'text',
                 'text' => $this->text,
             ],
-            'image_url' => [
+            self::IMAGE_URL => [
                 'type' => 'image_url',
                 'image_url' => [
                     'url' => $this->imageUrl,

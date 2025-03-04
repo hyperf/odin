@@ -12,66 +12,106 @@ declare(strict_types=1);
 
 namespace HyperfTest\Odin\Cases\Message;
 
+use Hyperf\Odin\Message\Role;
 use Hyperf\Odin\Message\UserMessage;
 use Hyperf\Odin\Message\UserMessageContent;
 use HyperfTest\Odin\Cases\AbstractTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
 
 /**
+ * 用户消息类测试.
  * @internal
- * @coversNothing
  */
+#[CoversClass(UserMessage::class)]
 class UserMessageTest extends AbstractTestCase
 {
-    public function testSimple()
+    /**
+     * 测试用户消息的角色.
+     */
+    public function testRole()
     {
-        $message = new UserMessage('Hello, World!');
-        $this->assertSame('Hello, World!', $message->getContent());
-        $this->assertSame([
-            'role' => 'user',
-            'content' => 'Hello, World!',
-        ], $message->toArray());
+        $message = new UserMessage('用户消息');
+        $this->assertSame(Role::User, $message->getRole());
     }
 
-    public function testAddContent()
+    /**
+     * 测试简单文本内容的用户消息.
+     */
+    public function testSimpleContent()
     {
-        $message = new UserMessage('');
-        $content = UserMessageContent::text('Hello, World!');
-        $message->addContent($content);
+        $message = new UserMessage('用户消息内容');
+        $this->assertSame('用户消息内容', $message->getContent());
 
-        $this->assertCount(1, $message->toArray()['content']);
-        $this->assertSame('Hello, World!', $message->toArray()['content'][0]['text']);
+        // 测试 toArray
+        $array = $message->toArray();
+        $this->assertArrayHasKey('role', $array);
+        $this->assertArrayHasKey('content', $array);
+        $this->assertArrayNotHasKey('identifier', $array);
+        $this->assertSame(Role::User->value, $array['role']);
+        $this->assertSame('用户消息内容', $array['content']);
     }
 
-    public function testToArray()
+    /**
+     * 测试多模态内容.
+     */
+    public function testMultimodalContent()
     {
-        $message = new UserMessage('');
-        $content1 = UserMessageContent::text('Hello, World!');
-        $content2 = UserMessageContent::imageUrl('https://example.com/image.jpg');
-        $message->addContent($content1)->addContent($content2);
+        // 创建一个带有文本和图像的用户消息
+        $message = new UserMessage();
+        $message->addContent(UserMessageContent::text('这是文本内容'));
+        $message->addContent(UserMessageContent::imageUrl('https://example.com/image.jpg'));
 
-        $expected = [
-            [
-                'type' => 'text',
-                'text' => 'Hello, World!',
-            ],
-            [
-                'type' => 'image_url',
-                'image_url' => [
-                    'url' => 'https://example.com/image.jpg',
-                ],
-            ],
+        // 测试内容列表
+        $contents = $message->getContents();
+        $this->assertIsArray($contents);
+        $this->assertCount(2, $contents);
+
+        // 测试 toArray
+        $array = $message->toArray();
+        $this->assertArrayHasKey('role', $array);
+        $this->assertArrayHasKey('content', $array);
+        $this->assertArrayNotHasKey('identifier', $array);
+        $this->assertIsArray($array['content']);
+        $this->assertCount(2, $array['content']);
+
+        // 检查内容项的结构
+        $this->assertSame('text', $array['content'][0]['type']);
+        $this->assertSame('这是文本内容', $array['content'][0]['text']);
+        $this->assertSame('image_url', $array['content'][1]['type']);
+        $this->assertSame('https://example.com/image.jpg', $array['content'][1]['image_url']['url']);
+    }
+
+    /**
+     * 测试从数组创建用户消息.
+     */
+    public function testFromArrayWithSimpleContent()
+    {
+        $array = [
+            'content' => '用户消息内容',
         ];
 
-        $this->assertSame($expected, $message->toArray()['content']);
+        $message = UserMessage::fromArray($array);
+
+        $this->assertInstanceOf(UserMessage::class, $message);
+        $this->assertSame('用户消息内容', $message->getContent());
+        $this->assertSame('', $message->getIdentifier());
+        $this->assertNull($message->getContents()); // 简单内容不会创建 contents 数组
+
+        // 手动设置标识符并验证
+        $message->setIdentifier('user-123');
+        $this->assertSame('user-123', $message->getIdentifier());
     }
 
-    public function testFromArray()
+    /**
+     * 测试从数组创建带有多模态内容的用户消息.
+     */
+    public function testFromArrayWithMultimodalContent()
     {
-        $data = [
+        $array = [
             'content' => [
                 [
                     'type' => 'text',
-                    'text' => 'Hello, World!',
+                    'text' => '这是文本',
                 ],
                 [
                     'type' => 'image_url',
@@ -82,10 +122,26 @@ class UserMessageTest extends AbstractTestCase
             ],
         ];
 
-        $message = UserMessage::fromArray($data);
+        $message = UserMessage::fromArray($array);
 
-        $this->assertCount(2, $message->toArray());
-        $this->assertSame('Hello, World!', $message->toArray()['content'][0]['text']);
-        $this->assertSame('https://example.com/image.jpg', $message->toArray()['content'][1]['image_url']['url']);
+        $this->assertInstanceOf(UserMessage::class, $message);
+        $this->assertSame('', $message->getIdentifier());
+
+        // 手动设置标识符并验证
+        $message->setIdentifier('user-multi-123');
+        $this->assertSame('user-multi-123', $message->getIdentifier());
+
+        // 检查多模态内容
+        $contents = $message->getContents();
+        $this->assertIsArray($contents);
+        $this->assertCount(2, $contents);
+
+        // 检查内容格式
+        $contentArray = $message->toArray();
+        $this->assertArrayHasKey('content', $contentArray);
+        $this->assertIsArray($contentArray['content']);
+        $this->assertCount(2, $contentArray['content']);
+        $this->assertSame('text', $contentArray['content'][0]['type']);
+        $this->assertSame('这是文本', $contentArray['content'][0]['text']);
     }
 }

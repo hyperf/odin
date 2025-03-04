@@ -29,7 +29,7 @@ class Document
         return $this->content;
     }
 
-    public function setContent(string $content): static
+    public function setContent(string $content): self
     {
         $this->content = $content;
         return $this;
@@ -40,13 +40,13 @@ class Document
         return $this->metadata;
     }
 
-    public function setMetadata(array $metadata): static
+    public function setMetadata(array $metadata): self
     {
         $this->metadata = $metadata;
         return $this;
     }
 
-    public function appendMetadata(string $key, string $value): static
+    public function appendMetadata(string $key, string $value): self
     {
         $this->metadata[$key] = $value;
         return $this;

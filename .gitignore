@@ -12,3 +12,10 @@ output/
 .DS_Store
 *.lock
 .phpunit*
+doc/
+todo/
+.vscode/
+bin/
+publish/
+config/
+.obsidian/

@@ -12,61 +12,70 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Memory;
 
-use Hyperf\Odin\Message\MessageInterface;
-use InvalidArgumentException;
-use Stringable;
+use Hyperf\Odin\Contract\Message\MessageInterface;
+use Hyperf\Odin\Memory\Policy\LimitCountPolicy;
 
-class MessageHistory extends AbstractMemory
+/**
+ * 该类是为了减少已有逻辑的改动.
+ */
+class MessageHistory
 {
-    protected array $systemMessages = [];
+    /**
+     * @var array<string, MemoryManager> 会话历史
+     */
+    protected array $conversations = [];
 
     public function __construct(
         protected int $maxRecord = 10,
         protected int $maxTokens = 1000,
         array $conversations = []
-    ) {
-        if ($maxTokens <= 0) {
-            throw new InvalidArgumentException('maxTokens must be greater than zero.');
-        }
+    ) {}
+
+    public function count(): int
+    {
+        return count($this->conversations);
     }
 
-    public function setSystemMessage(MessageInterface $message, string|Stringable $conversationId): static
+    public function setSystemMessage(MessageInterface $message, string $conversationId): self
     {
-        $this->systemMessages[$conversationId] = $message;
+        $memory = $this->getMemoryManager($conversationId);
+        $memory->addSystemMessage($message);
         return $this;
     }
 
-    public function addMessages(array|MessageInterface $messages, string|Stringable $conversationId): static
+    public function addMessages(array|MessageInterface $messages, string $conversationId): self
     {
-        if (! is_string($conversationId) && ! ($conversationId instanceof Stringable)) {
-            throw new InvalidArgumentException('Conversation ID must be a string, an instance of Stringable, or null.');
-        }
-
         if (! is_array($messages)) {
             $messages = [$messages];
         }
-
+        $memory = $this->getMemoryManager($conversationId);
         foreach ($messages as $message) {
-            if (! $message instanceof MessageInterface) {
-                throw new InvalidArgumentException('Messages must be an array of MessageInterface instances.');
-            }
+            $memory->addMessage($message);
         }
-
-        foreach ($messages as $message) {
-            $this->conversations[$conversationId][] = $message;
-            // Ensure the number of messages does not exceed maxRecord
-            if (count($this->conversations[$conversationId]) > $this->maxRecord) {
-                $this->conversations[$conversationId] = array_slice($this->conversations[$conversationId], -$this->maxRecord);
-            }
-        }
-
         return $this;
     }
 
     public function getConversations(string $conversationId): array
     {
-        $messages = $this->conversations[$conversationId] ?? [];
-        $systemMessage = $this->systemMessages[$conversationId] ?? null;
-        return $systemMessage ? array_merge([$systemMessage], $messages) : $messages;
+        $memory = $this->getMemoryManager($conversationId);
+        return $memory->applyPolicy()->getProcessedMessages();
+    }
+
+    public function getMemoryManager(string $conversationId, ?int $maxRecord = null): MemoryManager
+    {
+        if (! isset($this->conversations[$conversationId])) {
+            $memoryManager = new MemoryManager(policy: new LimitCountPolicy(['max_count' => $maxRecord ?? $this->maxRecord]));
+            $this->conversations[$conversationId] = $memoryManager;
+        }
+        return $this->conversations[$conversationId];
+    }
+
+    public function clear(string $conversationId): self
+    {
+        if (! isset($this->conversations[$conversationId])) {
+            return $this;
+        }
+        $this->conversations[$conversationId]->clear();
+        return $this;
     }
 }

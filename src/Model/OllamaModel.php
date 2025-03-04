@@ -12,52 +12,36 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Model;
 
-use Hyperf\Odin\Api\Ollama\Client;
-use Hyperf\Odin\Api\Ollama\Ollama;
-use Hyperf\Odin\Api\Ollama\OllamaConfig;
-use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
-use Hyperf\Odin\Exception\RuntimeException;
+use Hyperf\Odin\Api\Providers\OpenAI\OpenAI;
+use Hyperf\Odin\Api\Providers\OpenAI\OpenAIConfig;
+use Hyperf\Odin\Contract\Api\ClientInterface;
 
-class OllamaModel implements ModelInterface, EmbeddingInterface
+/**
+ * Ollama模型实现.
+ */
+class OllamaModel extends AbstractModel
 {
-    public function __construct(public string $model, public array $config) {}
+    /**
+     * 获取Ollama客户端实例.
+     */
+    protected function getClient(): ClientInterface
+    {
+        // 处理API基础URL，确保包含正确的版本路径
+        $config = $this->config;
+        $this->processApiBaseUrl($config);
 
-    public function chat(
-        array $messages,
-        float $temperature = 0.9,
-        int $maxTokens = 0,
-        array $stop = [],
-        array $tools = [],
-        bool $stream = false,
-    ): ChatCompletionResponse {
-        $client = $this->getOllamaClient();
-        if ($stream) {
-            throw new RuntimeException('Stream is temporarily not supported');
-        }
-        return $client->chat($messages, $this->model, $temperature, $maxTokens, $stop, $tools);
+        $openAI = new OpenAI();
+        $config = new OpenAIConfig(
+            apiKey: $config['api_key'] ?? '', // Ollama不需要API Key
+            organization: '', // Ollama不需要组织ID
+            baseUrl: $config['base_url'] ?? 'http://0.0.0.0:11434',
+            skipApiKeyValidation: true, // 显式标记Ollama不需要API Key验证
+        );
+        return $openAI->getClient($config, $this->getApiRequestOptions(), $this->logger);
     }
 
-    public function embedding(string $input): Embedding
+    protected function getApiVersionPath(): string
     {
-        $client = $this->getOllamaClient();
-        $response = $client->embedding($input, $this->model);
-        return new Embedding($response->getEmbeddings());
-    }
-
-    public function getVectorSize(): int
-    {
-        return 1536;
-    }
-
-    public function getOllamaClient(): Client
-    {
-        $ollama = new Ollama();
-        $config = new OllamaConfig($this->config['base_url'] ?? 'http://0.0.0.0:11434');
-        return $ollama->getClient($config);
-    }
-
-    public function getModelName(): string
-    {
-        return $this->model;
+        return 'v1';
     }
 }
