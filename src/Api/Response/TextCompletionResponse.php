@@ -24,7 +24,7 @@ class TextCompletionResponse extends AbstractResponse
 
     protected ?string $object = null;
 
-    protected ?string $created = null;
+    protected ?int $created = null;
 
     /**
      * @var null|TextCompletionChoice[]
@@ -85,14 +85,14 @@ class TextCompletionResponse extends AbstractResponse
         return $this;
     }
 
-    public function getCreated(): ?string
+    public function getCreated(): ?int
     {
         return $this->created;
     }
 
-    public function setCreated($created): self
+    public function setCreated(null|int|string $created): self
     {
-        $this->created = $created;
+        $this->created = (int) $created;
         return $this;
     }
 
