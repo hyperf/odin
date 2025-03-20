@@ -125,7 +125,6 @@ class TextCompletionResponse extends AbstractResponse
     {
         $content = json_decode($this->content, true);
         if (isset($content['content'])) {
-            var_dump(111);
             $this->parseContentByText($content['content']);
             return $this;
         }
