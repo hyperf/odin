@@ -14,6 +14,7 @@ namespace Hyperf\Odin\Memory\Driver;
 
 use Hyperf\Odin\Contract\Memory\DriverInterface;
 use Hyperf\Odin\Contract\Message\MessageInterface;
+use Hyperf\Odin\Message\SystemMessage;
 
 /**
  * 内存记忆驱动.
@@ -60,6 +61,10 @@ class InMemoryDriver implements DriverInterface
      */
     public function addMessage(MessageInterface $message): void
     {
+        if ($message instanceof SystemMessage) {
+            $this->addSystemMessage($message);
+            return;
+        }
         // 确保消息数量不超过限制
         if (count($this->messages) >= $this->config['max_messages']) {
             // 移除最早的消息
