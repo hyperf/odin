@@ -171,7 +171,14 @@ class ToolUseAgent
         $depth = 0;
 
         while (true) {
-            $messages = $this->memory->applyPolicy()->getProcessedMessages();
+            // 合并系统消息和普通消息
+            $systemMessages = $this->memory->getSystemMessages();
+            if (! empty($systemMessages)) {
+                $messages = array_merge([end($systemMessages)], $this->memory->getMessages());
+            } else {
+                $messages = $this->memory->getMessages();
+            }
+
             if (! $stream) {
                 $response = $this->model->chat(
                     messages: $messages,
