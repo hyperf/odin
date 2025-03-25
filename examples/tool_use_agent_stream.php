@@ -27,6 +27,7 @@ use Hyperf\Odin\Message\SystemMessage;
 use Hyperf\Odin\Message\UserMessage;
 use Hyperf\Odin\Model\AzureOpenAIModel;
 use Hyperf\Odin\Model\ModelOptions;
+use Hyperf\Odin\Tool\AbstractTool;
 use Hyperf\Odin\Tool\Definition\ToolDefinition;
 use Hyperf\Odin\Tool\Definition\ToolParameters;
 
@@ -247,6 +248,41 @@ $recommendTool = new ToolDefinition(
     }
 );
 
+class CurrentTimeTool extends AbstractTool
+{
+    public function getName(): string
+    {
+        return 'current_time';
+    }
+
+    public function getDescription(): string
+    {
+        return '获取当前系统时间，不需要任何参数';
+    }
+
+    public function getParameters(): ?ToolParameters
+    {
+        return ToolParameters::fromArray([
+            'type' => 'object',
+            'properties' => [],
+            'required' => [],
+        ]);
+    }
+
+    protected function handle(array $parameters): array
+    {
+        // 这个工具不需要任何参数，直接返回当前时间信息
+        return [
+            'current_time' => date('Y-m-d H:i:s'),
+            'timezone' => date_default_timezone_get(),
+            'timestamp' => time(),
+        ];
+    }
+}
+
+// 添加一个无参数的工具示例
+$currentTimeTool = new CurrentTimeTool();
+
 // 创建带有所有工具的代理
 $agent = new ToolUseAgent(
     model: $model,
@@ -255,6 +291,7 @@ $agent = new ToolUseAgent(
         $calculatorTool->getName() => $calculatorTool,
         $databaseTool->getName() => $databaseTool,
         $recommendTool->getName() => $recommendTool,
+        $currentTimeTool->getName() => $currentTimeTool,
     ],
     temperature: 0.6,
     logger: $logger
@@ -264,7 +301,7 @@ $agent = new ToolUseAgent(
 echo "===== 顺序流式工具调用示例 =====\n";
 $start = microtime(true);
 
-$userMessage = new UserMessage('请计算 7 的 3 次方，然后查询用户ID为2的信息，最后根据查询结果推荐一些科幻电影。请详细说明每一步。');
+$userMessage = new UserMessage('先获取当前系统时间，再计算 7 的 3 次方，然后查询用户ID为2的信息，最后根据查询结果推荐一些科幻电影。请详细说明每一步。');
 $response = $agent->chatStreamed($userMessage);
 
 $content = '';

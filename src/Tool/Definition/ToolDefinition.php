@@ -76,16 +76,13 @@ class ToolDefinition implements Arrayable
             ],
         ];
 
-        // 添加参数定义
-        if ($this->getParameters() !== null) {
-            $result['function']['parameters'] = $this->getParameters()->toArray();
-        } else {
-            // 没有参数时提供默认的空对象
-            $result['function']['parameters'] = [
-                'type' => 'object',
-                'properties' => [],
-            ];
+        // 如果参数没有任何参数，或者参数中没有任何属性
+        if (empty($this->getParameters()) || empty($this->getParameters()->getProperties())) {
+            return $result;
         }
+
+        // 添加参数定义
+        $result['function']['parameters'] = $this->getParameters()->toArray();
 
         return $result;
     }
