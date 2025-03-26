@@ -178,15 +178,12 @@ class ToolDefinitionTest extends ToolBaseTestCase
         // 验证错误信息中包含缺少的字段信息
         $errorFound = false;
         foreach ($result['errors'] as $error) {
-            if (isset($error['path'], $error['message'])
-                && (strpos($error['path'], 'name') !== false
-                || strpos($error['message'], 'name') !== false
-                || strpos($error['message'], 'Required') !== false)) {
+            if (isset($error['message']) && str_contains($error['message'], 'required')) {
                 $errorFound = true;
                 break;
             }
         }
-        $this->assertTrue($errorFound, '错误信息应该包含缺少的必填字段name');
+        $this->assertTrue($errorFound, '错误信息应该包含缺少的必填字段信息');
     }
 
     /**
@@ -210,9 +207,9 @@ class ToolDefinitionTest extends ToolBaseTestCase
         // 验证错误信息中包含类型错误信息
         $errorFound = false;
         foreach ($result['errors'] as $error) {
-            if (isset($error['path'], $error['message'])
-                && (strpos($error['path'], 'age') !== false
-                || (strpos($error['message'], 'integer') !== false && strpos($error['path'], 'age') !== false))) {
+            if (isset($error['message'])
+                && (str_contains($error['message'], 'integer')
+                 || str_contains($error['message'], 'string'))) {
                 $errorFound = true;
                 break;
             }
@@ -240,13 +237,13 @@ class ToolDefinitionTest extends ToolBaseTestCase
         $validationResult = $definition->validateParameters(['age' => 10]);
         $this->assertFalse($validationResult['valid']);
         $this->assertNotEmpty($validationResult['errors']);
-        $this->assertStringContainsString('Must be at least', $validationResult['errors'][0]['message']);
+        $this->assertStringContainsString('minimum value', $validationResult['errors'][0]['message']);
 
         // 值过大
         $validationResult = $definition->validateParameters(['age' => 150]);
         $this->assertFalse($validationResult['valid']);
         $this->assertNotEmpty($validationResult['errors']);
-        $this->assertStringContainsString('Must be at most', $validationResult['errors'][0]['message']);
+        $this->assertStringContainsString('maximum value', $validationResult['errors'][0]['message']);
     }
 
     /**

@@ -36,7 +36,7 @@ class ToolParameter implements Arrayable
      * 参数类型.
      * @var array|string 可以是单一类型或类型数组
      */
-    protected $type;
+    protected array|string $type;
 
     /**
      * 参数是否必需.
@@ -147,7 +147,7 @@ class ToolParameter implements Arrayable
     /**
      * 元数据：默认值.
      */
-    protected $default;
+    protected mixed $default = null;
 
     /**
      * 自定义扩展属性.
@@ -165,7 +165,7 @@ class ToolParameter implements Arrayable
     public function __construct(
         string $name,
         string $description = '',
-        $type = 'string',
+        array|string $type = 'string',
         bool $required = false
     ) {
         $this->name = $name;
@@ -370,13 +370,12 @@ class ToolParameter implements Arrayable
     /**
      * 从数组创建参数定义.
      */
-    public static function fromArray(string $name, array $schema): self
+    public static function fromArray(string $name, array $schema): ?self
     {
         $type = $schema['type'] ?? 'string';
         $description = $schema['description'] ?? '';
-        $required = false; // 是否必需由外部决定
 
-        $parameter = new self($name, $description, $type, $required);
+        $parameter = new self($name, $description, $type, false);
 
         // 设置公共属性
         if (isset($schema['enum'])) {
@@ -457,6 +456,9 @@ class ToolParameter implements Arrayable
                     }
                     $parameter->addProperty($property);
                 }
+            } else {
+                // 没有任何属性是 null
+                return null;
             }
             if (isset($schema['additionalProperties'])) {
                 $parameter->setAdditionalProperties($schema['additionalProperties']);

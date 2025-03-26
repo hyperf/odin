@@ -36,6 +36,7 @@ class JsonSchemaBuilderTest extends ToolBaseTestCase
         $this->assertArrayHasKey('properties', $schema);
         $this->assertEmpty($schema['properties']);
         $this->assertArrayNotHasKey('required', $schema); // 没有必需属性时不应包含required字段
+        $this->assertArrayHasKey('$schema', $schema); // 检查添加了schema标识
 
         // 测试重置方法
         $builder->addStringProperty('name', '姓名', true);
@@ -210,7 +211,6 @@ class JsonSchemaBuilderTest extends ToolBaseTestCase
 
         // 当前JsonSchemaBuilder不支持默认值设置，我们需要手动添加
         $nameProperty['default'] = '未命名用户';
-        $this->assertEquals('未命名用户', $nameProperty['default']);
 
         // 创建一个支持默认值的构建器扩展建议
         $this->assertArrayNotHasKey(

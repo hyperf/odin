@@ -27,7 +27,7 @@ class ParameterConverter
      * @param array $schema 完整的参数 schema，包含额外信息如 format
      * @return mixed 转换后的值
      */
-    public static function convert(mixed $value, $type, array $schema = [])
+    public static function convert(mixed $value, array|string $type, array $schema = []): mixed
     {
         // 如果值已经是 null，且类型允许 null，则直接返回
         if ($value === null) {
@@ -55,22 +55,15 @@ class ParameterConverter
         }
 
         // 根据目标类型转换
-        switch ($type) {
-            case 'string':
-                return self::toString($value, $schema);
-            case 'number':
-                return self::toNumber($value);
-            case 'integer':
-                return self::toInteger($value);
-            case 'boolean':
-                return self::toBoolean($value);
-            case 'array':
-                return self::toArray($value, $schema);
-            case 'object':
-                return self::toObject($value, $schema);
-            default:
-                return $value; // 未知类型，返回原值
-        }
+        return match ($type) {
+            'string' => self::toString($value, $schema),
+            'number' => self::toNumber($value),
+            'integer' => self::toInteger($value),
+            'boolean' => self::toBoolean($value),
+            'array' => self::toArray($value, $schema),
+            'object' => self::toObject($value, $schema),
+            default => $value,
+        };
     }
 
     /**
@@ -80,7 +73,7 @@ class ParameterConverter
      * @param array $schema 参数 schema
      * @return string 转换后的字符串
      */
-    public static function toString($value, array $schema = []): string
+    public static function toString(mixed $value, array $schema = []): string
     {
         if (is_string($value)) {
             return $value;
@@ -103,7 +96,7 @@ class ParameterConverter
      * @param mixed $value 原始值
      * @return float 转换后的数字
      */
-    public static function toNumber($value): float
+    public static function toNumber(mixed $value): float
     {
         if (is_numeric($value)) {
             return (float) $value;
@@ -135,7 +128,7 @@ class ParameterConverter
      * @param mixed $value 原始值
      * @return int 转换后的整数
      */
-    public static function toInteger($value): int
+    public static function toInteger(mixed $value): int
     {
         if (is_int($value)) {
             return $value;
@@ -171,7 +164,7 @@ class ParameterConverter
      * @param mixed $value 原始值
      * @return bool 转换后的布尔值
      */
-    public static function toBoolean($value): bool
+    public static function toBoolean(mixed $value): bool
     {
         if (is_bool($value)) {
             return $value;
@@ -201,7 +194,7 @@ class ParameterConverter
      * @param array $schema 参数 schema，包含 items 定义
      * @return array 转换后的数组
      */
-    public static function toArray($value, array $schema = []): array
+    public static function toArray(mixed $value, array $schema = []): array
     {
         if (is_array($value)) {
             // 如果已经是数组，但需要转换元素类型
@@ -256,7 +249,7 @@ class ParameterConverter
      * @param array $schema 参数 schema，包含 properties 定义
      * @return array|object 转换后的对象（PHP 中使用关联数组表示）
      */
-    public static function toObject($value, array $schema = [])
+    public static function toObject(mixed $value, array $schema = []): array|object
     {
         if (is_array($value) && ! self::isIndexedArray($value)) {
             // 如果已经是关联数组，但需要转换属性类型
@@ -316,7 +309,7 @@ class ParameterConverter
      * @param mixed $value 要检查的值
      * @return string JSON Schema 类型
      */
-    private static function getType($value): string
+    private static function getType(mixed $value): string
     {
         if (is_string($value)) {
             return 'string';
@@ -355,7 +348,7 @@ class ParameterConverter
      * @param mixed $value 要转换的值
      * @return string 字符串表示
      */
-    private static function valueToString($value): string
+    private static function valueToString(mixed $value): string
     {
         if (is_scalar($value) || is_null($value)) {
             return var_export($value, true);

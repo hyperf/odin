@@ -166,7 +166,7 @@ class AbstractModelTest extends AbstractTestCase
             'max_tokens' => $maxTokens,
             'stop' => $stop,
             'tools' => $tools,
-            'is_stream' => $isStream
+            'is_stream' => $isStream,
         ];
 
         $context = $this->callNonpublicMethod(

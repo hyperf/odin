@@ -23,9 +23,9 @@ class ToolUtil
         $toolsArray = [];
         foreach ($tools as $tool) {
             if ($tool instanceof ToolInterface) {
-                $toolsArray[] = $tool->toToolDefinition()->toArray();
+                $toolsArray[] = $tool->toToolDefinition()->toFunctionCall();
             } elseif ($tool instanceof ToolDefinition) {
-                $toolsArray[] = $tool->toArray();
+                $toolsArray[] = $tool->toFunctionCall();
             } else {
                 $toolsArray[] = $tool;
             }

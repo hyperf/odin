@@ -75,20 +75,24 @@ class ToolUseAgentTest extends AbstractTestCase
     {
         parent::setUp();
 
-        // 创建模拟的模型实例
+        // 创建模拟对象
         $this->model = Mockery::mock(ModelInterface::class);
-
-        // 创建模拟的内存管理器
         $this->memory = Mockery::mock(MemoryInterface::class);
-        $this->memory->shouldReceive('addMessage')->andReturnSelf();
-        $this->memory->shouldReceive('applyPolicy')->andReturnSelf();
-        $this->memory->shouldReceive('getProcessedMessages')->andReturn([]);
-
-        // 创建模拟的日志记录器
         $this->logger = Mockery::mock(LoggerInterface::class);
-        $this->logger->shouldReceive('info')->andReturnNull();
-        $this->logger->shouldReceive('debug')->andReturnNull();
-        $this->logger->shouldReceive('warning')->andReturnNull();
+
+        // 定义默认的 mock 行为
+        $this->memory->shouldReceive('getMessages')
+            ->andReturn([]);
+
+        $this->memory->shouldReceive('getSystemMessages')
+            ->andReturn([]);
+
+        $this->memory->shouldReceive('addMessage')
+            ->andReturn($this->memory);
+
+        $this->logger->shouldReceive('debug');
+        $this->logger->shouldReceive('info');
+        $this->logger->shouldReceive('warning');
 
         // 创建测试用工具
         $this->tools = [
@@ -339,18 +343,18 @@ class ToolUseAgentTest extends AbstractTestCase
         $decoded = json_decode($result, true);
         $this->assertIsArray($decoded, 'formatToolResult结果应为有效的JSON');
         $this->assertArrayHasKey('user', $decoded, 'formatToolResult结果应包含user键');
-        
+
         // 获取user数据，可能是字符串或直接是数组
         $userValue = $decoded['user'];
         $userData = is_string($userValue) ? json_decode($userValue, true) : $userValue;
-        
+
         $this->assertIsArray($userData, 'user值应为数组或可解析为数组的JSON');
         $this->assertEquals('test', $userData['name'], '嵌套的name字段应正确保存');
-        
+
         // 获取roles数据，可能是字符串或直接是数组
         $rolesValue = $userData['roles'];
         $rolesData = is_string($rolesValue) ? json_decode($rolesValue, true) : $rolesValue;
-        
+
         $this->assertEquals(['admin', 'user'], $rolesData, '嵌套的roles数组应正确保存');
 
         // 测试对象 - 使用具有toArray方法的测试对象
@@ -803,6 +807,12 @@ class ToolUseAgentTest extends AbstractTestCase
             ->andReturnSelf();
 
         $memory->shouldReceive('getProcessedMessages')
+            ->andReturn([]);
+
+        $memory->shouldReceive('getMessages')
+            ->andReturn([]);
+
+        $memory->shouldReceive('getSystemMessages')
             ->andReturn([]);
 
         // 设置 logger 的预期行为

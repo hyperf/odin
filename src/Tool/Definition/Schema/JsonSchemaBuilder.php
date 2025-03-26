@@ -16,6 +16,7 @@ use InvalidArgumentException;
 
 /**
  * JSON Schema 构建器，用于创建符合 JSON Schema 标准的工具定义.
+ * 与 jsonrainbow/json-schema 组件兼容.
  */
 class JsonSchemaBuilder
 {
@@ -270,13 +271,17 @@ class JsonSchemaBuilder
     }
 
     /**
-     * 获取构建好的 Schema.
+     * 构建 JSON Schema.
      */
     public function build(): array
     {
+        // 清理空必需参数数组
         if (empty($this->schema['required'])) {
             unset($this->schema['required']);
         }
+
+        // 添加 schema 标识
+        $this->schema['$schema'] = 'http://json-schema.org/draft-07/schema#';
 
         return $this->schema;
     }

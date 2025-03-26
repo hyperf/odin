@@ -78,7 +78,7 @@ class JsonSchemaValidatorTest extends ToolBaseTestCase
         // 找到关于age的错误
         $ageError = false;
         foreach ($validator->getErrors() as $error) {
-            if (isset($error['path']) && str_contains($error['path'], 'age')) {
+            if (isset($error['property']) && $error['property'] === 'age') {
                 $ageError = true;
                 $this->assertStringContainsString('integer', json_encode($error), '错误信息应包含类型提示');
                 break;
@@ -116,9 +116,9 @@ class JsonSchemaValidatorTest extends ToolBaseTestCase
         // 找到关于age的错误
         $ageError = false;
         foreach ($validator->getErrors() as $error) {
-            if (isset($error['path']) && str_contains($error['path'], 'age')) {
+            if (isset($error['property']) && $error['property'] === 'age') {
                 $ageError = true;
-                $this->assertStringContainsString('at most', json_encode($error), '错误信息应包含范围提示');
+                $this->assertStringContainsString('maximum', json_encode($error), '错误信息应包含范围提示');
                 break;
             }
         }
@@ -154,10 +154,9 @@ class JsonSchemaValidatorTest extends ToolBaseTestCase
         // 找到关于缺少必需字段的错误
         $requiredError = false;
         foreach ($validator->getErrors() as $error) {
-            if (isset($error['path'], $error['message'])
-                && (str_contains($error['path'], 'name')
-                 || str_contains($error['message'], 'Required'))) {
+            if (isset($error['property'], $error['message']) && $error['property'] === 'name') {
                 $requiredError = true;
+                $this->assertStringContainsString('required', strtolower($error['message']), '错误信息应包含required提示');
                 break;
             }
         }
@@ -190,9 +189,8 @@ class JsonSchemaValidatorTest extends ToolBaseTestCase
         // 验证错误消息的格式
         foreach ($errors as $error) {
             $this->assertIsArray($error);
-            $this->assertArrayHasKey('path', $error);
+            $this->assertArrayHasKey('property', $error);
             $this->assertArrayHasKey('message', $error);
-            $this->assertIsString($error['path']);
             $this->assertIsString($error['message']);
             $this->assertNotEmpty($error['message']);
         }
@@ -249,15 +247,15 @@ class JsonSchemaValidatorTest extends ToolBaseTestCase
 
         // 无效数据 - 缺少嵌套对象中的必填字段
         $invalidData = [
-            'name' => '李四',
-            'age' => 25,
+            'name' => '张三',
+            'age' => 30,
             'contact' => [
-                'phone' => '13900139000',
-                'email' => 'lisi@example.com',
+                'phone' => '13800138000',
+                'email' => 'zhangsan@example.com',
                 'address' => [
-                    // 缺少必填的街道字段
-                    'city' => '北京',
-                    'zipcode' => '100001',
+                    // 缺少必需的street字段
+                    'city' => '上海',
+                    'zipcode' => '200001',
                 ],
             ],
         ];
@@ -266,38 +264,43 @@ class JsonSchemaValidatorTest extends ToolBaseTestCase
         $this->assertFalse($result);
         $this->assertNotEmpty($validator->getErrors());
 
-        // 确认错误是关于嵌套对象中的缺失字段
+        // 找到关于嵌套对象中缺少必需字段的错误
         $nestedError = false;
         foreach ($validator->getErrors() as $error) {
-            if (isset($error['path']) && str_contains($error['path'], 'street')) {
+            if (isset($error['property']) && (
+                str_contains($error['property'], 'contact.address.street')
+                || str_contains($error['property'], 'street')
+            )) {
                 $nestedError = true;
                 break;
             }
         }
-        $this->assertTrue($nestedError, '应该发现嵌套对象中缺少必填字段的错误');
+        $this->assertTrue($nestedError, '应该发现嵌套对象中缺少必需字段的错误');
     }
 
     /**
-     * 创建用于测试的Schema.
+     * 创建测试用的Schema.
      */
     private function createTestSchema(): array
     {
         $builder = new JsonSchemaBuilder();
 
-        // 创建地址对象Schema
+        // 添加基本属性
+        $builder->addStringProperty('name', '姓名', true, 2, 50);
+        $builder->addNumberProperty('age', '年龄', true, true, 0, 120);
+        $builder->addStringProperty('email', '电子邮件', false, null, null, null, 'email');
+        $builder->addBooleanProperty('isActive', '是否激活', true);
+
+        // 添加地址对象
         $addressBuilder = new JsonSchemaBuilder();
         $addressBuilder->addStringProperty('street', '街道', true);
         $addressBuilder->addStringProperty('city', '城市', true);
         $addressBuilder->addStringProperty('zipcode', '邮编', false);
         $addressSchema = $addressBuilder->build();
 
-        // 主Schema
-        $builder->addStringProperty('name', '姓名', true, 2, 50);
-        $builder->addNumberProperty('age', '年龄', true, true, 0, 120);
-        $builder->addStringProperty('email', '电子邮件', false, null, null, null, 'email');
-        $builder->addBooleanProperty('isActive', '是否激活', true);
-        $builder->addObjectProperty('address', '地址', $addressSchema['properties'], ['street', 'city'], false);
-        $builder->addArrayProperty('tags', '标签', ['type' => 'string'], false, 0, 10, true);
+        // 添加地址和标签
+        $builder->addObjectProperty('address', '地址', $addressSchema['properties'], ['street', 'city'], true);
+        $builder->addArrayProperty('tags', '标签', ['type' => 'string'], false, 1);
 
         return $builder->build();
     }

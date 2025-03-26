@@ -73,16 +73,35 @@ class ToolDefinition implements Arrayable
             'function' => [
                 'name' => $this->getName(),
                 'description' => $this->getDescription(),
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [],
+                ],
             ],
         ];
 
-        // 如果参数没有任何参数，或者参数中没有任何属性
-        if (empty($this->getParameters()) || empty($this->getParameters()->getProperties())) {
-            return $result;
+        // 如果参数不为空，且参数中有属性，则更新参数定义
+        if (! empty($this->getParameters()) && ! empty($this->getParameters()->getProperties())) {
+            $result['function']['parameters'] = $this->getParameters()->toArray();
         }
 
-        // 添加参数定义
-        $result['function']['parameters'] = $this->getParameters()->toArray();
+        return $result;
+    }
+
+    public function toFunctionCall(): array
+    {
+        $result = [
+            'type' => 'function',
+            'function' => [
+                'name' => $this->getName(),
+                'description' => $this->getDescription(),
+            ],
+        ];
+
+        // 如果参数不为空，且参数中有属性，则更新参数定义
+        if (! empty($this->getParameters()) && ! empty($this->getParameters()->getProperties())) {
+            $result['function']['parameters'] = $this->getParameters()->toArray();
+        }
 
         return $result;
     }
