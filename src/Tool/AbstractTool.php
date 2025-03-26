@@ -93,14 +93,17 @@ abstract class AbstractTool implements ToolInterface
         // 获取工具定义
         $definition = $this->toToolDefinition();
 
-        // 如果启用了参数自动转换，先转换参数
-        if ($this->convertParameters) {
-            $parameters = $this->convertParameters($parameters, $definition);
-        }
+        // 如果有参数
+        if (! empty($definition->getParameters()?->getProperties())) {
+            // 如果启用了参数自动转换，先转换参数
+            if ($this->convertParameters) {
+                $parameters = $this->convertParameters($parameters, $definition);
+            }
 
-        // 如果启用了参数验证，则在执行前验证参数
-        if ($this->validateParameters) {
-            $this->validateParameters($parameters, $definition);
+            // 如果启用了参数验证，则在执行前验证参数
+            if ($this->validateParameters) {
+                $this->validateParameters($parameters, $definition);
+            }
         }
 
         // 执行工具逻辑
@@ -241,10 +244,11 @@ abstract class AbstractTool implements ToolInterface
      */
     protected function formatValidationErrors(array $errors): string
     {
+        var_dump($errors);
         $messages = [];
 
         foreach ($errors as $error) {
-            $messages[] = "路径 '{$error['path']}': {$error['message']}";
+            $messages[] = "{$error['message']}";
         }
 
         return implode('; ', $messages);

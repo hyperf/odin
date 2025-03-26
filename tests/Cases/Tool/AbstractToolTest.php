@@ -62,6 +62,31 @@ class AbstractToolTest extends ToolBaseTestCase
         $this->assertEquals('简单工具', $definition->getDescription());
     }
 
+    public function testEmpty()
+    {
+        $currentTimeTool = new class extends AbstractTool {
+            protected function handle(array $parameters): array
+            {
+                // 这个工具不需要任何参数，直接返回当前时间信息
+                return [
+                    'current_time' => date('Y-m-d H:i:s'),
+                    'timezone' => date_default_timezone_get(),
+                    'timestamp' => time(),
+                ];
+            }
+        };
+        $currentTimeTool->setName('get_current_time');
+        $currentTimeTool->setDescription('获取当前系统时间，不需要任何参数');
+        $currentTimeTool->setParameters(ToolParameters::fromArray([
+            'type' => 'object',
+            'properties' => [],
+            'required' => [],
+        ]));
+
+        $currentTimeTool->run([]);
+        $this->assertTrue(true);
+    }
+
     /**
      * 测试工具调用验证逻辑.
      */
