@@ -244,7 +244,6 @@ abstract class AbstractTool implements ToolInterface
      */
     protected function formatValidationErrors(array $errors): string
     {
-        var_dump($errors);
         $messages = [];
 
         foreach ($errors as $error) {

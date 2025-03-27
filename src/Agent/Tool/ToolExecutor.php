@@ -121,6 +121,9 @@ class ToolExecutor
      */
     private function isParallelAvailable(): bool
     {
+        if (class_exists(Swoole\Coroutine\Parallel::class)) {
+            return true;
+        }
         return class_exists(Parallel::class);
     }
 
