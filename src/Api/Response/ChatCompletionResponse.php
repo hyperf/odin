@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Api\Response;
 
+use Hyperf\Odin\Exception\LLMException\LLMApiException;
 use Stringable;
 
 class ChatCompletionResponse extends AbstractResponse implements Stringable
@@ -101,6 +102,12 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
     {
         $this->content = $this->originResponse->getBody()->getContents();
         $content = json_decode($this->content, true);
+
+        // 有一些服务商是在返回值中提示错误，暂定没有choices字段的时候，就是错误
+        if (! isset($content['choices'])) {
+            throw new LLMApiException('No choices found in response, please check the response content: ' . $this->content);
+        }
+
         if (isset($content['id'])) {
             $this->setId($content['id']);
         }
@@ -113,9 +120,7 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
         if (isset($content['model'])) {
             $this->setModel($content['model']);
         }
-        if (isset($content['choices'])) {
-            $this->setChoices($this->buildChoices($content['choices']));
-        }
+        $this->setChoices($this->buildChoices($content['choices']));
         if (isset($content['usage'])) {
             $this->setUsage(Usage::fromArray($content['usage']));
         }
