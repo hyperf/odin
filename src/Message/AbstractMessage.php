@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Message;
 
+use Hyperf\Odin\Contract\Message\MessageInterface;
 use Stringable;
 
 abstract class AbstractMessage implements MessageInterface, Stringable
@@ -21,6 +22,17 @@ abstract class AbstractMessage implements MessageInterface, Stringable
     protected string $content = '';
 
     protected array $context = [];
+
+    /**
+     * 消息唯一标识
+     * 非必须，默认为空字符串.
+     */
+    protected string $identifier = '';
+
+    /**
+     * @var array 业务参数
+     */
+    protected array $params = [];
 
     public function __construct(string $content, array $context = [])
     {
@@ -48,42 +60,73 @@ abstract class AbstractMessage implements MessageInterface, Stringable
         return $content;
     }
 
-    public function toArray(): array
-    {
-        return [
-            'role' => $this->role->value,
-            'content' => $this->content,
-        ];
-    }
-
-    public static function fromArray(array $message): static
-    {
-        return new static($message['content'] ?? '');
-    }
-
+    /**
+     * 获取消息角色.
+     *
+     * @return Role 消息角色
+     */
     public function getRole(): Role
     {
         return $this->role;
     }
 
+    /**
+     * 获取消息唯一标识
+     * 非必须，默认为空字符串.
+     *
+     * @return string 消息唯一标识
+     */
+    public function getIdentifier(): string
+    {
+        return $this->identifier;
+    }
+
+    /**
+     * 设置消息唯一标识
+     * 非必须，默认为空字符串.
+     *
+     * @param string $identifier 唯一标识
+     * @return self 支持链式调用
+     */
+    public function setIdentifier(string $identifier): self
+    {
+        $this->identifier = $identifier;
+        return $this;
+    }
+
+    public function getParams(): array
+    {
+        return $this->params;
+    }
+
+    public function setParams(array $params): void
+    {
+        $this->params = $params;
+    }
+
+    /**
+     * 获取消息内容.
+     *
+     * @return string 消息内容文本
+     */
     public function getContent(): string
     {
         return $this->content;
     }
 
-    public function setRole(Role $role): static
-    {
-        $this->role = $role;
-        return $this;
-    }
-
-    public function setContent(string $content): static
+    /**
+     * 设置消息内容文本.
+     *
+     * @param string $content 消息内容文本
+     * @return static 支持链式调用
+     */
+    public function setContent(string $content): self
     {
         $this->content = $content;
         return $this;
     }
 
-    public function appendContent(string $content): static
+    public function appendContent(string $content): self
     {
         $this->content .= $content;
         return $this;

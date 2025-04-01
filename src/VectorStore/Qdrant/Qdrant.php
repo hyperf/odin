@@ -13,8 +13,8 @@ declare(strict_types=1);
 namespace Hyperf\Odin\VectorStore\Qdrant;
 
 use GuzzleHttp\Exception\ClientException;
+use Hyperf\Odin\Contract\Model\EmbeddingInterface;
 use Hyperf\Odin\Document\Document;
-use Hyperf\Odin\Model\EmbeddingInterface;
 use Hyperf\Qdrant\Api\Collections;
 use Hyperf\Qdrant\Api\Points;
 use Hyperf\Qdrant\Struct\Collections\CollectionInfo;

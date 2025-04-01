@@ -12,56 +12,27 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Model;
 
-use Hyperf\Odin\Api\AzureOpenAI\AzureOpenAI;
-use Hyperf\Odin\Api\AzureOpenAI\AzureOpenAIConfig;
-use Hyperf\Odin\Api\AzureOpenAI\Client as AzureOpenAIClient;
-use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
+use Hyperf\Odin\Contract\Api\ClientInterface;
+use Hyperf\Odin\Factory\ClientFactory;
 
-class AzureOpenAIModel implements ModelInterface, EmbeddingInterface
+/**
+ * Azure OpenAI模型实现.
+ */
+class AzureOpenAIModel extends AbstractModel
 {
-    public function __construct(public string $model, public array $config) {}
-
-    public function chat(
-        array $messages,
-        float $temperature = 0.9,
-        int $maxTokens = 0,
-        array $stop = [],
-        array $tools = [],
-        bool $stream = false,
-    ): ChatCompletionResponse {
-        $client = $this->getAzureOpenAIClient();
-        return $client->chat($messages, $this->model, $temperature, $maxTokens, $stop, $tools, $stream);
-    }
-
-    public function embedding(string $input): Embedding
+    /**
+     * 获取Azure OpenAI客户端实例.
+     */
+    protected function getClient(): ClientInterface
     {
-        $client = $this->getAzureOpenAIClient();
-        $response = $client->embedding($input, $this->model);
-        $embeddings = [];
-        $data = $response->getData();
-        if (isset($data[0])) {
-            $embedding = $data[0];
-            if ($embedding instanceof \Hyperf\Odin\Api\OpenAI\Response\Embedding) {
-                $embeddings = $embedding->getEmbedding();
-            }
-        }
-        return new Embedding($embeddings);
-    }
+        // Azure OpenAI通过Client自己处理URL路径，不需要使用processApiBaseUrl
+        // 因为它的URL结构比较特殊: {endpoint}/openai/deployments/{deployment-id}/chat/completions?api-version={api-version}
 
-    public function getAzureOpenAIClient(): AzureOpenAIClient
-    {
-        $openAI = new AzureOpenAI();
-        $config = new AzureOpenAIConfig($this->config);
-        return $openAI->getClient($config, $this->model);
-    }
-
-    public function getModelName(): string
-    {
-        return $this->model;
-    }
-
-    public function getVectorSize(): int
-    {
-        return 1536;
+        // 使用ClientFactory创建AzureOpenAI客户端
+        return ClientFactory::createAzureOpenAIClient(
+            $this->config,
+            $this->getApiRequestOptions(),
+            $this->logger
+        );
     }
 }

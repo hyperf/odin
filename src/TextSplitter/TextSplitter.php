@@ -73,7 +73,6 @@ abstract class TextSplitter
                     $previousChunkLen = $this->lengthFunction($chunk);
                 }
                 if (is_array($chunk)) {
-                    var_dump($chunk);
                     exit;
                 }
                 $documents[] = new Document($chunk, $metadata[$i]);

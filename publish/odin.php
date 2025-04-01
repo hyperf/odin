@@ -9,205 +9,293 @@ declare(strict_types=1);
  * @contact  group@hyperf.io
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
+use Hyperf\Odin\Model\AwsBedrockModel;
 use Hyperf\Odin\Model\AzureOpenAIModel;
 use Hyperf\Odin\Model\ChatglmModel;
 use Hyperf\Odin\Model\DoubaoModel;
-use Hyperf\Odin\Model\OllamaModel;
 use Hyperf\Odin\Model\OpenAIModel;
 
 use function Hyperf\Support\env;
-use function Hyperf\Support\value;
 
-$ollamaModels = value(function () {
-    $models = [];
-    $names = [
-        'codeqwen:7b',
-        'command-r:35b',
-        'command-r-plus:104b',
-        'gemma:2b',
-        'gemma:7b',
-        'huozi3:latest',
-        'llama3:70b',
-        'llama3:8b',
-        'llama3:instruct',
-        'llava:34b',
-        'mixtral:8x22b',
-        'mixtral:8x7b',
-        'mixtral:instruct',
-        'mxbai-embed-large:latest',
-        'neural-chat:7b',
-        'qwen:14b',
-        'qwen:32b',
-        'qwen:4b',
-        'qwen:72b',
-        'qwen:7b',
-        'qwen:110b',
-        'snowflake-arctic-embed:335m',
-        'wizardlm2:7b',
-        'wizardlm2:8x22b',
-        'yi:2x34b',
-        'yi:34b',
-    ];
-    foreach ($names as $name) {
-        $models[$name] = [
-            'implementation' => OllamaModel::class,
-            'config' => [
-                'base_url' => env('OLLAMA_BASE_URL'),
-            ],
-        ];
-    }
-    return $models;
-});
-
-$glmModels = value(function () {
-    $models = [];
-    $names = [
-        'glm-4-0520',
-        'glm-4',
-        'glm-4-air',
-        'glm-4-airx',
-        'glm-4-flash',
-        'charglm-3',
-    ];
-    foreach ($names as $name) {
-        $prefix = strtoupper(str_replace('-', '_', $name));
-        $models[$name] = [
-            'implementation' => ChatglmModel::class,
-            'config' => [
-                'api_key' => env($prefix . '_API_KEY', env('CHATGLM_API_KEY')),
-                'base_url' => 'https://open.bigmodel.cn',
-            ],
-        ];
-    }
-    return $models;
-});
-
-$models = [
-    'gpt-35-turbo' => [
-        'implementation' => OpenAIModel::class,
-        'config' => [
-            'api_key' => env('AZURE_OPENAI_35_TURBO_API_KEY'),
-            'api_base' => env('AZURE_OPENAI_35_TURBO_API_BASE'),
-            'api_version' => env('AZURE_OPENAI_35_TURBO_API_VERSION', '2023-08-01-preview'),
-            'deployment_name' => env('AZURE_OPENAI_35_TURBO_DEPLOYMENT_NAME'),
-        ],
-    ],
-    'gpt-3.5-turbo' => [
-        'implementation' => AzureOpenAIModel::class,
-        'config' => [
-            'api_key' => env('AZURE_OPENAI_35_TURBO_API_KEY'),
-            'api_base' => env('AZURE_OPENAI_35_TURBO_API_BASE'),
-            'api_version' => env('AZURE_OPENAI_35_TURBO_API_VERSION', '2023-08-01-preview'),
-            'deployment_name' => env('AZURE_OPENAI_35_TURBO_DEPLOYMENT_NAME'),
-        ],
-    ],
-    'gpt-3.5-turbo-16k' => [
-        'implementation' => AzureOpenAIModel::class,
-        'config' => [
-            'api_key' => env('AZURE_OPENAI_35_TURBO_16K_API_KEY'),
-            'api_base' => env('AZURE_OPENAI_35_TURBO_16K_API_BASE'),
-            'api_version' => env('AZURE_OPENAI_35_TURBO_16K_API_VERSION', '2023-08-01-preview'),
-            'deployment_name' => env('AZURE_OPENAI_35_TURBO_16K_DEPLOYMENT_NAME'),
-        ],
-    ],
-    'gpt-4-turbo' => [
-        'implementation' => AzureOpenAIModel::class,
-        'config' => [
-            'api_key' => env('AZURE_OPENAI_4_TURBO_API_KEY'),
-            'api_base' => env('AZURE_OPENAI_4_TURBO_API_BASE'),
-            'api_version' => env('AZURE_OPENAI_4_TURBO_API_VERSION', '2023-08-01-preview'),
-            'deployment_name' => env('AZURE_OPENAI_4_TURBO_DEPLOYMENT_NAME'),
-        ],
-    ],
-    'text-embedding-ada-002' => [
-        'type' => 'embedding',
-        'implementation' => AzureOpenAIModel::class,
-        'config' => [
-            'api_key' => env('AZURE_OPENAI_TEXT_EMBEDDING_ADA_002_API_KEY'),
-            'api_base' => env('AZURE_OPENAI_TEXT_EMBEDDING_ADA_002_API_BASE'),
-            'api_version' => env('AZURE_OPENAI_TEXT_EMBEDDING_ADA_002_API_VERSION', '2023-08-01-preview'),
-            'deployment_name' => env('AZURE_OPENAI_TEXT_EMBEDDING_ADA_002_DEPLOYMENT_NAME'),
-        ],
-    ],
-    'glm-4-9b' => [
-        'implementation' => OpenAIModel::class,
-        'config' => [
-            'api_key' => env('GLM_4_9B_API_KEY'),
-            'base_url' => env('GLM_4_9B_BASE_URL'),
-        ],
-    ],
-    'skylark:character-4k' => [
-        'implementation' => DoubaoModel::class,
-        'config' => [
-            'host' => env('SKYLARK_PRO_CHARACTER_4K_HOST', env('SKYLARK_PRO_HOST')),
-            'ak' => env('SKYLARK_PRO_CHARACTER_4K_AK', env('SKYLARK_PRO_AK')),
-            'sk' => env('SKYLARK_PRO_CHARACTER_4K_SK', env('SKYLARK_PRO_SK')),
-            'endpoint' => env('SKYLARK_PRO_CHARACTER_4K_ENDPOINT'),
-            'region' => env('SKYLARK_PRO_CHARACTER_4K_REGION', env('SKYLARK_PRO_REGION', 'cn-beijing')),
-            'service' => env('SKYLARK_PRO_CHARACTER_4K_SERVICE', env('SKYLARK_PRO_SERVICE', 'ml_maas')),
-        ],
-    ],
-    'skylark:turbo-8k' => [
-        'implementation' => DoubaoModel::class,
-        'config' => [
-            'host' => env('SKYLARK_PRO_TURBO_8K_HOST', env('SKYLARK_PRO_HOST')),
-            'ak' => env('SKYLARK_PRO_TURBO_8K_AK', env('SKYLARK_PRO_AK')),
-            'sk' => env('SKYLARK_PRO_TURBO_8K_SK', env('SKYLARK_PRO_SK')),
-            'endpoint' => env('SKYLARK_PRO_TURBO_8K_ENDPOINT'),
-            'region' => env('SKYLARK_PRO_TURBO_8K_REGION', env('SKYLARK_PRO_REGION', 'cn-beijing')),
-            'service' => env('SKYLARK_PRO_TURBO_8K_SERVICE', env('SKYLARK_PRO_SERVICE', 'ml_maas')),
-        ],
-    ],
-    'skylark:32k' => [
-        'implementation' => DoubaoModel::class,
-        'config' => [
-            'host' => env('SKYLARK_PRO_32K_HOST', env('SKYLARK_PRO_HOST')),
-            'ak' => env('SKYLARK_PRO_32K_AK', env('SKYLARK_PRO_AK')),
-            'sk' => env('SKYLARK_PRO_32K_SK', env('SKYLARK_PRO_SK')),
-            'endpoint' => env('SKYLARK_PRO_32K_ENDPOINT'),
-            'region' => env('SKYLARK_PRO_32K_REGION', env('SKYLARK_PRO_REGION', 'cn-beijing')),
-            'service' => env('SKYLARK_PRO_32K_SERVICE', env('SKYLARK_PRO_SERVICE', 'ml_maas')),
-        ],
-    ],
-    'skylark:4k' => [
-        'implementation' => DoubaoModel::class,
-        'config' => [
-            'host' => env('SKYLARK_PRO_4K_HOST', env('SKYLARK_PRO_HOST')),
-            'ak' => env('SKYLARK_PRO_4K_AK', env('SKYLARK_PRO_AK')),
-            'sk' => env('SKYLARK_PRO_4K_SK', env('SKYLARK_PRO_SK')),
-            'endpoint' => env('SKYLARK_PRO_4K_ENDPOINT'),
-            'region' => env('SKYLARK_PRO_4K_REGION', env('SKYLARK_PRO_REGION', 'cn-beijing')),
-            'service' => env('SKYLARK_PRO_4K_SERVICE', env('SKYLARK_PRO_SERVICE', 'ml_maas')),
-        ],
-    ],
-    'skylark:lite-8k' => [
-        'implementation' => DoubaoModel::class,
-        'config' => [
-            'host' => env('SKYLARK_PRO_LITE_8K_HOST', env('SKYLARK_PRO_HOST')),
-            'ak' => env('SKYLARK_PRO_LITE_8K_AK', env('SKYLARK_PRO_AK')),
-            'sk' => env('SKYLARK_PRO_LITE_8K_SK', env('SKYLARK_PRO_SK')),
-            'endpoint' => env('SKYLARK_PRO_LITE_8K_ENDPOINT'),
-            'region' => env('SKYLARK_PRO_LITE_8K_REGION', env('SKYLARK_PRO_REGION', 'cn-beijing')),
-            'service' => env('SKYLARK_PRO_LITE_8K_SERVICE', env('SKYLARK_PRO_SERVICE', 'ml_maas')),
-        ],
-    ],
-    'moonshot-v1-8k' => [
-        'implementation' => OpenAIModel::class,
-        'config' => [
-            'api_key' => env('MOONSHOT_V1_8K_API_KEY', env('MOONSHOT_API_KEY')),
-            'base_url' => 'https://api.moonshot.cn/v1',
-        ],
-    ],
-];
-$models = array_merge($models, $ollamaModels, $glmModels);
 return [
     'llm' => [
-        'default' => 'gpt-4',
-        'default_embedding' => 'text-embedding-ada-002',
-        // Modify this according to your needs
-        'models' => $models,
+        'default' => 'gpt-4o-global',
+        'general_model_options' => [
+            'chat' => true,
+            'function_call' => false,
+            'embedding' => false,
+            'multi_modal' => false,
+            'vector_size' => 0,
+        ],
+        'general_api_options' => [
+            'timeout' => [
+                'connection' => 5.0,  // 连接超时（秒）
+                'write' => 10.0,      // 写入超时（秒）
+                'read' => 300.0,      // 读取超时（秒）
+                'total' => 350.0,     // 总体超时（秒）
+                'thinking' => 120.0,  // 思考超时（秒）
+                'stream_chunk' => 30.0, // 流式块间超时（秒）
+                'stream_first' => 60.0, // 首个流式块超时（秒）
+            ],
+            'custom_error_mapping_rules' => [],
+        ],
+        'models' => [
+            'gpt-4o-global' => [
+                'implementation' => AzureOpenAIModel::class,
+                'config' => [
+                    'api_key' => env('AZURE_OPENAI_4O_API_KEY'),
+                    'api_base' => env('AZURE_OPENAI_4O_API_BASE'),
+                    'api_version' => env('AZURE_OPENAI_4O_API_VERSION'),
+                    'deployment_name' => env('AZURE_OPENAI_4O_DEPLOYMENT_NAME'),
+                ],
+                'model_options' => [
+                    'chat' => true,
+                    'function_call' => true,
+                    'embedding' => false,
+                    'multi_modal' => true,
+                    'vector_size' => 0,
+                ],
+                'api_options' => [
+                    'timeout' => [
+                        'connection' => 5.0,  // 连接超时（秒）
+                        'write' => 10.0,      // 写入超时（秒）
+                        'read' => 300.0,       // 读取超时（秒）
+                        'total' => 350.0,     // 总体超时（秒）
+                        'thinking' => 120.0,  // 思考超时（秒）
+                        'stream_chunk' => 30.0, // 流式块间超时（秒）
+                        'stream_first' => 60.0, // 首个流式块超时（秒）
+                    ],
+                    'custom_error_mapping_rules' => [],
+                ],
+            ],
+            'gpt-4o-mini-global' => [
+                'implementation' => AzureOpenAIModel::class,
+                'config' => [
+                    'api_key' => env('AZURE_OPENAI_4O_MINI_API_KEY'),
+                    'api_base' => env('AZURE_OPENAI_4O_MINI_API_BASE'),
+                    'api_version' => env('AZURE_OPENAI_4O_MINI_API_VERSION'),
+                    'deployment_name' => env('AZURE_OPENAI_4O_MINI_DEPLOYMENT_NAME'),
+                ],
+                'model_options' => [
+                    'chat' => true,
+                    'function_call' => true,
+                    'embedding' => false,
+                    'multi_modal' => true,
+                    'vector_size' => 0,
+                ],
+                'api_options' => [
+                    'timeout' => [
+                        'connection' => 5.0,  // 连接超时（秒）
+                        'write' => 10.0,      // 写入超时（秒）
+                        'read' => 300.0,       // 读取超时（秒）
+                        'total' => 350.0,     // 总体超时（秒）
+                        'thinking' => 120.0,  // 思考超时（秒）
+                        'stream_chunk' => 30.0, // 流式块间超时（秒）
+                        'stream_first' => 60.0, // 首个流式块超时（秒）
+                    ],
+                    'custom_error_mapping_rules' => [],
+                ],
+            ],
+            'dmeta-embedding' => [
+                'implementation' => OpenAIModel::class,
+                'config' => [
+                    'api_key' => env('MISC_API_KEY'),
+                    'base_url' => env('MISC_BASE_URL'),
+                ],
+                'model_options' => [
+                    'chat' => false,
+                    'function_call' => false,
+                    'embedding' => true,
+                    'multi_modal' => false,
+                    'vector_size' => 768,
+                ],
+                'api_options' => [
+                    'timeout' => [
+                        'connection' => 5.0,  // 连接超时（秒）
+                        'write' => 10.0,      // 写入超时（秒）
+                        'read' => 300.0,       // 读取超时（秒）
+                        'total' => 350.0,     // 总体超时（秒）
+                        'thinking' => 120.0,  // 思考超时（秒）
+                        'stream_chunk' => 30.0, // 流式块间超时（秒）
+                        'stream_first' => 60.0, // 首个流式块超时（秒）
+                    ],
+                    'custom_error_mapping_rules' => [],
+                ],
+            ],
+            'glm' => [
+                'implementation' => ChatglmModel::class,
+                'model' => env('GLM_MODEL'),
+                'config' => [
+                    'api_key' => env('MISC_API_KEY'),
+                    'base_url' => env('MISC_BASE_URL'),
+                ],
+                'model_options' => [
+                    'chat' => true,
+                    'function_call' => false,
+                    'embedding' => false,
+                    'multi_modal' => false,
+                    'vector_size' => 0,
+                ],
+                'api_options' => [
+                    'timeout' => [
+                        'connection' => 5.0,  // 连接超时（秒）
+                        'write' => 10.0,      // 写入超时（秒）
+                        'read' => 300.0,       // 读取超时（秒）
+                        'total' => 350.0,     // 总体超时（秒）
+                        'thinking' => 120.0,  // 思考超时（秒）
+                        'stream_chunk' => 30.0, // 流式块间超时（秒）
+                        'stream_first' => 60.0, // 首个流式块超时（秒）
+                    ],
+                    'custom_error_mapping_rules' => [],
+                ],
+            ],
+            'Doubao-pro-32k' => [
+                'implementation' => DoubaoModel::class,
+                'model' => env('DOUBAO_PRO_32K_ENDPOINT'),
+                'config' => [
+                    'api_key' => env('DOUBAO_API_KEY'),
+                    'base_url' => env('DOUBAO_BASE_URL'),
+                ],
+                'model_options' => [
+                    'chat' => true,
+                    'function_call' => false,
+                    'embedding' => false,
+                    'multi_modal' => false,
+                    'vector_size' => 0,
+                ],
+                'api_options' => [
+                    'timeout' => [
+                        'connection' => 5.0,  // 连接超时（秒）
+                        'write' => 10.0,      // 写入超时（秒）
+                        'read' => 300.0,       // 读取超时（秒）
+                        'total' => 350.0,     // 总体超时（秒）
+                        'thinking' => 120.0,  // 思考超时（秒）
+                        'stream_chunk' => 30.0, // 流式块间超时（秒）
+                        'stream_first' => 60.0, // 首个流式块超时（秒）
+                    ],
+                    'custom_error_mapping_rules' => [],
+                ],
+            ],
+            'doubao-1.5-vision-pro-32k' => [
+                'implementation' => DoubaoModel::class,
+                'model' => env('DOUBAO_1_5_VISION_PRO_32K_ENDPOINT'),
+                'config' => [
+                    'api_key' => env('DOUBAO_API_KEY'),
+                    'base_url' => env('DOUBAO_BASE_URL'),
+                ],
+                'model_options' => [
+                    'chat' => true,
+                    'function_call' => false,
+                    'embedding' => false,
+                    'multi_modal' => true,
+                    'vector_size' => 0,
+                ],
+                'api_options' => [
+                    'timeout' => [
+                        'connection' => 5.0,  // 连接超时（秒）
+                        'write' => 10.0,      // 写入超时（秒）
+                        'read' => 300.0,       // 读取超时（秒）
+                        'total' => 350.0,     // 总体超时（秒）
+                        'thinking' => 120.0,  // 思考超时（秒）
+                        'stream_chunk' => 30.0, // 流式块间超时（秒）
+                        'stream_first' => 60.0, // 首个流式块超时（秒）
+                    ],
+                    'custom_error_mapping_rules' => [],
+                ],
+            ],
+            'deepseek-r1' => [
+                'implementation' => DoubaoModel::class,
+                'model' => env('DEEPSPEEK_R1_ENDPOINT'),
+                'config' => [
+                    'api_key' => env('DOUBAO_API_KEY'),
+                    'base_url' => env('DOUBAO_BASE_URL'),
+                ],
+                'model_options' => [
+                    'chat' => true,
+                    'function_call' => false,
+                    'embedding' => false,
+                    'multi_modal' => false,
+                    'vector_size' => 0,
+                ],
+                'api_options' => [
+                    'timeout' => [
+                        'connection' => 5.0,  // 连接超时（秒）
+                        'write' => 10.0,      // 写入超时（秒）
+                        'read' => 1800.0,       // 读取超时（秒）
+                        'total' => 1850.0,     // 总体超时（秒）
+                        'thinking' => 120.0,  // 思考超时（秒）
+                        'stream_chunk' => 30.0, // 流式块间超时（秒）
+                        'stream_first' => 60.0, // 首个流式块超时（秒）
+                    ],
+                    'custom_error_mapping_rules' => [],
+                ],
+            ],
+            'deepseek-v3' => [
+                'implementation' => DoubaoModel::class,
+                'model' => env('DEEPSPEEK_V3_ENDPOINT'),
+                'config' => [
+                    'api_key' => env('DOUBAO_API_KEY'),
+                    'base_url' => env('DOUBAO_BASE_URL'),
+                ],
+                'model_options' => [
+                    'chat' => true,
+                    'function_call' => false,
+                    'embedding' => false,
+                    'multi_modal' => false,
+                    'vector_size' => 0,
+                ],
+                'api_options' => [
+                    'timeout' => [
+                        'connection' => 5.0,  // 连接超时（秒）
+                        'write' => 10.0,      // 写入超时（秒）
+                        'read' => 300.0,       // 读取超时（秒）
+                        'total' => 350.0,     // 总体超时（秒）
+                        'thinking' => 120.0,  // 思考超时（秒）
+                        'stream_chunk' => 30.0, // 流式块间超时（秒）
+                        'stream_first' => 60.0, // 首个流式块超时（秒）
+                    ],
+                    'custom_error_mapping_rules' => [],
+                ],
+            ],
+            'claude-3.7' => [
+                'implementation' => AwsBedrockModel::class,
+                'model' => env('AWS_CLAUDE_3_7_ENDPOINT'),
+                'config' => [
+                    'access_key' => env('AWS_ACCESS_KEY'),
+                    'secret_key' => env('AWS_SECRET_KEY'),
+                    'region' => env('AWS_REGION', 'us-east-1'),
+                ],
+                'model_options' => [
+                    'chat' => true,
+                    'function_call' => true,
+                    'embedding' => false,
+                    'multi_modal' => true,
+                    'vector_size' => 0,
+                ],
+                'api_options' => [
+                    'timeout' => [
+                        'connection' => 5.0,  // 连接超时（秒）
+                        'write' => 10.0,      // 写入超时（秒）
+                        'read' => 300.0,       // 读取超时（秒）
+                        'total' => 350.0,     // 总体超时（秒）
+                        'thinking' => 120.0,  // 思考超时（秒）
+                        'stream_chunk' => 30.0, // 流式块间超时（秒）
+                        'stream_first' => 60.0, // 首个流式块超时（秒）
+                    ],
+                    'proxy' => env('HTTP_CLIENT_PROXY'),
+                    'custom_error_mapping_rules' => [],
+                ],
+            ],
+        ],
+        // 全局模型 options，可被模型本身的 options 覆盖
+        'model_options' => [
+            'error_mapping_rules' => [
+                // 示例：自定义错误映射
+                // '自定义错误关键词' => \Hyperf\Odin\Exception\LLMException\LLMTimeoutError::class,
+            ],
+        ],
     ],
-    'tavily' => [
-        'api_key' => env('TAVILY_API_KEY'),
+    'content_copy_keys' => [
+        'request-id', 'x-b3-trace-id', 'FlowEventStreamManager::EventStream',
     ],
 ];

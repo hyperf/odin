@@ -12,10 +12,6 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin;
 
-use Hyperf\Odin\Api\AzureOpenAI\AzureOpenAIClientFactory;
-use Hyperf\Odin\Api\AzureOpenAI\Client as AzureOpenAIClient;
-use Hyperf\Odin\Api\OpenAI\Client as OpenAIClient;
-use Hyperf\Odin\Api\OpenAI\OpenAIClientFactory;
 use Hyperf\Odin\VectorStore\Qdrant\Qdrant;
 use Hyperf\Odin\VectorStore\Qdrant\QdrantFactory;
 
@@ -33,12 +29,8 @@ class ConfigProvider
                 ],
             ],
             'dependencies' => [
-                OpenAIClient::class => OpenAIClientFactory::class,
-                AzureOpenAIClient::class => AzureOpenAIClientFactory::class,
                 Qdrant::class => QdrantFactory::class,
             ],
-            'commands' => [],
-            'annotations' => [],
         ];
     }
 }

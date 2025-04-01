@@ -12,31 +12,37 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Model;
 
-use Hyperf\Odin\Api\OpenAI\Client;
-use Hyperf\Odin\Api\OpenAI\OpenAI;
-use Hyperf\Odin\Api\OpenAI\OpenAIConfig;
-use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
+use Hyperf\Odin\Contract\Api\ClientInterface;
+use Hyperf\Odin\Factory\ClientFactory;
 
-class OpenAIModel implements ModelInterface
+/**
+ * OpenAI模型实现.
+ */
+class OpenAIModel extends AbstractModel
 {
-    public function __construct(public string $model, public array $config) {}
+    /**
+     * 获取OpenAI客户端实例.
+     */
+    protected function getClient(): ClientInterface
+    {
+        // 处理API基础URL，确保包含正确的版本路径
+        $config = $this->config;
+        $this->processApiBaseUrl($config);
 
-    public function chat(
-        array $messages,
-        float $temperature = 0.9,
-        int $maxTokens = 0,
-        array $stop = [],
-        array $tools = [],
-        bool $stream = false,
-    ): ChatCompletionResponse {
-        $client = $this->getOpenAIClient();
-        return $client->chat($messages, $this->model, $temperature, $maxTokens, $stop, $tools, $stream);
+        // 使用ClientFactory创建OpenAI客户端
+        return ClientFactory::createOpenAIClient(
+            $config,
+            $this->getApiRequestOptions(),
+            $this->logger
+        );
     }
 
-    protected function getOpenAIClient(): Client
+    /**
+     * 获取API版本路径.
+     * OpenAI的API版本路径为 v1.
+     */
+    protected function getApiVersionPath(): string
     {
-        $openAI = new OpenAI();
-        $config = new OpenAIConfig($this->config['api_key'] ?? null, $this->config['organization'] ?? null, $this->config['base_url'] ?? 'https://api.openai.com/');
-        return $openAI->getClient($config);
+        return 'v1';
     }
 }

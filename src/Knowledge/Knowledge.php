@@ -12,11 +12,11 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Knowledge;
 
+use Hyperf\Odin\Contract\Model\EmbeddingInterface;
+use Hyperf\Odin\Contract\Model\ModelInterface;
 use Hyperf\Odin\Document\Document;
 use Hyperf\Odin\Message\SystemMessage;
 use Hyperf\Odin\Message\UserMessage;
-use Hyperf\Odin\Model\EmbeddingInterface;
-use Hyperf\Odin\Model\ModelInterface;
 use Hyperf\Odin\Prompt\Prompt;
 use Hyperf\Odin\VectorStore\Qdrant\Qdrant;
 use Hyperf\Qdrant\Struct\Points\Point\Record;

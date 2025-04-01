@@ -12,35 +12,39 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Model;
 
-use Hyperf\Odin\Api\Doubao\Client;
-use Hyperf\Odin\Api\Doubao\Doubao;
-use Hyperf\Odin\Api\Doubao\DoubaoConfig;
-use Hyperf\Odin\Api\OpenAI\Response\ChatCompletionResponse;
+use Hyperf\Odin\Api\Providers\OpenAI\OpenAI;
+use Hyperf\Odin\Api\Providers\OpenAI\OpenAIConfig;
+use Hyperf\Odin\Contract\Api\ClientInterface;
 
-class DoubaoModel implements ModelInterface
+/**
+ * Doubao模型实现.
+ */
+class DoubaoModel extends AbstractModel
 {
-    public function __construct(public string $model, public array $config) {}
+    /**
+     * 获取Doubao客户端实例.
+     */
+    protected function getClient(): ClientInterface
+    {
+        // 处理API基础URL，确保包含正确的版本路径
+        $config = $this->config;
+        $this->processApiBaseUrl($config);
 
-    public function chat(
-        array $messages,
-        float $temperature = 0.9,
-        int $maxTokens = 0,
-        array $stop = [],
-        array $tools = [],
-        bool $stream = false,
-    ): ChatCompletionResponse {
-        $client = $this->getSkylarkClient();
-        return $client->chat($messages, $this->model, $temperature, $maxTokens, $stop, $tools, $stream);
+        $openAI = new OpenAI();
+        $config = new OpenAIConfig(
+            apiKey: $config['api_key'] ?? '',
+            organization: '', // Doubao不需要组织ID
+            baseUrl: $config['base_url'] ?? ''
+        );
+        return $openAI->getClient($config, $this->getApiRequestOptions(), $this->logger);
     }
 
-    public function getSkylarkClient(): Client
+    /**
+     * 获取API版本路径.
+     * Doubao的API版本路径为 api/v3.
+     */
+    protected function getApiVersionPath(): string
     {
-        $skylark = new Doubao();
-        $config = new DoubaoConfig(
-            apiKey: $this->config['api_key'] ?? null,
-            baseUrl: $this->config['base_url'] ?? '',
-            model: $this->config['model'] ?? '',
-        );
-        return $skylark->getClient($config);
+        return 'api/v3';
     }
 }
