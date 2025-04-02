@@ -16,6 +16,7 @@ use Hyperf\Odin\Api\Response\ChatCompletionChoice;
 use Hyperf\Odin\Api\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\Response\ToolCall;
 use Hyperf\Odin\Api\Response\Usage;
+use Hyperf\Odin\Exception\LLMException\LLMApiException;
 use Hyperf\Odin\Message\AssistantMessage;
 use HyperfTest\Odin\Cases\AbstractTestCase;
 use Mockery;
@@ -221,11 +222,11 @@ class ChatCompletionResponseTest extends AbstractTestCase
     }
 
     /**
-     * 测试从不成功的HTTP响应构造.
+     * 测试从不成功的响应构造.
      */
     public function testConstructFromUnsuccessfulResponse()
     {
-        // 创建一个错误的HTTP响应
+        // 创建一个模拟的HTTP响应，包含错误信息
         /** @var MockInterface|StreamInterface $stream */
         $stream = Mockery::mock(StreamInterface::class);
         $stream->shouldReceive('getContents')->andReturn(json_encode([
@@ -241,16 +242,15 @@ class ChatCompletionResponseTest extends AbstractTestCase
         $response->shouldReceive('getStatusCode')->andReturn(401); // 错误状态码
         $response->shouldReceive('getBody')->andReturn($stream);
 
-        // 创建ChatCompletionResponse实例
-        $chatResponse = new ChatCompletionResponse($response);
-
-        // 验证响应不成功
-        $this->assertFalse($chatResponse->isSuccess());
-
-        // 检查响应内容是否包含错误信息
-        $content = $chatResponse->getContent();
-        $this->assertNotNull($content);
-        $this->assertStringContainsString('Invalid API key', $content);
+        // 使用try-catch捕获异常
+        try {
+            new ChatCompletionResponse($response);
+            $this->fail('Expected LLMApiException was not thrown');
+        } catch (\Throwable $e) {
+            // 验证异常类型和消息
+            $this->assertStringContainsString('No choices found in response', $e->getMessage());
+            $this->assertStringContainsString('Invalid API key', $e->getMessage());
+        }
     }
 
     /**
@@ -258,10 +258,12 @@ class ChatCompletionResponseTest extends AbstractTestCase
      */
     public function testSetterMethods()
     {
-        // 创建一个基本的响应对象
+        // 创建一个基本的响应对象，确保有choices字段
         /** @var MockInterface|StreamInterface $stream */
         $stream = Mockery::mock(StreamInterface::class);
-        $stream->shouldReceive('getContents')->andReturn('{}');
+        $stream->shouldReceive('getContents')->andReturn(json_encode([
+            'choices' => [],
+        ]));
 
         /** @var MockInterface|ResponseInterface $response */
         $response = Mockery::mock(ResponseInterface::class);
