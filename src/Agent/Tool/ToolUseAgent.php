@@ -311,6 +311,9 @@ class ToolUseAgent
                     'depth' => $depth,
                     'has_tool_calls' => $assistantMessage->hasToolCalls(),
                 ]);
+                if ($assistantMessage->getContent() === '') {
+                    $assistantMessage->setContent('tool_call');
+                }
             } else {
                 break;
             }
