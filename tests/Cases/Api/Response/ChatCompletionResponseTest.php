@@ -16,13 +16,13 @@ use Hyperf\Odin\Api\Response\ChatCompletionChoice;
 use Hyperf\Odin\Api\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\Response\ToolCall;
 use Hyperf\Odin\Api\Response\Usage;
-use Hyperf\Odin\Exception\LLMException\LLMApiException;
 use Hyperf\Odin\Message\AssistantMessage;
 use HyperfTest\Odin\Cases\AbstractTestCase;
 use Mockery;
 use Mockery\MockInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
+use Throwable;
 
 /**
  * @internal
@@ -246,7 +246,7 @@ class ChatCompletionResponseTest extends AbstractTestCase
         try {
             new ChatCompletionResponse($response);
             $this->fail('Expected LLMApiException was not thrown');
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             // 验证异常类型和消息
             $this->assertStringContainsString('No choices found in response', $e->getMessage());
             $this->assertStringContainsString('Invalid API key', $e->getMessage());

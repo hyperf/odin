@@ -20,7 +20,6 @@ use Hyperf\Di\Definition\DefinitionSourceFactory;
 use Hyperf\Odin\Agent\Tool\ToolUseAgent;
 use Hyperf\Odin\Api\RequestOptions\ApiOptions;
 use Hyperf\Odin\Api\Response\ChatCompletionChoice;
-use Hyperf\Odin\Api\Response\ChatCompletionStreamResponse;
 use Hyperf\Odin\Factory\ModelFactory;
 use Hyperf\Odin\Logger;
 use Hyperf\Odin\Memory\Driver\InMemoryDriver;
@@ -88,30 +87,30 @@ $weatherTool = new ToolDefinition(
 );
 
 /**
- * 专门为流式测试工具调用达到最大重试次数的Agent
+ * 专门为流式测试工具调用达到最大重试次数的Agent.
  */
 class StreamToolCallMaxRetryAgent extends ToolUseAgent
 {
     // 当前重试计数
     private int $retryCounter = 0;
-    
+
     // 在测试中设置较小的最大重试次数，以便快速测试
     private int $maxRetries = 2;
-    
+
     /**
      * 模拟流式响应中达到最大重试次数的情况.
      */
     public function chatStreamed(?UserMessage $input = null): Generator
     {
         echo "====> 开始模拟流式响应，尝试触发最大重试次数场景 <====\n";
-        
+
         // 持续生成无工具调用但finish_reason为tool_calls的消息，直到达到最大重试次数
         while ($this->retryCounter < $this->maxRetries) {
-            echo "发送第 " . ($this->retryCounter + 1) . " 次触发工具调用失败的消息...\n";
-            
+            echo '发送第 ' . ($this->retryCounter + 1) . " 次触发工具调用失败的消息...\n";
+
             // 创建不包含工具调用的消息
             $assistantMessage = new AssistantMessage('我需要查询天气信息来回答您的问题，尝试 #' . ($this->retryCounter + 1));
-            
+
             // 创建Choice，将finishReason设为tool_calls
             $choice = new ChatCompletionChoice(
                 $assistantMessage,
@@ -119,29 +118,29 @@ class StreamToolCallMaxRetryAgent extends ToolUseAgent
                 null,
                 'tool_calls' // 关键点：finish_reason为tool_calls，但没有工具调用
             );
-            
+
             // 输出消息
             yield $choice;
-            
+
             // 增加计数器
-            $this->retryCounter++;
-            
+            ++$this->retryCounter;
+
             // 如果达到最大重试次数，查看是否生成了错误消息
             if ($this->retryCounter >= $this->maxRetries) {
-                echo "已达到最大重试次数 (" . $this->maxRetries . ")，等待错误消息...\n";
-                // 不做任何事，让父类的逻辑处理生成错误消息
+                echo '已达到最大重试次数 (' . $this->maxRetries . ")，等待错误消息...\n";
+            // 不做任何事，让父类的逻辑处理生成错误消息
             } else {
                 // 模拟一个简短的暂停
                 echo "等待系统处理重试逻辑...\n";
                 sleep(1);
             }
         }
-        
+
         // 最后一次错误后应该生成错误消息
         // 创建错误消息
         $errorMessage = '抱歉，我在尝试使用工具时遇到了问题。我原本打算使用工具来帮助您完成请求，但似乎我无法正确调用所需的工具。请您尝试重新描述您的需求，或者明确指出您希望我使用哪个工具以及需要提供哪些参数。我会尽力为您提供帮助。';
         $errorAssistantMessage = new AssistantMessage($errorMessage);
-        
+
         // 输出错误消息
         yield new ChatCompletionChoice(
             $errorAssistantMessage,
@@ -149,9 +148,9 @@ class StreamToolCallMaxRetryAgent extends ToolUseAgent
             null,
             'stop'
         );
-        
+
         echo "====> 流式响应结束 <====\n";
-        
+
         // 返回空值，这个Generator的返回值在测试中不重要
         return null;
     }
@@ -182,8 +181,8 @@ foreach ($generator as $choice) {
     if ($choice instanceof ChatCompletionChoice) {
         $message = $choice->getMessage();
         $content = $message->getContent();
-        if (!empty($content)) {
-            echo "接收到内容: " . $content . "\n";
+        if (! empty($content)) {
+            echo '接收到内容: ' . $content . "\n";
             $fullContent .= $content;
         }
     }
@@ -191,4 +190,4 @@ foreach ($generator as $choice) {
 
 echo "\n";
 echo '最终内容：' . $fullContent . "\n";
-echo '耗时：' . (microtime(true) - $start) . '秒' . PHP_EOL; 
+echo '耗时：' . (microtime(true) - $start) . '秒' . PHP_EOL;

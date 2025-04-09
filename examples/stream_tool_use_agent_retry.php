@@ -20,7 +20,6 @@ use Hyperf\Di\Definition\DefinitionSourceFactory;
 use Hyperf\Odin\Agent\Tool\ToolUseAgent;
 use Hyperf\Odin\Api\RequestOptions\ApiOptions;
 use Hyperf\Odin\Api\Response\ChatCompletionChoice;
-use Hyperf\Odin\Api\Response\ChatCompletionStreamResponse;
 use Hyperf\Odin\Factory\ModelFactory;
 use Hyperf\Odin\Logger;
 use Hyperf\Odin\Memory\Driver\InMemoryDriver;
@@ -88,7 +87,7 @@ $weatherTool = new ToolDefinition(
 );
 
 /**
- * 专门为流式测试工具调用失败的Agent
+ * 专门为流式测试工具调用失败的Agent.
  */
 class StreamToolCallFailureAgent extends ToolUseAgent
 {
@@ -99,10 +98,10 @@ class StreamToolCallFailureAgent extends ToolUseAgent
     {
         // 输出初始提示
         echo "====> 开始模拟流式响应，模拟工具调用失败的情况 <====\n";
-        
+
         // 创建一个信息
         $assistantMessage = new AssistantMessage('我需要查询天气信息来回答您的问题。');
-        
+
         // 输出不包含工具调用的消息，但将finishReason设为tool_calls
         $choice = new ChatCompletionChoice(
             $assistantMessage,
@@ -110,18 +109,18 @@ class StreamToolCallFailureAgent extends ToolUseAgent
             null,
             'tool_calls' // 关键点：finish_reason为tool_calls，但没有工具调用
         );
-        
+
         // 先输出普通消息
         echo "输出无工具调用但finish_reason为tool_calls的消息...\n";
         yield $choice;
-        
+
         echo "检查是否会触发工具调用失败检测和重试逻辑...\n";
-        
+
         // 验证是否触发了我们的toolCall重试逻辑
         $result = yield from parent::chatStreamed($input);
-        
+
         echo "====> 流式响应结束 <====\n";
-        
+
         return $result;
     }
 }
@@ -151,8 +150,8 @@ foreach ($generator as $choice) {
     if ($choice instanceof ChatCompletionChoice) {
         $message = $choice->getMessage();
         $content = $message->getContent();
-        if (!empty($content)) {
-            echo "接收到内容: " . $content . "\n";
+        if (! empty($content)) {
+            echo '接收到内容: ' . $content . "\n";
             $fullContent .= $content;
         }
     }
@@ -160,4 +159,4 @@ foreach ($generator as $choice) {
 
 echo "\n";
 echo '最终内容：' . $fullContent . "\n";
-echo '耗时：' . (microtime(true) - $start) . '秒' . PHP_EOL; 
+echo '耗时：' . (microtime(true) - $start) . '秒' . PHP_EOL;
