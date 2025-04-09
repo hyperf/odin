@@ -47,6 +47,16 @@ class ToolUseAgent
      */
     private ?Closure $toolCallsBeforeEvent = null;
 
+    /**
+     * 工具调用重试计数.
+     */
+    private int $toolCallRetryCount = 0;
+
+    /**
+     * 最大重试次数.
+     */
+    private int $maxToolCallRetries = 3;
+
     private float $frequencyPenalty = 0.0;
 
     private float $presencePenalty = 0.0;
@@ -93,8 +103,10 @@ class ToolUseAgent
 
             $toolCalls = [];
             $content = '';
+            $lastChoice = null;
             /** @var ChatCompletionChoice $choice */
             foreach ($response->getStreamIterator() as $choice) {
+                $lastChoice = $choice;
                 $message = $choice->getMessage();
                 $content .= $message->getContent();
                 if ($message instanceof AssistantMessage && $message->hasToolCalls()) {
@@ -114,7 +126,62 @@ class ToolUseAgent
                 // 响应流式
                 yield $choice;
             }
+
             $generatorSendMessage = null;
+
+            // 检查完整流响应结束后是否存在工具调用失败的情况
+            if ($lastChoice && $lastChoice->isFinishedByToolCall() && empty($toolCalls)) {
+                // 流式响应中检测到工具调用失败情况
+                $this->logger?->info('StreamedToolCallFailureDetected', [
+                    'finish_reason' => $lastChoice->getFinishReason(),
+                    'has_tool_calls' => ! empty($toolCalls),
+                ]);
+
+                // 增加重试计数
+                ++$this->toolCallRetryCount;
+
+                // 检查是否已达到最大重试次数
+                if ($this->toolCallRetryCount >= $this->maxToolCallRetries) {
+                    // 生成错误消息
+                    $errorMessage = $this->getToolCallErrorMessage($content);
+                    $errorAssistantMessage = new AssistantMessage($errorMessage);
+
+                    // 记录日志
+                    $this->logger?->warning('StreamMaxToolCallRetriesReached', [
+                        'retry_count' => $this->toolCallRetryCount,
+                        'max_retries' => $this->maxToolCallRetries,
+                    ]);
+
+                    // 添加到记忆
+                    $this->memory->addMessage($errorAssistantMessage);
+
+                    // 创建一个新的Choice供流式输出
+                    yield new ChatCompletionChoice(
+                        $errorAssistantMessage,
+                        0,
+                        null,
+                        'stop'
+                    );
+
+                    // 不再继续调用生成器
+                    break;
+                }
+                // 未达到最大重试次数，生成提示消息
+                $promptMessage = $this->getRetryPromptByCount($this->toolCallRetryCount);
+
+                $retryMessage = new UserMessage($promptMessage);
+                $this->memory->addMessage($retryMessage);
+
+                $this->logger?->info('StreamRetryingToolCall', [
+                    'retry_count' => $this->toolCallRetryCount,
+                    'max_retries' => $this->maxToolCallRetries,
+                ]);
+
+                // 不发送任何消息，使下一轮迭代重新请求模型
+                $gen->send(null);
+                continue;
+            }
+
             if (! empty($toolCalls)) {
                 // 如果有 toolsCall 但是 content 是空，自动加上
                 if ($content === '') {
@@ -169,6 +236,8 @@ class ToolUseAgent
             $this->memory->addMessage($input);
         }
         $depth = 0;
+        // 重置重试计数
+        $this->toolCallRetryCount = 0;
 
         while (true) {
             // 合并系统消息和普通消息
@@ -205,14 +274,30 @@ class ToolUseAgent
                 return $response;
             }
             if ($response instanceof ChatCompletionResponse && is_null($assistantMessage)) {
-                $assistantMessage = $response->getFirstChoice()->getMessage();
+                $assistantMessage = $response->getFirstChoice()?->getMessage();
             }
 
             if (! $assistantMessage instanceof AssistantMessage) {
                 // 如果不是AssistantMessage实例，直接返回响应
                 return $response;
             }
+
             $this->memory->addMessage($assistantMessage);
+
+            // 添加处理特殊情况的逻辑
+            if ($response instanceof ChatCompletionResponse && $assistantMessage instanceof AssistantMessage) {
+                $choice = $response->getFirstChoice();
+                // 检查是否存在不一致：finish_reason 是 tool_calls 但没有实际的工具调用
+                if ($choice?->isFinishedByToolCall() && ! $assistantMessage->hasToolCalls()) {
+                    // 处理工具调用失败情况
+                    $continueProcessing = $this->handleToolCallFailure($response, $assistantMessage, $choice);
+                    if (! $continueProcessing) {
+                        break;
+                    }
+                    continue;
+                }
+            }
+
             if ($assistantMessage->hasToolCalls()) {
                 $toolResultMessages = $this->executeToolCalls($assistantMessage);
                 foreach ($toolResultMessages as $toolMessage) {
@@ -226,12 +311,48 @@ class ToolUseAgent
                     'depth' => $depth,
                     'has_tool_calls' => $assistantMessage->hasToolCalls(),
                 ]);
+                if ($assistantMessage->getContent() === '') {
+                    $assistantMessage->setContent('tool_call');
+                }
             } else {
                 break;
             }
         }
 
         return $response;
+    }
+
+    /**
+     * 根据重试次数获取相应的提示词.
+     *
+     * @param int $retryCount 当前重试次数
+     * @return string 对应的提示词
+     */
+    protected function getRetryPromptByCount(int $retryCount): string
+    {
+        return match ($retryCount) {
+            1 => '系统检测到您的响应表明需要进行工具调用(finish_reason为tool_calls)，但响应中未包含具体的工具调用参数。请明确提供您需要调用的工具名称及参数，确保工具调用格式正确。请直接重新提供完整的工具调用，无需解释原因。',
+            2 => '系统再次检测到工具调用格式错误。请明确提供您需要调用的工具名称及参数，确保工具调用格式正确。请直接重新提供完整的工具调用，无需解释原因。',
+            default => '系统多次检测到工具调用格式错误。请明确提供您需要调用的工具名称及参数，确保工具调用格式正确。请直接重新提供完整的工具调用，无需解释原因，这是您最后的尝试机会。',
+        };
+    }
+
+    /**
+     * 获取工具调用失败的错误消息.
+     *
+     * @param string $originalContent 原始消息内容
+     * @return string 错误提示消息
+     */
+    protected function getToolCallErrorMessage(string $originalContent = ''): string
+    {
+        $errorMessage = '抱歉，我在尝试使用工具时遇到了问题。我原本打算使用工具来帮助您完成请求，但似乎我无法正确调用所需的工具。请您尝试重新描述您的需求，或者明确指出您希望我使用哪个工具以及需要提供哪些参数。我会尽力为您提供帮助。';
+
+        // 如果原始消息有内容，则保留并附加错误信息
+        if (! empty(trim($originalContent))) {
+            $errorMessage = $originalContent . "\n\n" . $errorMessage;
+        }
+
+        return $errorMessage;
     }
 
     /**
@@ -429,5 +550,83 @@ class ToolUseAgent
 
         // 其他未处理的类型
         return 'Unprocessable result of type ' . gettype($callToolResult);
+    }
+
+    /**
+     * 处理工具调用失败情况.
+     *
+     * @param ChatCompletionResponse $response 响应对象
+     * @param AssistantMessage $assistantMessage 助手消息
+     * @param ChatCompletionChoice $choice 选择对象
+     * @return bool 是否继续处理（true=继续，false=终止）
+     */
+    private function handleToolCallFailure(
+        ChatCompletionResponse $response,
+        AssistantMessage $assistantMessage,
+        ChatCompletionChoice $choice
+    ): bool {
+        // 检查是否已达到最大重试次数
+        if ($this->toolCallRetryCount >= $this->maxToolCallRetries) {
+            return $this->handleMaxRetryReached($response, $assistantMessage, $choice);
+        }
+
+        // 增加重试计数
+        ++$this->toolCallRetryCount;
+
+        // 根据重试次数获取提示词
+        $promptMessage = $this->getRetryPromptByCount($this->toolCallRetryCount);
+
+        // 添加一条用户消息说明情况
+        $retryMessage = new UserMessage($promptMessage);
+        $this->memory->addMessage($retryMessage);
+
+        // 记录重试信息
+        $this->logger?->info('RetryingToolCall', [
+            'retry_count' => $this->toolCallRetryCount,
+            'max_retries' => $this->maxToolCallRetries,
+        ]);
+
+        // 返回true表示继续处理
+        return true;
+    }
+
+    /**
+     * 处理达到最大重试次数的情况.
+     *
+     * @param ChatCompletionResponse $response 响应对象
+     * @param AssistantMessage $assistantMessage 助手消息
+     * @param ChatCompletionChoice $choice 选择对象
+     * @return bool 是否继续处理（false=终止）
+     */
+    private function handleMaxRetryReached(
+        ChatCompletionResponse $response,
+        AssistantMessage $assistantMessage,
+        ChatCompletionChoice $choice
+    ): bool {
+        $this->logger?->warning('MaxToolCallRetriesReached', [
+            'retry_count' => $this->toolCallRetryCount,
+            'max_retries' => $this->maxToolCallRetries,
+        ]);
+
+        // 生成新的包含错误信息的AssistantMessage
+        $errorMessage = $this->getToolCallErrorMessage($assistantMessage->getContent());
+
+        // 创建新的AssistantMessage和Choice
+        $newAssistantMessage = new AssistantMessage($errorMessage);
+        $this->memory->addMessage($newAssistantMessage);
+
+        // 创建新的响应
+        $newChoice = new ChatCompletionChoice(
+            $newAssistantMessage,
+            $choice->getIndex(),
+            $choice->getLogprobs(),
+            'stop'  // 使用stop作为结束原因
+        );
+
+        // 更新响应的选择列表
+        $response->setChoices([$newChoice]);
+
+        // 返回false表示终止处理
+        return false;
     }
 }
