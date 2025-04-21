@@ -71,7 +71,7 @@ abstract class AbstractClient implements ClientInterface
 
         $url = $this->buildChatCompletionsUrl();
 
-        $this->logger?->info('ChatCompletionsRequest', ['url' => $url, 'options' => $options]);
+        $this->logger?->debug('ChatCompletionsRequest', ['url' => $url, 'options' => $options]);
 
         $startTime = microtime(true);
         try {
@@ -81,7 +81,7 @@ abstract class AbstractClient implements ClientInterface
 
             $chatCompletionResponse = new ChatCompletionResponse($response, $this->logger);
 
-            $this->logger?->info('ChatCompletionsResponse', [
+            $this->logger?->debug('ChatCompletionsResponse', [
                 'duration_ms' => $duration,
                 'content' => $chatCompletionResponse->getContent(),
             ]);
@@ -105,7 +105,7 @@ abstract class AbstractClient implements ClientInterface
 
         $url = $this->buildChatCompletionsUrl();
 
-        $this->logger?->info('ChatCompletionsStreamRequest', ['url' => $url, 'options' => $options]);
+        $this->logger?->debug('ChatCompletionsStreamRequest', ['url' => $url, 'options' => $options]);
 
         $startTime = microtime(true);
         try {
@@ -126,7 +126,7 @@ abstract class AbstractClient implements ClientInterface
 
             $chatCompletionStreamResponse = new ChatCompletionStreamResponse($response, $this->logger, $sseClient);
 
-            $this->logger?->info('ChatCompletionsStreamResponse', [
+            $this->logger?->debug('ChatCompletionsStreamResponse', [
                 'first_response_ms' => $firstResponseDuration,
             ]);
 
