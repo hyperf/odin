@@ -103,4 +103,36 @@ class ResponseHandler
             $jsonResponse
         );
     }
+
+    public static function convertConverseToPsrResponse(array $output, array $usage, string $model): ResponseInterface
+    {
+        $responseBody = [
+            'usage' => [
+                'input_tokens' => $usage['inputTokens'] ?? 0,
+                'output_tokens' => $usage['outputTokens'] ?? 0,
+            ],
+        ];
+        $content = [];
+        if (isset($output['message']['content']) && is_array($output['message']['content'])) {
+            foreach ($output['message']['content'] as $item) {
+                if (isset($item['text'])) {
+                    $content[] = [
+                        'type' => 'text',
+                        'text' => $item['text'],
+                    ];
+                }
+                if (isset($item['toolUse'])) {
+                    $content[] = [
+                        'type' => 'tool_use',
+                        'id' => $item['toolUse']['toolUseId'] ?? uniqid('fc-'),
+                        'name' => $item['toolUse']['name'],
+                        'input' => $item['toolUse']['input'] ?? [],
+                    ];
+                }
+            }
+        }
+        $responseBody['content'] = $content;
+
+        return self::convertToPsrResponse($responseBody, $model);
+    }
 }

@@ -14,6 +14,7 @@ namespace Hyperf\Odin\Factory;
 
 use Hyperf\Odin\Api\Providers\AwsBedrock\AwsBedrock;
 use Hyperf\Odin\Api\Providers\AwsBedrock\AwsBedrockConfig;
+use Hyperf\Odin\Api\Providers\AwsBedrock\AwsType;
 use Hyperf\Odin\Api\Providers\AzureOpenAI\AzureOpenAI;
 use Hyperf\Odin\Api\Providers\AzureOpenAI\AzureOpenAIConfig;
 use Hyperf\Odin\Api\Providers\OpenAI\OpenAI;
@@ -99,12 +100,14 @@ class ClientFactory
         $accessKey = $config['access_key'] ?? '';
         $secretKey = $config['secret_key'] ?? '';
         $region = $config['region'] ?? 'us-east-1';
+        $type = $config['type'] ?? AwsType::CONVERSE;
 
         // 创建配置对象
         $clientConfig = new AwsBedrockConfig(
             accessKey: $accessKey,
             secretKey: $secretKey,
-            region: $region
+            region: $region,
+            type: $type,
         );
 
         // 如果未提供API选项，则创建一个默认的选项
