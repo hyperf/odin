@@ -50,7 +50,7 @@ class MessageConverter
             // 根据消息类型分别处理
             match (true) {
                 // 1. 处理系统消息 - 单独提取
-                $message instanceof SystemMessage => $systemMessage = $message->getContent(),
+                $message instanceof SystemMessage => $systemMessage = self::convertSystemMessage($message),
 
                 // 2. 处理工具结果消息 - 转换为tool_result格式
                 $message instanceof ToolMessage => $converted[] = self::convertToolMessage($message),
@@ -134,6 +134,11 @@ class MessageConverter
         throw new LLMException\Api\LLMInvalidRequestException('图像URL必须是 base64 编码格式 (data:image/xxx;base64,...)');
     }
 
+    private static function convertSystemMessage(SystemMessage $message): array|string
+    {
+        return $message->getContent();
+    }
+
     /**
      * 转换ToolMessage为Claude API格式.
      *
@@ -212,7 +217,26 @@ class MessageConverter
             $contentBlocks = self::processMultiModalContents($message);
 
             if (! empty($contentBlocks)) {
+                if ($message->getCachePoint()) {
+                    $contentBlocks[] = [
+                        'cache_control' => [
+                            'type' => 'ephemeral',
+                        ],
+                    ];
+                }
                 $convertedMessage['content'] = $contentBlocks;
+            }
+        } else {
+            if ($message->getCachePoint()) {
+                $convertedMessage['content'] = [
+                    [
+                        'type' => 'text',
+                        'text' => $message->getContent(),
+                        'cache_control' => [
+                            'type' => 'ephemeral',
+                        ],
+                    ],
+                ];
             }
         }
 

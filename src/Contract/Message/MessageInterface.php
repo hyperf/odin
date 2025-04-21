@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Contract\Message;
 
+use Hyperf\Odin\Message\CachePoint;
 use Hyperf\Odin\Message\Role;
 
 /**
@@ -58,6 +59,10 @@ interface MessageInterface
     public function getParams(): array;
 
     public function setParams(array $params): void;
+
+    public function getCachePoint(): ?CachePoint;
+
+    public function setCachePoint(?CachePoint $cachePoint): self;
 
     /**
      * 将消息转换为数组.
