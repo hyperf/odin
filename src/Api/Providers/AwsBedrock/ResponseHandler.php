@@ -72,7 +72,9 @@ class ResponseHandler
             $usage = Usage::fromArray([
                 'prompt_tokens' => $responseBody['usage']['input_tokens'] ?? 0,
                 'completion_tokens' => $responseBody['usage']['output_tokens'] ?? 0,
-                'total_tokens' => ($responseBody['usage']['input_tokens'] ?? 0) + ($responseBody['usage']['output_tokens'] ?? 0),
+                'total_tokens' => $responseBody['usage']['total_tokens'] ?? 0,
+                'prompt_tokens_details' => $responseBody['usage']['prompt_tokens_details'] ?? [],
+                'completion_tokens_details' => $responseBody['usage']['completion_tokens_details'] ?? [],
             ]);
         } else {
             $usage = Usage::fromArray([
@@ -89,11 +91,7 @@ class ResponseHandler
             'created' => time(),
             'model' => $responseBody['model'] ?? $model,
             'choices' => [$choiceArray],
-            'usage' => [
-                'prompt_tokens' => $usage->getPromptTokens(),
-                'completion_tokens' => $usage->getCompletionTokens(),
-                'total_tokens' => $usage->getTotalTokens(),
-            ],
+            'usage' => $usage->toArray(),
         ]);
 
         // 创建一个 PSR-7 响应对象并返回
@@ -102,5 +100,45 @@ class ResponseHandler
             ['Content-Type' => 'application/json'],
             $jsonResponse
         );
+    }
+
+    public static function convertConverseToPsrResponse(array $output, array $usage, string $model): ResponseInterface
+    {
+        $responseBody = [
+            'usage' => [
+                'input_tokens' => $usage['inputTokens'] ?? 0,
+                'output_tokens' => $usage['outputTokens'] ?? 0,
+                'total_tokens' => $usage['totalTokens'] ?? 0,
+                'prompt_tokens_details' => [
+                    'cache_write_input_tokens' => $usage['cacheWriteInputTokens'] ?? 0,
+                    'cache_read_input_tokens' => $usage['cacheReadInputTokens'] ?? 0,
+                    // 兼容旧参数
+                    'audio_tokens' => 0,
+                    'cached_tokens' => ($usage['cacheWriteInputTokens'] ?? 0) + ($usage['cacheReadInputTokens'] ?? 0),
+                ],
+            ],
+        ];
+        $content = [];
+        if (isset($output['message']['content']) && is_array($output['message']['content'])) {
+            foreach ($output['message']['content'] as $item) {
+                if (isset($item['text'])) {
+                    $content[] = [
+                        'type' => 'text',
+                        'text' => $item['text'],
+                    ];
+                }
+                if (isset($item['toolUse'])) {
+                    $content[] = [
+                        'type' => 'tool_use',
+                        'id' => $item['toolUse']['toolUseId'] ?? uniqid('fc-'),
+                        'name' => $item['toolUse']['name'],
+                        'input' => $item['toolUse']['input'] ?? [],
+                    ];
+                }
+            }
+        }
+        $responseBody['content'] = $content;
+
+        return self::convertToPsrResponse($responseBody, $model);
     }
 }

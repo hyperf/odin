@@ -21,11 +21,17 @@ use Hyperf\Odin\Api\RequestOptions\ApiOptions;
 use Hyperf\Odin\Api\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\Response\ChatCompletionStreamResponse;
 use Hyperf\Odin\Api\Response\EmbeddingResponse;
+use Hyperf\Odin\Contract\Message\MessageInterface;
 use Hyperf\Odin\Exception\LLMException;
 use Hyperf\Odin\Exception\LLMException\Api\LLMInvalidRequestException;
 use Hyperf\Odin\Exception\LLMException\Api\LLMRateLimitException;
 use Hyperf\Odin\Exception\LLMException\LLMApiException;
 use Hyperf\Odin\Exception\LLMException\Network\LLMReadTimeoutException;
+use Hyperf\Odin\Message\AssistantMessage;
+use Hyperf\Odin\Message\SystemMessage;
+use Hyperf\Odin\Message\ToolMessage;
+use Hyperf\Odin\Message\UserMessage;
+use Hyperf\Odin\Utils\LogUtil;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Throwable;
@@ -35,7 +41,9 @@ class Client extends AbstractClient
     /**
      * AWS Bedrock 运行时客户端.
      */
-    private BedrockRuntimeClient $bedrockClient;
+    protected BedrockRuntimeClient $bedrockClient;
+
+    protected ConverterInterface $converter;
 
     /**
      * 构造函数.
@@ -45,6 +53,7 @@ class Client extends AbstractClient
         if (! $requestOptions) {
             $requestOptions = new ApiOptions();
         }
+        $this->converter = $this->createConverter();
         parent::__construct($config, $requestOptions, $logger);
     }
 
@@ -71,7 +80,7 @@ class Client extends AbstractClient
             // 记录请求前日志
             $this->logger?->debug('AwsBedrockChatRequest', [
                 'model_id' => $modelId,
-                'args' => $args,
+                'args' => LogUtil::formatLongText($args),
             ]);
 
             // 调用模型
@@ -154,6 +163,11 @@ class Client extends AbstractClient
     {
         // Embedding实现将在后续添加
         throw new RuntimeException('Embeddings are not implemented yet');
+    }
+
+    protected function createConverter(): ConverterInterface
+    {
+        return new InvokeConverter();
     }
 
     /**
@@ -242,7 +256,7 @@ class Client extends AbstractClient
     /**
      * 准备HTTP配置参数.
      */
-    private function getHttpArgs(bool $stream = false, ?string $proxy = null): array
+    protected function getHttpArgs(bool $stream = false, ?string $proxy = null): array
     {
         $http = [];
         if ($stream) {
@@ -257,7 +271,7 @@ class Client extends AbstractClient
     /**
      * 转换AWS异常为LLM异常.
      */
-    private function convertAwsException(AwsException $e): LLMException
+    protected function convertAwsException(AwsException $e): LLMException
     {
         return $this->convertException($e, [
             'aws_error_type' => $e->getAwsErrorType(),
@@ -270,10 +284,30 @@ class Client extends AbstractClient
      */
     private function prepareRequestBody(ChatCompletionRequest $chatRequest): array
     {
-        // 转换消息并获取系统提示
-        $convertedData = MessageConverter::convertMessages($chatRequest->getMessages());
-        $messages = $convertedData['messages'];
-        $systemMessage = $convertedData['system'];
+        $messages = [];
+        $systemMessage = '';
+
+        foreach ($chatRequest->getMessages() as $message) {
+            // 跳过非MessageInterface实例
+            if (! $message instanceof MessageInterface) {
+                continue;
+            }
+
+            // 根据消息类型分别处理
+            match (true) {
+                // 1. 处理系统消息 - 单独提取
+                $message instanceof SystemMessage => $systemMessage = $this->converter->convertSystemMessage($message),
+
+                // 2. 处理工具结果消息 - 转换为tool_result格式
+                $message instanceof ToolMessage => $messages[] = $this->converter->convertToolMessage($message),
+
+                // 3. 处理助手消息 - 可能包含工具调用
+                $message instanceof AssistantMessage => $messages[] = $this->converter->convertAssistantMessage($message),
+
+                // 4. 处理其他类型消息(主要是用户消息)
+                $message instanceof UserMessage => $messages[] = $this->converter->convertUserMessage($message),
+            };
+        }
 
         // 获取请求参数
         $maxTokens = $chatRequest->getMaxTokens();
@@ -300,7 +334,7 @@ class Client extends AbstractClient
 
         // 添加工具调用支持
         if (! empty($chatRequest->getTools())) {
-            $requestBody['tools'] = MessageConverter::convertTools($chatRequest->getTools());
+            $requestBody['tools'] = $this->converter->convertTools($chatRequest->getTools());
             // 添加工具选择策略
             if (! empty($requestBody['tools'])) {
                 $requestBody['tool_choice']['type'] = 'auto';

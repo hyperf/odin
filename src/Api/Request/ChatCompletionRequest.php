@@ -66,7 +66,7 @@ class ChatCompletionRequest implements RequestInterface
             'stream' => $this->stream,
         ];
         if ($this->maxTokens > 0) {
-            $json['max_tokens'] = $this->maxTokens;
+            $json['max_completion_tokens'] = $this->maxTokens;
         }
         if (! empty($this->stop)) {
             $json['stop'] = $this->stop;

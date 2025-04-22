@@ -19,8 +19,23 @@ class AwsBedrockConfig implements ConfigInterface
     public function __construct(
         public string $accessKey,
         public string $secretKey,
-        public string $region = 'us-east-1'
+        public string $region = 'us-east-1',
+        /**
+         * @var string 类型 converse|invoke
+         */
+        public string $type = AwsType::CONVERSE,
+        public bool $autoCache = false,
     ) {}
+
+    public function isAutoCache(): bool
+    {
+        return $this->autoCache;
+    }
+
+    public function getType(): string
+    {
+        return $this->type;
+    }
 
     /**
      * AWS Bedrock 不使用 API Key，此方法是为了实现接口而提供.
@@ -44,6 +59,7 @@ class AwsBedrockConfig implements ConfigInterface
             'access_key' => $this->accessKey,
             'secret_key' => $this->secretKey,
             'region' => $this->region,
+            'type' => $this->type,
         ];
     }
 }

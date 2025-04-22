@@ -21,11 +21,11 @@ use Psr\Log\LoggerInterface;
 class AwsBedrock extends AbstractApi
 {
     /**
-     * @var Client[]
+     * @var Client[]|ConverseClient[]
      */
     protected array $clients = [];
 
-    public function getClient(AwsBedrockConfig $config, ?ApiOptions $requestOptions = null, ?LoggerInterface $logger = null): Client
+    public function getClient(AwsBedrockConfig $config, ?ApiOptions $requestOptions = null, ?LoggerInterface $logger = null): Client|ConverseClient
     {
         // 检查AWS凭证，必须有访问密钥和密钥
         if (empty($config->accessKey) || empty($config->secretKey)) {
@@ -40,11 +40,15 @@ class AwsBedrock extends AbstractApi
         $requestOptions = $requestOptions ?? new ApiOptions();
 
         $key = md5(json_encode($config->toArray()) . json_encode($requestOptions->toArray()));
-        if (($this->clients[$key] ?? null) instanceof Client) {
+        if ($this->clients[$key] ?? null) {
             return $this->clients[$key];
         }
 
-        $client = new Client($config, $requestOptions, $logger);
+        if ($config->getType() === AwsType::CONVERSE) {
+            $client = new ConverseClient($config, $requestOptions, $logger);
+        } else {
+            $client = new Client($config, $requestOptions, $logger);
+        }
 
         $this->clients[$key] = $client;
         return $this->clients[$key];

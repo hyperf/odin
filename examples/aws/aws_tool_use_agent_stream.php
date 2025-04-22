@@ -46,6 +46,7 @@ $model = ModelFactory::create(
         'access_key' => env('AWS_ACCESS_KEY'),
         'secret_key' => env('AWS_SECRET_KEY'),
         'region' => env('AWS_REGION', 'us-east-1'),
+        'auto_cache' => true,
     ],
     modelOptions: ModelOptions::fromArray([
         'chat' => true,

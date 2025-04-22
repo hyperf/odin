@@ -34,6 +34,12 @@ abstract class AbstractMessage implements MessageInterface, Stringable
      */
     protected array $params = [];
 
+    /**
+     * 由于每种模型服务商的缓存点不同，所以最终的请求参数将会在 Client 中实现，这里仅是定义.
+     * @var null|CachePoint 消息缓存点
+     */
+    protected ?CachePoint $cachePoint = null;
+
     public function __construct(string $content, array $context = [])
     {
         $this->content = $content;
@@ -146,5 +152,16 @@ abstract class AbstractMessage implements MessageInterface, Stringable
     public function hasContext(string $key): bool
     {
         return isset($this->context[$key]);
+    }
+
+    public function getCachePoint(): ?CachePoint
+    {
+        return $this->cachePoint;
+    }
+
+    public function setCachePoint(?CachePoint $cachePoint): self
+    {
+        $this->cachePoint = $cachePoint;
+        return $this;
     }
 }

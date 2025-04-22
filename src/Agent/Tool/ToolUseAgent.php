@@ -126,6 +126,14 @@ class ToolUseAgent
                 // 响应流式
                 yield $choice;
             }
+            // 切出一个换行
+            if ($content !== '') {
+                yield ChatCompletionChoice::fromArray([
+                    'delta' => [
+                        'content' => "\n",
+                    ],
+                ]);
+            }
 
             $generatorSendMessage = null;
 
