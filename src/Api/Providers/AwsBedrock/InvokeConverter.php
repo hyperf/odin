@@ -114,7 +114,7 @@ class InvokeConverter implements ConverterInterface
         return $convertedMessage;
     }
 
-    public function convertTools(array $tools): array
+    public function convertTools(array $tools, bool $cache = false): array
     {
         // 将OpenAI格式的工具定义转换为Anthropic API格式
         $convertedTools = [];

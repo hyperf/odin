@@ -31,5 +31,5 @@ interface ConverterInterface
     /**
      * @param array<ToolDefinition> $tools
      */
-    public function convertTools(array $tools): array;
+    public function convertTools(array $tools, bool $cache = false): array;
 }

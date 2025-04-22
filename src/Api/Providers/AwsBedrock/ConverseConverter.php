@@ -25,11 +25,19 @@ class ConverseConverter implements ConverterInterface
 {
     public function convertSystemMessage(SystemMessage $message): array|string
     {
-        return [
+        $data = [
             [
                 'text' => $message->getContent(),
             ],
         ];
+        if ($message->getCachePoint()) {
+            $data[] = [
+                'cachePoint' => [
+                    'type' => 'default',
+                ],
+            ];
+        }
+        return $data;
     }
 
     public function convertToolMessage(ToolMessage $message): array
@@ -38,50 +46,63 @@ class ConverseConverter implements ConverterInterface
         if (! $result) {
             $result = [$message->getContent()];
         }
-        return [
-            'role' => Role::User->value,
-            'content' => [
-                [
-                    'toolResult' => [
-                        'toolUseId' => $message->getToolCallId(),
-                        'content' => [
-                            [
-                                'json' => $result,
-                            ],
+        $contentBlocks = [
+            [
+                'toolResult' => [
+                    'toolUseId' => $message->getToolCallId(),
+                    'content' => [
+                        [
+                            'json' => $result,
                         ],
                     ],
                 ],
             ],
         ];
+        if ($message->getCachePoint()) {
+            $contentBlocks[] = [
+                'cachePoint' => [
+                    'type' => 'default',
+                ],
+            ];
+        }
+        return [
+            'role' => Role::User->value,
+            'content' => $contentBlocks,
+        ];
     }
 
     public function convertAssistantMessage(AssistantMessage $message): array
     {
+        $contentBlocks = [];
         // 检查是否包含工具调用
         if (empty($message->getToolCalls())) {
-            return [
-                'role' => Role::Assistant->value,
-                'content' => $message->getContent(),
-            ];
-        }
-
-        // 处理包含工具调用的消息
-        $contentBlocks = [];
-
-        // 1. 添加文本内容(如果有)
-        if ($message->getContent()) {
             $contentBlocks[] = [
                 'text' => $message->getContent(),
             ];
-        }
+        } else {
+            // 处理包含工具调用的消息
+            // 1. 添加文本内容(如果有)
+            if ($message->getContent()) {
+                $contentBlocks[] = [
+                    'text' => $message->getContent(),
+                ];
+            }
 
-        // 2. 添加工具调用内容
-        foreach ($message->getToolCalls() as $toolCall) {
+            // 2. 添加工具调用内容
+            foreach ($message->getToolCalls() as $toolCall) {
+                $contentBlocks[] = [
+                    'toolUse' => [
+                        'toolUseId' => $toolCall->getId(),
+                        'name' => $toolCall->getName(),
+                        'input' => $toolCall->getArguments(),
+                    ],
+                ];
+            }
+        }
+        if ($message->getCachePoint()) {
             $contentBlocks[] = [
-                'toolUse' => [
-                    'toolUseId' => $toolCall->getId(),
-                    'name' => $toolCall->getName(),
-                    'input' => $toolCall->getArguments(),
+                'cachePoint' => [
+                    'type' => 'default',
                 ],
             ];
         }
@@ -94,47 +115,31 @@ class ConverseConverter implements ConverterInterface
 
     public function convertUserMessage(UserMessage $message): array
     {
-        $convertedMessage = $message->toArray();
-        if (isset($convertedMessage['content']) && is_string($convertedMessage['content'])) {
-            $convertedMessage['content'] = [
-                [
-                    'text' => $convertedMessage['content'],
-                ],
-            ];
-        }
+        $contentBlocks = [];
 
         // 处理UserMessage的多模态内容(例如图像)
         if ($message->getContents() !== null) {
             $contentBlocks = $this->processMultiModalContents($message);
-
-            if (! empty($contentBlocks)) {
-                if ($message->getCachePoint()) {
-                    $contentBlocks[] = [
-                        'cachePoint' => [
-                            'type' => 'default',
-                        ],
-                    ];
-                }
-                $convertedMessage['content'] = $contentBlocks;
-            }
         } else {
-            if ($message->getCachePoint()) {
-                $convertedMessage['content'] = [
-                    [
-                        'type' => 'text',
-                        'text' => $message->getContent(),
-                        'cachePoint' => [
-                            'type' => 'default',
-                        ],
-                    ],
-                ];
-            }
+            $contentBlocks[] = [
+                'text' => $message->getContent(),
+            ];
+        }
+        if ($message->getCachePoint()) {
+            $contentBlocks[] = [
+                'cachePoint' => [
+                    'type' => 'default',
+                ],
+            ];
         }
 
-        return $convertedMessage;
+        return [
+            'role' => Role::User->value,
+            'content' => $contentBlocks,
+        ];
     }
 
-    public function convertTools(array $tools): array
+    public function convertTools(array $tools, bool $cache = false): array
     {
         // 将OpenAI格式的工具定义转换为Anthropic API格式
         $convertedTools = [];
@@ -166,6 +171,13 @@ class ConverseConverter implements ConverterInterface
             }
             $convertedTools[] = [
                 'toolSpec' => $convertedTool,
+            ];
+        }
+        if ($cache) {
+            $convertedTools[] = [
+                'cachePoint' => [
+                    'type' => 'default',
+                ],
             ];
         }
 

@@ -24,7 +24,13 @@ class AwsBedrockConfig implements ConfigInterface
          * @var string 类型 converse|invoke
          */
         public string $type = AwsType::CONVERSE,
+        public bool $autoCache = false,
     ) {}
+
+    public function isAutoCache(): bool
+    {
+        return $this->autoCache;
+    }
 
     public function getType(): string
     {

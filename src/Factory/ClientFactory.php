@@ -101,6 +101,7 @@ class ClientFactory
         $secretKey = $config['secret_key'] ?? '';
         $region = $config['region'] ?? 'us-east-1';
         $type = $config['type'] ?? AwsType::CONVERSE;
+        $autoCache = (bool) ($config['auto_cache'] ?? false);
 
         // 创建配置对象
         $clientConfig = new AwsBedrockConfig(
@@ -108,6 +109,7 @@ class ClientFactory
             secretKey: $secretKey,
             region: $region,
             type: $type,
+            autoCache: $autoCache
         );
 
         // 如果未提供API选项，则创建一个默认的选项
