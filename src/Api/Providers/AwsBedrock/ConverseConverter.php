@@ -44,7 +44,9 @@ class ConverseConverter implements ConverterInterface
     {
         $result = json_decode($message->getContent(), true);
         if (! $result) {
-            $result = [$message->getContent()];
+            $result = [
+                'result' => $message->getContent(),
+            ];
         }
         $contentBlocks = [
             [
