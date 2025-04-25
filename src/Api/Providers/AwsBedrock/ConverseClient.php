@@ -18,7 +18,6 @@ use Hyperf\Odin\Api\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\Response\ChatCompletionStreamResponse;
 use Hyperf\Odin\Contract\Message\MessageInterface;
 use Hyperf\Odin\Message\AssistantMessage;
-use Hyperf\Odin\Message\CachePoint;
 use Hyperf\Odin\Message\SystemMessage;
 use Hyperf\Odin\Message\ToolMessage;
 use Hyperf\Odin\Message\UserMessage;
@@ -138,10 +137,6 @@ class ConverseClient extends Client
      */
     private function prepareConverseRequestBody(ChatCompletionRequest $chatRequest): array
     {
-        /** @var AwsBedrockConfig $config */
-        $config = $this->config;
-        $this->autoSetCachePoint($chatRequest);
-
         $messages = [];
         $systemMessage = '';
         foreach ($chatRequest->getMessages() as $message) {
@@ -195,7 +190,7 @@ class ConverseClient extends Client
 
         // 添加工具调用支持
         if (! empty($chatRequest->getTools())) {
-            $tools = $this->converter->convertTools($chatRequest->getTools(), $config->isAutoCache());
+            $tools = $this->converter->convertTools($chatRequest->getTools(), $chatRequest->isToolsCache());
             if (! empty($tools)) {
                 $requestBody['toolConfig'] = [
                     'tools' => $tools,
@@ -204,33 +199,5 @@ class ConverseClient extends Client
         }
 
         return $requestBody;
-    }
-
-    private function autoSetCachePoint(ChatCompletionRequest $chatRequest): void
-    {
-        /** @var AwsBedrockConfig $config */
-        $config = $this->config;
-        if (! $config->isAutoCache()) {
-            return;
-        }
-
-        // 开启自动缓存机制
-        $lastUser = null;
-        $lastAssistant = null;
-        foreach ($chatRequest->getMessages() as $message) {
-            if ($message instanceof SystemMessage) {
-                $message->setCachePoint(new CachePoint());
-                continue;
-            }
-            $message->setCachePoint(null);
-            if ($message instanceof UserMessage || $message instanceof ToolMessage) {
-                $lastUser = $message;
-            }
-            if ($message instanceof AssistantMessage) {
-                $lastAssistant = $message;
-            }
-        }
-        $lastAssistant?->setCachePoint(new CachePoint());
-        $lastUser?->setCachePoint(new CachePoint());
     }
 }

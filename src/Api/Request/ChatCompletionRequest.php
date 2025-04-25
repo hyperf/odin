@@ -31,6 +31,8 @@ class ChatCompletionRequest implements RequestInterface
 
     private array $businessParams = [];
 
+    private bool $toolsCache = false;
+
     public function __construct(
         /** @var MessageInterface[] $messages */
         protected array $messages,
@@ -170,5 +172,15 @@ class ChatCompletionRequest implements RequestInterface
     public function getStop(): array
     {
         return $this->stop;
+    }
+
+    public function isToolsCache(): bool
+    {
+        return $this->toolsCache;
+    }
+
+    public function setToolsCache(bool $toolsCache): void
+    {
+        $this->toolsCache = $toolsCache;
     }
 }
