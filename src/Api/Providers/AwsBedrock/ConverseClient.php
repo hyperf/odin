@@ -18,6 +18,7 @@ use Hyperf\Odin\Api\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\Response\ChatCompletionStreamResponse;
 use Hyperf\Odin\Contract\Message\MessageInterface;
 use Hyperf\Odin\Message\AssistantMessage;
+use Hyperf\Odin\Message\CachePoint;
 use Hyperf\Odin\Message\SystemMessage;
 use Hyperf\Odin\Message\ToolMessage;
 use Hyperf\Odin\Message\UserMessage;
@@ -137,6 +138,13 @@ class ConverseClient extends Client
      */
     private function prepareConverseRequestBody(ChatCompletionRequest $chatRequest): array
     {
+        /** @var AwsBedrockConfig $config */
+        $config = $this->config;
+        $this->autoSetCachePoint($chatRequest);
+        if ($config->isAutoCache()) {
+            $chatRequest->setToolsCache(true);
+        }
+
         $messages = [];
         $systemMessage = '';
         foreach ($chatRequest->getMessages() as $message) {
@@ -199,5 +207,22 @@ class ConverseClient extends Client
         }
 
         return $requestBody;
+    }
+
+    private function autoSetCachePoint(ChatCompletionRequest $chatRequest): void
+    {
+        /** @var AwsBedrockConfig $config */
+        $config = $this->config;
+        if (! $config->isAutoCache()) {
+            return;
+        }
+
+        foreach ($chatRequest->getMessages() as $message) {
+            if ($message instanceof SystemMessage) {
+                $message->setCachePoint(new CachePoint());
+                continue;
+            }
+            $message->setCachePoint(null);
+        }
     }
 }
