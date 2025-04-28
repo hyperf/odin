@@ -16,6 +16,7 @@ use GuzzleHttp\RequestOptions;
 use Hyperf\Odin\Contract\Api\Request\RequestInterface;
 use Hyperf\Odin\Contract\Message\MessageInterface;
 use Hyperf\Odin\Exception\InvalidArgumentException;
+use Hyperf\Odin\Message\SystemMessage;
 use Hyperf\Odin\Utils\MessageUtil;
 use Hyperf\Odin\Utils\TokenEstimator;
 use Hyperf\Odin\Utils\ToolUtil;
@@ -33,6 +34,8 @@ class ChatCompletionRequest implements RequestInterface
     private array $businessParams = [];
 
     private bool $toolsCache = false;
+
+    private ?int $systemTokenEstimate = null;
 
     /**
      * 工具的token估算数量.
@@ -121,6 +124,9 @@ class ChatCompletionRequest implements RequestInterface
             if ($message->getTokenEstimate() === null) {
                 $tokenCount = $estimator->estimateMessageTokens($message);
                 $message->setTokenEstimate($tokenCount);
+                if ($message instanceof SystemMessage) {
+                    $this->systemTokenEstimate = $tokenCount;
+                }
             }
             $totalTokens += $message->getTokenEstimate();
         }
@@ -228,6 +234,11 @@ class ChatCompletionRequest implements RequestInterface
     public function setToolsCache(bool $toolsCache): void
     {
         $this->toolsCache = $toolsCache;
+    }
+
+    public function getSystemTokenEstimate(): ?int
+    {
+        return $this->systemTokenEstimate;
     }
 
     /**

@@ -32,26 +32,26 @@ class TokenEstimator
     private const ENGLISH_WORD_RATIO = 0.75;
 
     /**
+     * 每个单词的平均长度.
+     */
+    private const AVG_WORD_LENGTH = 5.1;
+
+    /**
      * 各类消息的基础开销.
      */
     private int $messageBaseOverhead = 8;
-    
+
     /**
      * 工具调用的基础开销系数.
      * 工具定义通常会有结构化的JSON模式，在API传输中会有额外的开销
      */
     private float $toolDefinitionOverheadFactor = 3.7;
-    
-    /**
-     * 系统上下文的增加因子
-     * 系统上下文通常会有额外的指令和处理逻辑
-     */
-    private float $systemContextFactor = 1.3;
 
     /**
-     * 每个单词的平均长度.
+     * 系统上下文的增加因子
+     * 系统上下文通常会有额外的指令和处理逻辑.
      */
-    private const AVG_WORD_LENGTH = 5.1;
+    private float $systemContextFactor = 1.3;
 
     /**
      * 当前使用的模型名称.
@@ -141,14 +141,14 @@ class TokenEstimator
             foreach ($toolCalls as $toolCall) {
                 // 工具名称tokens
                 $toolCallsTokens += $this->estimateTokens($toolCall->getName());
-                
+
                 // 参数tokens (将参数转为JSON字符串计算)
                 $argsJson = $toolCall->getSerializedArguments();
                 $toolCallsTokens += $this->estimateTokens($argsJson);
-                
+
                 // 工具调用ID tokens
                 $toolCallsTokens += $this->estimateTokens($toolCall->getId());
-                
+
                 // 每个工具调用的额外开销
                 $toolCallsTokens += 8;
             }
@@ -156,16 +156,16 @@ class TokenEstimator
 
         // 消息格式开销
         $roleTokens = $this->estimateTokens((string) $message->getRole()->value);
-        
+
         // 基础开销
         $baseOverhead = $this->messageBaseOverhead;
-        
+
         // 系统消息通常会有更多的上下文处理开销
         if ($message->getRole()->value === 'system') {
-            $baseOverhead = (int)round($baseOverhead * $this->systemContextFactor);
+            $baseOverhead = (int) round($baseOverhead * $this->systemContextFactor);
         }
 
-        return (int)($contentTokens + $roleTokens + $toolCallsTokens + $baseOverhead);
+        return (int) ($contentTokens + $roleTokens + $toolCallsTokens + $baseOverhead);
     }
 
     /**
@@ -191,19 +191,19 @@ class TokenEstimator
                 $definitions[] = $tool;
             }
         }
-        
+
         // 直接计算 JSON 字符串的近似 token 数量
         $jsonString = json_encode(['tools' => $definitions], JSON_UNESCAPED_UNICODE);
         $baseTokens = $this->estimateTokens($jsonString);
-        
+
         // 工具定义通常在API传输中会被转换成更复杂的结构，这里应用额外系数
-        $toolTokens = (int)round($baseTokens * $this->toolDefinitionOverheadFactor);
-        
+        $toolTokens = (int) round($baseTokens * $this->toolDefinitionOverheadFactor);
+
         // 如果工具多于2个，每增加一个工具额外增加一定开销
         if (count($tools) > 2) {
             $toolTokens += (count($tools) - 2) * 20;
         }
-        
+
         return $toolTokens;
     }
 
