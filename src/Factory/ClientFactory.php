@@ -15,6 +15,7 @@ namespace Hyperf\Odin\Factory;
 use Hyperf\Odin\Api\Providers\AwsBedrock\AwsBedrock;
 use Hyperf\Odin\Api\Providers\AwsBedrock\AwsBedrockConfig;
 use Hyperf\Odin\Api\Providers\AwsBedrock\AwsType;
+use Hyperf\Odin\Api\Providers\AwsBedrock\Cache\AutoCacheConfig;
 use Hyperf\Odin\Api\Providers\AzureOpenAI\AzureOpenAI;
 use Hyperf\Odin\Api\Providers\AzureOpenAI\AzureOpenAIConfig;
 use Hyperf\Odin\Api\Providers\OpenAI\OpenAI;
@@ -102,6 +103,15 @@ class ClientFactory
         $region = $config['region'] ?? 'us-east-1';
         $type = $config['type'] ?? AwsType::CONVERSE;
         $autoCache = (bool) ($config['auto_cache'] ?? false);
+        $autoCacheConfig = null;
+        if (isset($config['auto_cache_config'])) {
+            $autoCacheConfig = new AutoCacheConfig(
+                maxCachePoints: $config['auto_cache_config']['max_cache_points'] ?? 4,
+                minCacheTokens: $config['auto_cache_config']['min_cache_tokens'] ?? 2048,
+                refreshPointMinTokens: $config['auto_cache_config']['refresh_point_min_tokens'] ?? 5000,
+                minHitCount: $config['auto_cache_config']['min_hit_count'] ?? 3,
+            );
+        }
 
         // 创建配置对象
         $clientConfig = new AwsBedrockConfig(
@@ -109,7 +119,8 @@ class ClientFactory
             secretKey: $secretKey,
             region: $region,
             type: $type,
-            autoCache: $autoCache
+            autoCache: $autoCache,
+            autoCacheConfig: $autoCacheConfig
         );
 
         // 如果未提供API选项，则创建一个默认的选项

@@ -92,6 +92,9 @@ class DynamicMessageCacheManager
     public function loadHistoryCachePoint(DynamicMessageCacheManager $lastDynamicMessageCacheManager): bool
     {
         foreach ($lastDynamicMessageCacheManager->getCachePointMessages() as $index => $cachePointMessage) {
+            if (! isset($this->cachePointMessages[$index])) {
+                return false;
+            }
             if ($cachePointMessage->getHash() !== $this->cachePointMessages[$index]->getHash()) {
                 return false;
             }
