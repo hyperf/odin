@@ -75,5 +75,7 @@ interface MessageInterface
      */
     public function toArray(): array;
 
+    public function getHash(): string;
+
     public static function fromArray(array $message): self;
 }

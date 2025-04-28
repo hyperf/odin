@@ -180,4 +180,9 @@ abstract class AbstractMessage implements MessageInterface, Stringable
         $this->tokenEstimate = $tokenEstimate;
         return $this;
     }
+
+    public function getHash(): string
+    {
+        return md5(serialize($this->toArray()));
+    }
 }

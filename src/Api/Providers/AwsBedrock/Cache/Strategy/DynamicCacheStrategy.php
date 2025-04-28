@@ -14,8 +14,6 @@ namespace Hyperf\Odin\Api\Providers\AwsBedrock\Cache\Strategy;
 
 use Hyperf\Odin\Api\Providers\AwsBedrock\Cache\AutoCacheConfig;
 use Hyperf\Odin\Api\Request\ChatCompletionRequest;
-use Hyperf\Odin\Contract\Message\MessageInterface;
-use Hyperf\Odin\Message\CachePoint;
 use Hyperf\Odin\Message\SystemMessage;
 use Psr\SimpleCache\CacheInterface;
 
@@ -35,75 +33,77 @@ class DynamicCacheStrategy implements CacheStrategyInterface
         if (empty($messages)) {
             return;
         }
+        $dynamicMessageCacheManager = $this->createDynamicMessageCacheManager($request);
 
-        // 永远规则：tools 是 0，system 是 1
-        $messageList = [
-            0 => null,
+        // 以此判定为同一轮对话
+        $cacheKey = $dynamicMessageCacheManager->getCacheKey($request->getModel());
+
+        $cachedData = $this->cache->get($cacheKey);
+        /** @var null|DynamicMessageCacheManager $lastDynamicMessageCacheManager */
+        $lastDynamicMessageCacheManager = $cachedData['dynamic_message_cache_manager'] ?? null;
+
+        // 比对消息，如果前缀一致(历史消息全部匹配成功)，则进行上次的缓存点加载。如果不一致，则不进行缓存点加载
+        if ($lastDynamicMessageCacheManager) {
+            $dynamicMessageCacheManager->loadHistoryCachePoint($lastDynamicMessageCacheManager);
+        }
+
+        $this->addFixedCachePointIndex($dynamicMessageCacheManager, $autoCacheConfig);
+
+        $incrementalTokens = $dynamicMessageCacheManager->calculateTotalTokens(
+            $dynamicMessageCacheManager->getLastCachePointIndex() + 1,
+            $dynamicMessageCacheManager->getLastMessageIndex()
+        );
+        if ($incrementalTokens >= $autoCacheConfig->getRefreshPointMinTokens()) {
+            $lastIndex = $dynamicMessageCacheManager->getLastMessageIndex();
+            $dynamicMessageCacheManager->addCachePointIndex($lastIndex);
+        }
+
+        // 重置缓存点
+        $dynamicMessageCacheManager->resetPointIndex($autoCacheConfig->getMaxCachePoints());
+
+        $cacheData = [
+            'dynamic_message_cache_manager' => $dynamicMessageCacheManager,
         ];
-        $messageTokens = [
-            0 => $request->getToolsTokenEstimate(),
-        ];
+        $this->cache->set($cacheKey, $cacheData, 7200);
+    }
+
+    private function addFixedCachePointIndex(DynamicMessageCacheManager $dynamicMessageCacheManager, AutoCacheConfig $autoCacheConfig): void
+    {
+        // 看一下 tools+system 是否标记了缓存点，固定机位
+        if (! in_array(0, $dynamicMessageCacheManager->getCachePointMessages(), true)
+            && ! in_array(1, $dynamicMessageCacheManager->getCachePointMessages(), true)) {
+            // 观察是否需要标记
+            if ($dynamicMessageCacheManager->getToolTokens() + $dynamicMessageCacheManager->getSystemTokens() >= $autoCacheConfig->getMinCacheTokens()) {
+                // 如果都有，则添加到 system
+                if ($dynamicMessageCacheManager->getToolTokens() > 0 && $dynamicMessageCacheManager->getSystemTokens() > 0) {
+                    $dynamicMessageCacheManager->addCachePointIndex(1);
+                }
+                // 如果 system 为空，tools 不为空，那么缓存加到 tools
+                if ($dynamicMessageCacheManager->getSystemTokens() <= 0 && $dynamicMessageCacheManager->getToolTokens() > 0) {
+                    $dynamicMessageCacheManager->addCachePointIndex(0);
+                }
+                // 如果 tools 为空，system 不为空，那么缓存加到 system
+                if ($dynamicMessageCacheManager->getToolTokens() <= 0 && $dynamicMessageCacheManager->getSystemTokens() > 0) {
+                    $dynamicMessageCacheManager->addCachePointIndex(1);
+                }
+            }
+        }
+    }
+
+    private function createDynamicMessageCacheManager(ChatCompletionRequest $request): DynamicMessageCacheManager
+    {
         $index = 2;
-        foreach ($messages as $message) {
+        // tools 也当做是一个消息
+        $cachePointMessages[0] = new CachePointMessage($request->getTools(), $request->getToolsTokenEstimate() ?? 0);
+        foreach ($request->getMessages() as $message) {
             if ($message instanceof SystemMessage) {
-                $messageList[1] = $message;
-                $messageTokens[1] = $message->getTokenEstimate();
+                $cachePointMessages[1] = new CachePointMessage($message, $message->getTokenEstimate() ?? 0);
             } else {
-                $messageList[$index] = $message;
-                $messageTokens[$index] = $message->getTokenEstimate();
+                $cachePointMessages[$index] = new CachePointMessage($message, $message->getTokenEstimate() ?? 0);
                 ++$index;
             }
         }
 
-        // 标记已设置的缓存点数量
-        $usedCachePoints = 0;
-        $cachePointIndex = [];
-
-        $toolsTokens = $request->getToolsTokenEstimate() ?? 0;
-        $systemTokens = $request->getSystemTokenEstimate() ?? 0;
-
-        if ($toolsTokens + $systemTokens >= $autoCacheConfig->getMinCacheTokens()) {
-            // 在 system 设置缓存点
-            if (! $this->setCachePoint($autoCacheConfig, $messageList[1], $usedCachePoints)) {
-                return;
-            }
-            $cachePointIndex[] = 1;
-        }
-
-        // 为其余消息动态分配缓存点
-        if (count($messageList) <= 1) {
-            return;
-        }
-
-        // 记录最后一个缓存点的索引
-        $lastCachePointIndex = ! empty($cachePointIndex) ? max($cachePointIndex) : 0;
-
-        // 计算从上一个缓存点到最后一条消息之间的token增量
-        $incrementalTokens = 0;
-        for ($i = $lastCachePointIndex + 1; $i < count($messageList); ++$i) {
-            if (isset($messageList[$i], $messageTokens[$i])) {
-                $incrementalTokens += $messageTokens[$i];
-            }
-        }
-
-        // 获取最后一条消息
-        $lastMessage = end($messages);
-
-        // 如果增量token达到最小缓存token数才设置缓存点
-        if ($incrementalTokens >= $autoCacheConfig->getMinCacheTokens()) {
-            // 设置最后一条消息为缓存点
-            $this->setCachePoint($autoCacheConfig, $lastMessage, $usedCachePoints);
-        }
-    }
-
-    private function setCachePoint(AutoCacheConfig $autoCacheConfig, MessageInterface $message, int &$usedCachePoints): bool
-    {
-        if ($autoCacheConfig->getMaxCachePoints() <= $usedCachePoints) {
-            return false;
-        }
-
-        $message->setCachePoint(new CachePoint());
-        ++$usedCachePoints;
-        return true;
+        return new DynamicMessageCacheManager($cachePointMessages);
     }
 }
