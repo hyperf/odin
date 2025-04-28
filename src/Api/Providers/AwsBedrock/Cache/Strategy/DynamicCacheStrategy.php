@@ -16,6 +16,7 @@ use Hyperf\Odin\Api\Providers\AwsBedrock\Cache\AutoCacheConfig;
 use Hyperf\Odin\Api\Request\ChatCompletionRequest;
 use Hyperf\Odin\Message\CachePoint;
 use Hyperf\Odin\Message\SystemMessage;
+use Hyperf\Odin\Utils\ToolUtil;
 use Psr\SimpleCache\CacheInterface;
 
 class DynamicCacheStrategy implements CacheStrategyInterface
@@ -117,7 +118,8 @@ class DynamicCacheStrategy implements CacheStrategyInterface
     {
         $index = 2;
         // tools 也当做是一个消息
-        $cachePointMessages[0] = new CachePointMessage($request->getTools(), $request->getToolsTokenEstimate() ?? 0);
+        $toolsArray = ToolUtil::filter($request->getTools());
+        $cachePointMessages[0] = new CachePointMessage($toolsArray, $request->getToolsTokenEstimate() ?? 0);
         foreach ($request->getMessages() as $message) {
             if ($message instanceof SystemMessage) {
                 $cachePointMessages[1] = new CachePointMessage($message, $message->getTokenEstimate() ?? 0);
