@@ -14,6 +14,7 @@ namespace Hyperf\Odin\Api\Providers\AwsBedrock\Cache\Strategy;
 
 use Hyperf\Odin\Api\Providers\AwsBedrock\Cache\AutoCacheConfig;
 use Hyperf\Odin\Api\Request\ChatCompletionRequest;
+use Hyperf\Odin\Message\CachePoint;
 use Hyperf\Odin\Message\SystemMessage;
 use Psr\SimpleCache\CacheInterface;
 
@@ -60,6 +61,19 @@ class DynamicCacheStrategy implements CacheStrategyInterface
 
         // 重置缓存点
         $dynamicMessageCacheManager->resetPointIndex($autoCacheConfig->getMaxCachePoints());
+
+        // 根据缓存点来设置缓存
+        if (in_array(0, $dynamicMessageCacheManager->getCachePointIndex(), true)) {
+            $request->setToolsCache(true);
+        }
+        foreach ($request->getMessages() as $index => $message) {
+            if ($message instanceof SystemMessage && in_array(1, $dynamicMessageCacheManager->getCachePointIndex(), true)) {
+                $message->setCachePoint(new CachePoint());
+            }
+            if (in_array($index + 2, $dynamicMessageCacheManager->getCachePointIndex(), true)) {
+                $message->setCachePoint(new CachePoint());
+            }
+        }
 
         $cacheData = [
             'dynamic_message_cache_manager' => $dynamicMessageCacheManager,

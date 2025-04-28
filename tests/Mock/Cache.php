@@ -13,37 +13,38 @@ declare(strict_types=1);
 namespace HyperfTest\Odin\Mock;
 
 use DateInterval;
+use DateTime;
 use Psr\SimpleCache\CacheInterface;
 
 class Cache implements CacheInterface
 {
     /**
-     * 内存存储数组
+     * 内存存储数组.
      */
     private array $storage = [];
 
     /**
-     * 过期时间存储
+     * 过期时间存储.
      */
     private array $expires = [];
 
-    public function get(string $key, mixed $default = null): mixed 
+    public function get(string $key, mixed $default = null): mixed
     {
         if ($this->has($key)) {
             return $this->storage[$key];
         }
-        
+
         return $default;
     }
 
     public function set(string $key, mixed $value, null|DateInterval|int $ttl = null): bool
     {
         $this->storage[$key] = $value;
-        
+
         if ($ttl !== null) {
             $expiration = time();
             if ($ttl instanceof DateInterval) {
-                $expiration += (new \DateTime())->add($ttl)->getTimestamp() - time();
+                $expiration += (new DateTime())->add($ttl)->getTimestamp() - time();
             } else {
                 $expiration += (int) $ttl;
             }
@@ -52,7 +53,7 @@ class Cache implements CacheInterface
             // 不设置过期时间
             $this->expires[$key] = null;
         }
-        
+
         return true;
     }
 
@@ -62,7 +63,7 @@ class Cache implements CacheInterface
             unset($this->storage[$key], $this->expires[$key]);
             return true;
         }
-        
+
         return false;
     }
 
@@ -70,7 +71,7 @@ class Cache implements CacheInterface
     {
         $this->storage = [];
         $this->expires = [];
-        
+
         return true;
     }
 
@@ -80,7 +81,7 @@ class Cache implements CacheInterface
         foreach ($keys as $key) {
             $result[$key] = $this->get($key, $default);
         }
-        
+
         return $result;
     }
 
@@ -88,12 +89,12 @@ class Cache implements CacheInterface
     {
         $success = true;
         foreach ($values as $key => $value) {
-            if (!is_string($key)) {
+            if (! is_string($key)) {
                 $key = (string) $key;
             }
             $success = $success && $this->set($key, $value, $ttl);
         }
-        
+
         return $success;
     }
 
@@ -103,23 +104,23 @@ class Cache implements CacheInterface
         foreach ($keys as $key) {
             $success = $success && $this->delete($key);
         }
-        
+
         return $success;
     }
 
     public function has(string $key): bool
     {
-        if (!isset($this->storage[$key])) {
+        if (! isset($this->storage[$key])) {
             return false;
         }
-        
+
         // 检查是否过期
         if (isset($this->expires[$key]) && $this->expires[$key] !== null && $this->expires[$key] < time()) {
             // 自动删除过期数据
             $this->delete($key);
             return false;
         }
-        
+
         return true;
     }
 }
