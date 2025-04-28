@@ -26,6 +26,7 @@ class CachePointMessage
     {
         $this->originMessage = $originMessage;
         $this->tokens = $tokens;
+        $this->getHash();
     }
 
     public function getOriginMessage(): mixed

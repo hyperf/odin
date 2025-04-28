@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Api\Providers\AwsBedrock;
 
+use Hyperf\Odin\Api\Providers\AwsBedrock\Cache\AutoCacheConfig;
 use Hyperf\Odin\Contract\Api\ConfigInterface;
 
 class AwsBedrockConfig implements ConfigInterface
@@ -25,7 +26,12 @@ class AwsBedrockConfig implements ConfigInterface
          */
         public string $type = AwsType::CONVERSE,
         public bool $autoCache = false,
-    ) {}
+        public ?AutoCacheConfig $autoCacheConfig = null,
+    ) {
+        if (! $this->autoCacheConfig) {
+            $this->autoCacheConfig = new AutoCacheConfig();
+        }
+    }
 
     public function isAutoCache(): bool
     {
@@ -35,6 +41,11 @@ class AwsBedrockConfig implements ConfigInterface
     public function getType(): string
     {
         return $this->type;
+    }
+
+    public function getAutoCacheConfig(): AutoCacheConfig
+    {
+        return $this->autoCacheConfig;
     }
 
     /**

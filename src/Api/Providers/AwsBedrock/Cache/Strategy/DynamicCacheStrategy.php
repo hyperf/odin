@@ -50,8 +50,12 @@ class DynamicCacheStrategy implements CacheStrategyInterface
 
         $this->addFixedCachePointIndex($dynamicMessageCacheManager, $autoCacheConfig);
 
+        $lastCachePointIndex = $dynamicMessageCacheManager->getLastCachePointIndex() ?? 0;
+        if ($lastCachePointIndex) {
+            ++$lastCachePointIndex;
+        }
         $incrementalTokens = $dynamicMessageCacheManager->calculateTotalTokens(
-            $dynamicMessageCacheManager->getLastCachePointIndex() + 1,
+            $lastCachePointIndex,
             $dynamicMessageCacheManager->getLastMessageIndex()
         );
         if ($incrementalTokens >= $autoCacheConfig->getRefreshPointMinTokens()) {
@@ -59,18 +63,23 @@ class DynamicCacheStrategy implements CacheStrategyInterface
             $dynamicMessageCacheManager->addCachePointIndex($lastIndex);
         }
 
-        // 重置缓存点
         $dynamicMessageCacheManager->resetPointIndex($autoCacheConfig->getMaxCachePoints());
 
+        $cachePointIndex = $dynamicMessageCacheManager->getCachePointIndex();
+
         // 根据缓存点来设置缓存
-        if (in_array(0, $dynamicMessageCacheManager->getCachePointIndex(), true)) {
+        if (in_array(0, $cachePointIndex, true)) {
             $request->setToolsCache(true);
         }
+        $systemCache = false;
+        if (in_array(1, $cachePointIndex, true)) {
+            $systemCache = true;
+        }
         foreach ($request->getMessages() as $index => $message) {
-            if ($message instanceof SystemMessage && in_array(1, $dynamicMessageCacheManager->getCachePointIndex(), true)) {
+            if ($message instanceof SystemMessage && $systemCache) {
                 $message->setCachePoint(new CachePoint());
             }
-            if (in_array($index + 2, $dynamicMessageCacheManager->getCachePointIndex(), true)) {
+            if (in_array($index + 1, $cachePointIndex, true)) {
                 $message->setCachePoint(new CachePoint());
             }
         }

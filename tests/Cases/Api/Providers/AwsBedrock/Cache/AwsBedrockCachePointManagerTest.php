@@ -62,7 +62,7 @@ class AwsBedrockCachePointManagerTest extends AbstractTestCase
      */
     public function testConfigureCachePointsWhenTokensAbove()
     {
-        $autoCacheConfig = new AutoCacheConfig(4, 200);
+        $autoCacheConfig = new AutoCacheConfig(4, 200, 200);
 
         $messages = [
             new SystemMessage('你是一个智能助手，帮助用户解决问题'),

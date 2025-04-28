@@ -36,7 +36,7 @@ class DynamicMessageCacheManager
 
     public function getCacheKey(string $prefix): string
     {
-        return md5($prefix . $this->getToolsHash() . $this->getSystemMessageHash());
+        return 'aws_dynamic_cache:' . md5($prefix . $this->getToolsHash() . $this->getSystemMessageHash());
     }
 
     public function getToolsHash(): string
@@ -66,9 +66,9 @@ class DynamicMessageCacheManager
         }
     }
 
-    public function getLastCachePointIndex(): int
+    public function getLastCachePointIndex(): ?int
     {
-        return $this->cachePointIndex ? max($this->cachePointIndex) : 0;
+        return $this->cachePointIndex ? max($this->cachePointIndex) : null;
     }
 
     public function getCachePointIndex(): array
@@ -105,14 +105,14 @@ class DynamicMessageCacheManager
      */
     public function calculateTotalTokens(int $startIndex, int $endIndex): int
     {
-        if ($endIndex > $startIndex) {
+        if ($endIndex < $startIndex) {
             return 0;
         }
         $totalTokens = 0;
 
         for ($i = $startIndex; $i <= $endIndex; ++$i) {
-            if (isset($this->messageTokens[$i])) {
-                $totalTokens += $this->messageTokens[$i];
+            if (isset($this->cachePointMessages[$i])) {
+                $totalTokens += $this->cachePointMessages[$i]?->getTokens() ?? 0;
             }
         }
 
