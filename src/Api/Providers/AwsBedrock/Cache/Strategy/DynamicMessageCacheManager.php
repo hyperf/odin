@@ -122,21 +122,29 @@ class DynamicMessageCacheManager
         return $totalTokens;
     }
 
-    public function resetPointIndex(int $maxCachePoints): void
+    public function resetPointIndex(int $fixedMaxCachePoints): void
     {
-        if (count($this->cachePointIndex) <= $maxCachePoints) {
+        $maxCachePoints = $fixedMaxCachePoints;
+
+        if (count($this->cachePointIndex) <= $fixedMaxCachePoints) {
             return;
         }
         $cachePointIndex = [];
         // 保持固定机位
         if (in_array(0, $this->cachePointIndex, true)) {
-            $cachePointIndex[] = [0];
+            $cachePointIndex[] = 0;
             --$maxCachePoints;
-        } elseif (in_array(1, $this->cachePointIndex, true)) {
-            $cachePointIndex[] = [1];
+        }
+        if (in_array(1, $this->cachePointIndex, true)) {
+            $cachePointIndex[] = 1;
             --$maxCachePoints;
         }
         $this->cachePointIndex = array_slice($this->cachePointIndex, -$maxCachePoints);
         array_unshift($this->cachePointIndex, ...$cachePointIndex);
+
+        // 最后永远不能超过 max
+        if (count($this->cachePointIndex) > $fixedMaxCachePoints) {
+            $this->cachePointIndex = array_slice($this->cachePointIndex, -$fixedMaxCachePoints);
+        }
     }
 }
