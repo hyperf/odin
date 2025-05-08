@@ -114,7 +114,10 @@ class ResponseHandler
                     'cache_read_input_tokens' => $usage['cacheReadInputTokens'] ?? 0,
                     // 兼容旧参数
                     'audio_tokens' => 0,
-                    'cached_tokens' => ($usage['cacheWriteInputTokens'] ?? 0) + ($usage['cacheReadInputTokens'] ?? 0),
+                    'cached_tokens' => $usage['cacheWriteInputTokens'] ?? 0,
+                ],
+                'completion_tokens_details' => [
+                    'reasoning_tokens' => 0,
                 ],
             ],
         ];

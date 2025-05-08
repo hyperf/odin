@@ -15,6 +15,7 @@ namespace Hyperf\Odin\Api\Providers\AwsBedrock;
 use Aws\BedrockRuntime\BedrockRuntimeClient;
 use Aws\Exception\AwsException;
 use Hyperf\Odin\Api\Providers\AbstractClient;
+use Hyperf\Odin\Api\Providers\AwsBedrock\Cache\AutoCacheConfig;
 use Hyperf\Odin\Api\Request\ChatCompletionRequest;
 use Hyperf\Odin\Api\Request\EmbeddingRequest;
 use Hyperf\Odin\Api\RequestOptions\ApiOptions;
@@ -277,6 +278,20 @@ class Client extends AbstractClient
             'aws_error_type' => $e->getAwsErrorType(),
             'aws_error_code' => $e->getAwsErrorCode(),
         ]);
+    }
+
+    protected function isAutoCache(): bool
+    {
+        /** @var AwsBedrockConfig $config */
+        $config = $this->config;
+        return $config->isAutoCache();
+    }
+
+    protected function getAutoCacheConfig(): AutoCacheConfig
+    {
+        /** @var AwsBedrockConfig $config */
+        $config = $this->config;
+        return $config->getAutoCacheConfig();
     }
 
     /**

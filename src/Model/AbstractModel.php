@@ -263,6 +263,16 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
         return $this->modelOptions;
     }
 
+    public function getConfig(): array
+    {
+        return $this->config;
+    }
+
+    public function setConfig(array $config): void
+    {
+        $this->config = $config;
+    }
+
     /**
      * 创建错误上下文.
      *

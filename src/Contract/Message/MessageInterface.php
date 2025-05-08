@@ -64,12 +64,18 @@ interface MessageInterface
 
     public function setCachePoint(?CachePoint $cachePoint): self;
 
+    public function getTokenEstimate(): ?int;
+
+    public function setTokenEstimate(?int $tokenEstimate): self;
+
     /**
      * 将消息转换为数组.
      *
      * @return array 消息数组表示
      */
     public function toArray(): array;
+
+    public function getHash(): string;
 
     public static function fromArray(array $message): self;
 }

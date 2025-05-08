@@ -19,6 +19,7 @@ use Hyperf\Odin\Exception\InvalidArgumentException;
 use Hyperf\Odin\Message\SystemMessage;
 use Hyperf\Odin\Message\UserMessage;
 use Hyperf\Odin\Tool\Definition\ToolDefinition;
+use Hyperf\Odin\Tool\Definition\ToolParameter;
 use Hyperf\Odin\Tool\Definition\ToolParameters;
 use HyperfTest\Odin\Cases\AbstractTestCase;
 use Throwable;
@@ -178,7 +179,7 @@ class ChatCompletionRequestTest extends AbstractTestCase
         $json = $options[RequestOptions::JSON];
         $this->assertEquals('gpt-3.5-turbo', $json['model']);
         $this->assertEquals(0.7, $json['temperature']);
-        $this->assertEquals(50, $json['max_tokens']);
+        $this->assertEquals(50, $json['max_completion_tokens']);
         $this->assertEquals(['PHP'], $json['stop']);
         $this->assertFalse($json['stream']);
 
@@ -320,5 +321,94 @@ class ChatCompletionRequestTest extends AbstractTestCase
         $this->assertFalse($request->isStreamContentEnabled());
         $request->setStreamContentEnabled(true);
         $this->assertTrue($request->isStreamContentEnabled());
+    }
+
+    public function testCalculateTokenEstimates()
+    {
+        // 准备测试消息和工具
+        $systemMessage = new SystemMessage('你是一个有用的AI助手');
+        $userMessage = new UserMessage('请帮我解答这个问题');
+
+        $toolParameter = ToolParameter::string('query', '查询参数', true);
+        $toolParameters = new ToolParameters([$toolParameter]);
+        $toolHandler = function (array $params) {
+            return ['result' => 'test result'];
+        };
+        $tool = new ToolDefinition('search', '搜索工具', $toolParameters, $toolHandler);
+
+        // 创建请求对象
+        $request = new ChatCompletionRequest(
+            [$systemMessage, $userMessage],
+            'gpt-4',
+            0.7,
+            100,
+            [],
+            [$tool]
+        );
+
+        // 执行token估算前，总token估算应为null
+        $this->assertNull($request->getTotalTokenEstimate());
+
+        // 执行token估算
+        $totalTokens = $request->calculateTokenEstimates();
+
+        // 验证结果
+        $this->assertIsInt($totalTokens);
+        $this->assertGreaterThan(0, $totalTokens);
+
+        // 验证消息的token估算已设置
+        $this->assertNotNull($systemMessage->getTokenEstimate());
+        $this->assertNotNull($userMessage->getTokenEstimate());
+
+        // 验证工具的token估算已设置
+        $this->assertNotNull($request->getToolsTokenEstimate());
+
+        // 验证总token估算已设置，并与返回值相同
+        $this->assertNotNull($request->getTotalTokenEstimate());
+        $this->assertEquals($totalTokens, $request->getTotalTokenEstimate());
+
+        // 验证总token是各部分之和
+        $this->assertEquals(
+            $systemMessage->getTokenEstimate() + $userMessage->getTokenEstimate() + $request->getToolsTokenEstimate(),
+            $request->getTotalTokenEstimate()
+        );
+    }
+
+    public function testCalculateTokenEstimatesWithExistingEstimates()
+    {
+        // 准备已有估算值的消息
+        $systemMessage = new SystemMessage('你是一个有用的AI助手');
+        $systemMessage->setTokenEstimate(10);
+
+        $userMessage = new UserMessage('请帮我解答这个问题');
+        // 用户消息不设置估算值
+
+        // 创建请求对象
+        $request = new ChatCompletionRequest(
+            [$systemMessage, $userMessage],
+            'gpt-4'
+        );
+
+        // 执行token估算
+        $totalTokens = $request->calculateTokenEstimates();
+
+        // 验证结果
+        $this->assertIsInt($totalTokens);
+
+        // 验证已设置估算值的消息保持不变
+        $this->assertEquals(10, $systemMessage->getTokenEstimate());
+
+        // 验证未设置估算值的消息被计算
+        $this->assertNotNull($userMessage->getTokenEstimate());
+
+        // 验证总token已设置
+        $this->assertNotNull($request->getTotalTokenEstimate());
+        $this->assertEquals($totalTokens, $request->getTotalTokenEstimate());
+
+        // 验证总token是消息token之和（没有工具的情况）
+        $this->assertEquals(
+            $systemMessage->getTokenEstimate() + $userMessage->getTokenEstimate(),
+            $request->getTotalTokenEstimate()
+        );
     }
 }

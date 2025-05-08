@@ -16,7 +16,9 @@ use GuzzleHttp\RequestOptions;
 use Hyperf\Odin\Contract\Api\Request\RequestInterface;
 use Hyperf\Odin\Contract\Message\MessageInterface;
 use Hyperf\Odin\Exception\InvalidArgumentException;
+use Hyperf\Odin\Message\SystemMessage;
 use Hyperf\Odin\Utils\MessageUtil;
+use Hyperf\Odin\Utils\TokenEstimator;
 use Hyperf\Odin\Utils\ToolUtil;
 
 class ChatCompletionRequest implements RequestInterface
@@ -30,6 +32,20 @@ class ChatCompletionRequest implements RequestInterface
     private float $presencePenalty = 0.0;
 
     private array $businessParams = [];
+
+    private bool $toolsCache = false;
+
+    private ?int $systemTokenEstimate = null;
+
+    /**
+     * 工具的token估算数量.
+     */
+    private ?int $toolsTokenEstimate = null;
+
+    /**
+     * 所有消息和工具的总token估算数量.
+     */
+    private ?int $totalTokenEstimate = null;
 
     public function __construct(
         /** @var MessageInterface[] $messages */
@@ -90,6 +106,44 @@ class ChatCompletionRequest implements RequestInterface
             RequestOptions::JSON => $json,
             RequestOptions::STREAM => $this->stream,
         ];
+    }
+
+    /**
+     * 为所有消息和工具计算token估算
+     * 对于已经有估算的消息不会重新计算.
+     *
+     * @return int 所有消息和工具的总token数量
+     */
+    public function calculateTokenEstimates(): int
+    {
+        $estimator = new TokenEstimator($model ?? $this->model);
+        $totalTokens = 0;
+
+        // 为每个消息计算token
+        foreach ($this->messages as $message) {
+            if ($message->getTokenEstimate() === null) {
+                $tokenCount = $estimator->estimateMessageTokens($message);
+                $message->setTokenEstimate($tokenCount);
+                if ($message instanceof SystemMessage) {
+                    $this->systemTokenEstimate = $tokenCount;
+                }
+            }
+            $totalTokens += $message->getTokenEstimate();
+        }
+
+        // 为工具计算token
+        if ($this->toolsTokenEstimate === null && ! empty($this->tools)) {
+            $this->toolsTokenEstimate = $estimator->estimateToolsTokens($this->tools);
+        }
+
+        if ($this->toolsTokenEstimate !== null) {
+            $totalTokens += $this->toolsTokenEstimate;
+        }
+
+        // 保存总token估算结果
+        $this->totalTokenEstimate = $totalTokens;
+
+        return $totalTokens;
     }
 
     public function setFrequencyPenalty(float $frequencyPenalty): void
@@ -170,5 +224,51 @@ class ChatCompletionRequest implements RequestInterface
     public function getStop(): array
     {
         return $this->stop;
+    }
+
+    public function isToolsCache(): bool
+    {
+        return $this->toolsCache;
+    }
+
+    public function setToolsCache(bool $toolsCache): void
+    {
+        $this->toolsCache = $toolsCache;
+    }
+
+    public function getSystemTokenEstimate(): ?int
+    {
+        return $this->systemTokenEstimate;
+    }
+
+    /**
+     * 获取工具的token估算数量.
+     *
+     * @return null|int 工具的token估算数量
+     */
+    public function getToolsTokenEstimate(): ?int
+    {
+        return $this->toolsTokenEstimate;
+    }
+
+    /**
+     * 获取所有消息和工具的总token估算数量.
+     *
+     * @return null|int 总token估算数量
+     */
+    public function getTotalTokenEstimate(): ?int
+    {
+        return $this->totalTokenEstimate;
+    }
+
+    public function getTokenEstimateDetail(): array
+    {
+        return [
+            'total' => $this->totalTokenEstimate,
+            'messages' => array_map(function (MessageInterface $message) {
+                return $message->getTokenEstimate();
+            }, $this->messages),
+            'tools' => $this->toolsTokenEstimate,
+        ];
     }
 }

@@ -40,6 +40,11 @@ abstract class AbstractMessage implements MessageInterface, Stringable
      */
     protected ?CachePoint $cachePoint = null;
 
+    /**
+     * 估算的 token 数量.
+     */
+    protected ?int $tokenEstimate = null;
+
     public function __construct(string $content, array $context = [])
     {
         $this->content = $content;
@@ -163,5 +168,21 @@ abstract class AbstractMessage implements MessageInterface, Stringable
     {
         $this->cachePoint = $cachePoint;
         return $this;
+    }
+
+    public function getTokenEstimate(): ?int
+    {
+        return $this->tokenEstimate;
+    }
+
+    public function setTokenEstimate(?int $tokenEstimate): self
+    {
+        $this->tokenEstimate = $tokenEstimate;
+        return $this;
+    }
+
+    public function getHash(): string
+    {
+        return md5(serialize($this->toArray()));
     }
 }
