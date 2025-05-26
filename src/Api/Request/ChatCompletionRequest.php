@@ -47,6 +47,8 @@ class ChatCompletionRequest implements RequestInterface
      */
     private ?int $totalTokenEstimate = null;
 
+    private bool $streamIncludeUsage = false;
+
     public function __construct(
         /** @var MessageInterface[] $messages */
         protected array $messages,
@@ -100,6 +102,11 @@ class ChatCompletionRequest implements RequestInterface
         }
         if (! empty($this->businessParams)) {
             $json['business_params'] = $this->businessParams;
+        }
+        if ($this->stream && $this->streamIncludeUsage) {
+            $json['stream_options'] = [
+                'include_usage' => true,
+            ];
         }
 
         return [
@@ -179,6 +186,11 @@ class ChatCompletionRequest implements RequestInterface
     public function setStreamContentEnabled(bool $streamContentEnabled): void
     {
         $this->streamContentEnabled = $streamContentEnabled;
+    }
+
+    public function setStreamIncludeUsage(bool $streamIncludeUsage): void
+    {
+        $this->streamIncludeUsage = $streamIncludeUsage;
     }
 
     /**

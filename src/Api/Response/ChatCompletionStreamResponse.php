@@ -252,6 +252,9 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
         $this->setCreated($data['created'] ?? null);
         $this->setModel($data['model'] ?? null);
         $this->setChoices($data['choices'] ?? []);
+        if (! empty($data['usage'])) {
+            $this->setUsage(Usage::fromArray($data['usage']));
+        }
     }
 
     /**

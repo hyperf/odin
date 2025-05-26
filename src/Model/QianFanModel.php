@@ -20,6 +20,8 @@ use Throwable;
 
 class QianFanModel extends AbstractModel
 {
+    protected bool $streamIncludeUsage = true;
+
     public function embeddings(array|string $input, ?string $encoding_format = 'float', ?string $user = null): EmbeddingResponse
     {
         try {
