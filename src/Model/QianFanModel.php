@@ -22,7 +22,7 @@ class QianFanModel extends AbstractModel
 {
     protected bool $streamIncludeUsage = true;
 
-    public function embeddings(array|string $input, ?string $encoding_format = 'float', ?string $user = null): EmbeddingResponse
+    public function embeddings(array|string $input, ?string $encoding_format = 'float', ?string $user = null, array $businessParams = []): EmbeddingResponse
     {
         try {
             // 检查模型是否支持嵌入功能
@@ -37,6 +37,8 @@ class QianFanModel extends AbstractModel
                 input: $input,
                 model: $this->model
             );
+            $embeddingRequest->setBusinessParams($businessParams);
+            $embeddingRequest->setIncludeBusinessParams($this->includeBusinessParams);
 
             return $client->embeddings($embeddingRequest);
         } catch (Throwable $e) {

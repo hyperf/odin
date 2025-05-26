@@ -27,6 +27,7 @@ use Hyperf\Odin\Contract\Api\ClientInterface;
 use Hyperf\Odin\Contract\Api\ConfigInterface;
 use Hyperf\Odin\Event\AfterChatCompletionsEvent;
 use Hyperf\Odin\Event\AfterChatCompletionsStreamEvent;
+use Hyperf\Odin\Event\AfterEmbeddingsEvent;
 use Hyperf\Odin\Exception\LLMException;
 use Hyperf\Odin\Exception\LLMException\ErrorHandlerInterface;
 use Hyperf\Odin\Exception\LLMException\ErrorMappingManager;
@@ -169,6 +170,8 @@ abstract class AbstractClient implements ClientInterface
                 'duration_ms' => $duration,
                 'data' => $embeddingResponse->toArray(),
             ]);
+
+            EventUtil::dispatch(new AfterEmbeddingsEvent($embeddingRequest, $embeddingResponse, $duration));
 
             return $embeddingResponse;
         } catch (Throwable $e) {
