@@ -144,6 +144,11 @@ class EmbeddingRequest implements RequestInterface
         $this->includeBusinessParams = $includeBusinessParams;
     }
 
+    public function getTotalTokenEstimate(): ?int
+    {
+        return $this->totalTokenEstimate;
+    }
+
     public function calculateTokenEstimates(): int
     {
         if ($this->totalTokenEstimate) {
