@@ -86,7 +86,7 @@ class TokenEstimator
      */
     public function estimateTokens(string $text): int
     {
-        if (empty($text)) {
+        if ($text === '') {
             return 0;
         }
 

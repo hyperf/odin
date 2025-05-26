@@ -125,7 +125,10 @@ class ChatCompletionRequest implements RequestInterface
      */
     public function calculateTokenEstimates(): int
     {
-        $estimator = new TokenEstimator($model ?? $this->model);
+        if ($this->totalTokenEstimate) {
+            return $this->totalTokenEstimate;
+        }
+        $estimator = new TokenEstimator($this->model);
         $totalTokens = 0;
 
         // 为每个消息计算token
