@@ -347,6 +347,10 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
      */
     private function handleStreamCompletion(float $startTime): void
     {
+        if (! isset($this->afterChatCompletionsStreamEvent)) {
+            return;
+        }
+
         // Set duration and create completion response
         $this->afterChatCompletionsStreamEvent->setDuration(microtime(true) - $startTime);
 

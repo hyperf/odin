@@ -124,6 +124,9 @@ class AwsBedrockConverseFormatConverter implements IteratorAggregate
                         break;
                     case 'contentBlockStop':
                     case 'metadata':
+                        if (isset($event['usage'])) {
+                            yield $this->formatUsageEvent($created, $event['usage']);
+                        }
                         break;
                     case 'messageStop':
                         yield $this->formatMessageStopEvent($created, $event['stopReason'] ?? 'stop');
@@ -150,6 +153,32 @@ class AwsBedrockConverseFormatConverter implements IteratorAggregate
     public function getModel(): string
     {
         return $this->model;
+    }
+
+    private function formatUsageEvent(int $created, array $usage): string
+    {
+        return $this->formatOpenAiEvent([
+            'id' => $this->messageId ?? ('bedrock-' . uniqid()),
+            'object' => 'chat.completion.chunk',
+            'created' => $created,
+            'model' => $this->model ?: 'aws.bedrock',
+            'choices' => null,
+            'usage' => [
+                'prompt_tokens' => $usage['inputTokens'] ?? 0,
+                'completion_tokens' => $usage['outputTokens'] ?? 0,
+                'total_tokens' => $usage['totalTokens'] ?? 0,
+                'prompt_tokens_details' => [
+                    'cache_write_input_tokens' => $usage['cacheWriteInputTokens'] ?? 0,
+                    'cache_read_input_tokens' => $usage['cacheReadInputTokens'] ?? 0,
+                    // 兼容旧参数
+                    'audio_tokens' => 0,
+                    'cached_tokens' => $usage['cacheWriteInputTokens'] ?? 0,
+                ],
+                'completion_tokens_details' => [
+                    'reasoning_tokens' => 0,
+                ],
+            ],
+        ]);
     }
 
     /**
