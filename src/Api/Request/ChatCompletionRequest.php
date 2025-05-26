@@ -31,6 +31,8 @@ class ChatCompletionRequest implements RequestInterface
 
     private float $presencePenalty = 0.0;
 
+    private bool $includeBusinessParams = false;
+
     private array $businessParams = [];
 
     private bool $toolsCache = false;
@@ -100,7 +102,7 @@ class ChatCompletionRequest implements RequestInterface
         if ($this->presencePenalty > 0) {
             $json['presence_penalty'] = $this->presencePenalty;
         }
-        if (! empty($this->businessParams)) {
+        if ($this->includeBusinessParams && ! empty($this->businessParams)) {
             $json['business_params'] = $this->businessParams;
         }
         if ($this->stream && $this->streamIncludeUsage) {
@@ -166,6 +168,16 @@ class ChatCompletionRequest implements RequestInterface
     public function setBusinessParams(array $businessParams): void
     {
         $this->businessParams = $businessParams;
+    }
+
+    public function getBusinessParams(): array
+    {
+        return $this->businessParams;
+    }
+
+    public function setIncludeBusinessParams(bool $includeBusinessParams): void
+    {
+        $this->includeBusinessParams = $includeBusinessParams;
     }
 
     public function setStream(bool $stream): void

@@ -58,6 +58,8 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
 
     protected bool $streamIncludeUsage = false;
 
+    protected bool $includeBusinessParams = false;
+
     /**
      * 构造函数.
      */
@@ -94,6 +96,7 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
             $chatRequest->setFrequencyPenalty($frequencyPenalty);
             $chatRequest->setPresencePenalty($presencePenalty);
             $chatRequest->setBusinessParams($businessParams);
+            $chatRequest->setIncludeBusinessParams($this->includeBusinessParams);
             return $client->chatCompletions($chatRequest);
         } catch (Throwable $e) {
             $context = $this->createErrorContext([
@@ -135,6 +138,7 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
             $chatRequest->setPresencePenalty($presencePenalty);
             $chatRequest->setBusinessParams($businessParams);
             $chatRequest->setStreamIncludeUsage($this->streamIncludeUsage);
+            $chatRequest->setIncludeBusinessParams($this->includeBusinessParams);
             return $client->chatCompletionsStream($chatRequest);
         } catch (Throwable $e) {
             $context = $this->createErrorContext([
@@ -169,6 +173,7 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
         $chatRequest->setFrequencyPenalty($frequencyPenalty);
         $chatRequest->setPresencePenalty($presencePenalty);
         $chatRequest->setBusinessParams($businessParams);
+        $chatRequest->setIncludeBusinessParams($this->includeBusinessParams);
         return $client->completions($chatRequest);
     }
 

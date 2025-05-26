@@ -24,6 +24,8 @@ class CompletionRequest implements RequestInterface
 
     private array $businessParams = [];
 
+    private bool $includeBusinessParams = false;
+
     public function __construct(
         protected string $model,
         protected string $prompt,
@@ -65,7 +67,7 @@ class CompletionRequest implements RequestInterface
         if ($this->presencePenalty > 0) {
             $json['presence_penalty'] = $this->presencePenalty;
         }
-        if (! empty($this->businessParams)) {
+        if ($this->includeBusinessParams && ! empty($this->businessParams)) {
             $json['business_params'] = $this->businessParams;
         }
 
@@ -87,6 +89,11 @@ class CompletionRequest implements RequestInterface
     public function setBusinessParams(array $businessParams): void
     {
         $this->businessParams = $businessParams;
+    }
+
+    public function setIncludeBusinessParams(bool $includeBusinessParams): void
+    {
+        $this->includeBusinessParams = $includeBusinessParams;
     }
 
     /**
