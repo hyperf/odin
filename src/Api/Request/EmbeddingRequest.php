@@ -15,9 +15,16 @@ namespace Hyperf\Odin\Api\Request;
 use GuzzleHttp\RequestOptions;
 use Hyperf\Odin\Contract\Api\Request\RequestInterface;
 use Hyperf\Odin\Exception\InvalidArgumentException;
+use Hyperf\Odin\Utils\TokenEstimator;
 
 class EmbeddingRequest implements RequestInterface
 {
+    private array $businessParams = [];
+
+    private bool $includeBusinessParams = false;
+
+    private ?int $totalTokenEstimate = null;
+
     /**
      * @param string|string[] $input 需要嵌入的文本，可以是字符串或字符串数组
      * @param string $model 使用的嵌入模型ID
@@ -53,12 +60,17 @@ class EmbeddingRequest implements RequestInterface
     {
         $this->validate();
 
+        $body = [
+            'model' => $this->model,
+            'input' => $this->input,
+            'encoding_format' => $this->encoding_format,
+        ];
+        if ($this->includeBusinessParams && ! empty($this->businessParams)) {
+            $body['business_params'] = $this->businessParams;
+        }
+
         $options = [
-            RequestOptions::JSON => [
-                'input' => $this->input,
-                'model' => $this->model,
-                'encoding_format' => $this->encoding_format,
-            ],
+            RequestOptions::JSON => $body,
         ];
 
         if ($this->user !== null) {
@@ -110,5 +122,51 @@ class EmbeddingRequest implements RequestInterface
     public function getDimensions(): ?array
     {
         return $this->dimensions;
+    }
+
+    public function getBusinessParams(): array
+    {
+        return $this->businessParams;
+    }
+
+    public function setBusinessParams(array $businessParams): void
+    {
+        $this->businessParams = $businessParams;
+    }
+
+    public function isIncludeBusinessParams(): bool
+    {
+        return $this->includeBusinessParams;
+    }
+
+    public function setIncludeBusinessParams(bool $includeBusinessParams): void
+    {
+        $this->includeBusinessParams = $includeBusinessParams;
+    }
+
+    public function getTotalTokenEstimate(): ?int
+    {
+        return $this->totalTokenEstimate;
+    }
+
+    public function calculateTokenEstimates(): int
+    {
+        if ($this->totalTokenEstimate) {
+            return $this->totalTokenEstimate;
+        }
+        $estimator = new TokenEstimator($this->model);
+
+        $input = $this->input;
+        if (! is_array($input)) {
+            $input = [$input];
+        }
+        $totalTokens = 0;
+        foreach ($input as $item) {
+            // 估算每个输入的token数量
+            $totalTokens += $estimator->estimateTokens($item);
+        }
+        $this->totalTokenEstimate = $totalTokens;
+
+        return $this->totalTokenEstimate;
     }
 }

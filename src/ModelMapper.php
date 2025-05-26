@@ -14,6 +14,7 @@ namespace Hyperf\Odin;
 
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\Odin\Api\RequestOptions\ApiOptions;
+use Hyperf\Odin\Constants\ModelType;
 use Hyperf\Odin\Contract\Model\EmbeddingInterface;
 use Hyperf\Odin\Contract\Model\ModelInterface;
 use Hyperf\Odin\Factory\ModelFactory;
@@ -90,8 +91,8 @@ class ModelMapper
         }
 
         // 检查缓存
-        if (isset($this->models['chat'][$model])) {
-            return $this->models['chat'][$model];
+        if (isset($this->models[ModelType::CHAT][$model])) {
+            return $this->models[ModelType::CHAT][$model];
         }
 
         // 如果模型未缓存，创建模型
@@ -102,11 +103,11 @@ class ModelMapper
 
         $this->addModel($model, $modelConfig);
 
-        if (! isset($this->models['chat'][$model])) {
+        if (! isset($this->models[ModelType::CHAT][$model])) {
             throw new InvalidArgumentException(sprintf('Failed to create Chat Model %s.', $model));
         }
 
-        return $this->models['chat'][$model];
+        return $this->models[ModelType::CHAT][$model];
     }
 
     /**
@@ -119,8 +120,8 @@ class ModelMapper
         }
 
         // 检查缓存
-        if (isset($this->models['embedding'][$model])) {
-            return $this->models['embedding'][$model];
+        if (isset($this->models[ModelType::EMBEDDING][$model])) {
+            return $this->models[ModelType::EMBEDDING][$model];
         }
 
         // 如果模型未缓存，创建模型
@@ -131,11 +132,11 @@ class ModelMapper
 
         $this->addModel($model, $modelConfig);
 
-        if (! isset($this->models['embedding'][$model])) {
+        if (! isset($this->models[ModelType::EMBEDDING][$model])) {
             throw new InvalidArgumentException(sprintf('Failed to create Embedding Model %s.', $model));
         }
 
-        return $this->models['embedding'][$model];
+        return $this->models[ModelType::EMBEDDING][$model];
     }
 
     /**
@@ -143,11 +144,11 @@ class ModelMapper
      */
     public function getModels(string $type = ''): array
     {
-        if ($type === 'embedding') {
-            return $this->models['embedding'] ?? [];
+        if ($type === ModelType::EMBEDDING) {
+            return $this->models[ModelType::EMBEDDING] ?? [];
         }
-        if ($type === 'chat') {
-            return $this->models['chat'] ?? [];
+        if ($type === ModelType::CHAT) {
+            return $this->models[ModelType::CHAT] ?? [];
         }
         return $this->models;
     }
@@ -192,10 +193,10 @@ class ModelMapper
 
         // 根据模型类型缓存实例
         if ($modelOptions->isEmbedding() && $modelObject instanceof EmbeddingInterface) {
-            $this->models['embedding'][$model] = $modelObject;
+            $this->models[ModelType::EMBEDDING][$model] = $modelObject;
         }
         if ($modelOptions->isChat() && $modelObject instanceof ModelInterface) {
-            $this->models['chat'][$model] = $modelObject;
+            $this->models[ModelType::CHAT][$model] = $modelObject;
         }
     }
 }

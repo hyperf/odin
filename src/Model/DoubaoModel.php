@@ -21,6 +21,8 @@ use Hyperf\Odin\Contract\Api\ClientInterface;
  */
 class DoubaoModel extends AbstractModel
 {
+    protected bool $streamIncludeUsage = true;
+
     /**
      * 获取Doubao客户端实例.
      */

@@ -16,7 +16,10 @@ use Generator;
 use GuzzleHttp\Psr7\Response;
 use Hyperf\Odin\Api\Transport\SSEClient;
 use Hyperf\Odin\Api\Transport\SSEEvent;
+use Hyperf\Odin\Event\AfterChatCompletionsStreamEvent;
 use Hyperf\Odin\Exception\LLMException;
+use Hyperf\Odin\Message\AssistantMessage;
+use Hyperf\Odin\Utils\EventUtil;
 use IteratorAggregate;
 use JsonException;
 use Psr\Http\Message\ResponseInterface as PsrResponseInterface;
@@ -34,6 +37,9 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
 
     protected ?string $model = null;
 
+    /**
+     * @var array<ChatCompletionChoice>
+     */
     protected array $choices = [];
 
     /**
@@ -45,6 +51,8 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
      * 支持 IteratorAggregate 接口的迭代器.
      */
     protected ?IteratorAggregate $iterator = null;
+
+    protected AfterChatCompletionsStreamEvent $afterChatCompletionsStreamEvent;
 
     /**
      * 构造函数.
@@ -91,6 +99,11 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
 
         // 最后使用传统方式
         return $this->iterateWithLegacyMethod();
+    }
+
+    public function setAfterChatCompletionsStreamEvent(AfterChatCompletionsStreamEvent $afterChatCompletionsStreamEvent): void
+    {
+        $this->afterChatCompletionsStreamEvent = $afterChatCompletionsStreamEvent;
     }
 
     public function getId(): ?string
@@ -159,6 +172,7 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
     private function iterateWithCustomIterator(): Generator
     {
         try {
+            $startTime = microtime(true);
             foreach ($this->iterator->getIterator() as $data) {
                 // 处理结束标记
                 if ($data === '[DONE]' || $data === json_encode('[DONE]')) {
@@ -188,6 +202,9 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
                 // 生成ChatCompletionChoice对象
                 yield from $this->yieldChoices($data['choices'] ?? []);
             }
+
+            // Set duration and create completion response
+            $this->handleStreamCompletion($startTime);
         } catch (Throwable $e) {
             $this->logger?->error('Error processing custom iterator', [
                 'exception' => get_class($e),
@@ -204,6 +221,7 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
     private function iterateWithSSEClient(): Generator
     {
         try {
+            $startTime = microtime(true);
             /** @var SSEEvent $event */
             foreach ($this->sseClient->getIterator() as $event) {
                 $data = $event->getData();
@@ -232,6 +250,9 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
                 // 生成ChatCompletionChoice对象
                 yield from $this->yieldChoices($data['choices'] ?? []);
             }
+
+            // Set duration and create completion response
+            $this->handleStreamCompletion($startTime);
         } catch (Throwable $e) {
             $this->logger?->error('Error processing SSE stream', [
                 'exception' => get_class($e),
@@ -251,7 +272,9 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
         $this->setObject($data['object'] ?? null);
         $this->setCreated($data['created'] ?? null);
         $this->setModel($data['model'] ?? null);
-        $this->setChoices($data['choices'] ?? []);
+        if (! empty($data['usage'])) {
+            $this->setUsage(Usage::fromArray($data['usage']));
+        }
     }
 
     /**
@@ -264,7 +287,9 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
                 $this->logger?->warning('Invalid choice format', ['choice' => $choice]);
                 continue;
             }
-            yield ChatCompletionChoice::fromArray($choice);
+            $chatCompletionChoice = ChatCompletionChoice::fromArray($choice);
+            $this->choices[] = $chatCompletionChoice;
+            yield $chatCompletionChoice;
         }
     }
 
@@ -274,6 +299,7 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
     private function iterateWithLegacyMethod(): Generator
     {
         // 保留原有的实现作为后备
+        $startTime = microtime(true);
         $body = $this->originResponse->getBody();
 
         $buffer = '';
@@ -311,5 +337,146 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
                 }
             }
         }
+
+        // Set duration and create completion response
+        $this->handleStreamCompletion($startTime);
+    }
+
+    /**
+     * Handle stream completion - create response and dispatch event.
+     */
+    private function handleStreamCompletion(float $startTime): void
+    {
+        if (! isset($this->afterChatCompletionsStreamEvent)) {
+            return;
+        }
+
+        // Set duration and create completion response
+        $this->afterChatCompletionsStreamEvent->setDuration(microtime(true) - $startTime);
+
+        // Create and set the completed ChatCompletionResponse
+        $completionResponse = $this->createChatCompletionResponse();
+        $this->afterChatCompletionsStreamEvent->setCompletionResponse($completionResponse);
+
+        EventUtil::dispatch($this->afterChatCompletionsStreamEvent);
+    }
+
+    private function createChatCompletionResponse(): ChatCompletionResponse
+    {
+        // Create a merged choices array by combining content from the same index
+        $mergedChoices = [];
+
+        foreach ($this->choices as $choice) {
+            $index = $choice->getIndex() ?? 0;
+
+            if (! isset($mergedChoices[$index])) {
+                // Initialize new choice with basic info
+                $mergedChoices[$index] = [
+                    'index' => $index,
+                    'message' => [
+                        'role' => 'assistant',
+                        'content' => '',
+                        'reasoning_content' => null,
+                        'tool_calls' => [],
+                    ],
+                    'logprobs' => $choice->getLogprobs(),
+                    'finish_reason' => null,
+                ];
+            }
+
+            // Merge content
+            $message = $choice->getMessage();
+            // Append content
+            $content = $message->getContent();
+            if (! empty($content)) {
+                $mergedChoices[$index]['message']['content'] .= $content;
+            }
+
+            // Handle reasoning content for AssistantMessage
+            if ($message instanceof AssistantMessage) {
+                $reasoningContent = $message->getReasoningContent();
+                if (! empty($reasoningContent)) {
+                    if ($mergedChoices[$index]['message']['reasoning_content'] === null) {
+                        $mergedChoices[$index]['message']['reasoning_content'] = '';
+                    }
+                    $mergedChoices[$index]['message']['reasoning_content'] .= $reasoningContent;
+                }
+
+                // Merge tool calls
+                $toolCalls = $message->getToolCalls();
+                if (! empty($toolCalls)) {
+                    foreach ($toolCalls as $toolCall) {
+                        $toolCallId = $toolCall->getId();
+                        $existingToolCallFound = false;
+
+                        // Check if this tool call already exists and merge stream arguments
+                        foreach ($mergedChoices[$index]['message']['tool_calls'] as &$existingToolCall) {
+                            if ($existingToolCall['id'] === $toolCallId) {
+                                // Append stream arguments for existing tool call
+                                if (isset($existingToolCall['function']['arguments'])) {
+                                    $existingToolCall['function']['arguments'] .= $toolCall->getStreamArguments();
+                                } else {
+                                    $existingToolCall['function']['arguments'] = $toolCall->getStreamArguments();
+                                }
+                                $existingToolCallFound = true;
+                                break;
+                            }
+                        }
+
+                        // Add new tool call if not found
+                        if (! $existingToolCallFound) {
+                            $mergedChoices[$index]['message']['tool_calls'][] = [
+                                'id' => $toolCall->getId(),
+                                'type' => $toolCall->getType(),
+                                'function' => [
+                                    'name' => $toolCall->getName(),
+                                    'arguments' => $toolCall->getStreamArguments() ?: json_encode($toolCall->getArguments()),
+                                ],
+                            ];
+                        }
+                    }
+                }
+            }
+
+            // Update finish reason if provided
+            if ($choice->getFinishReason()) {
+                $mergedChoices[$index]['finish_reason'] = $choice->getFinishReason();
+            }
+        }
+
+        // Clean up empty reasoning_content
+        foreach ($mergedChoices as &$choice) {
+            if (empty($choice['message']['reasoning_content'])) {
+                $choice['message']['reasoning_content'] = null;
+            }
+            if (empty($choice['message']['tool_calls'])) {
+                unset($choice['message']['tool_calls']);
+            }
+        }
+
+        // Sort choices by index
+        ksort($mergedChoices);
+        $mergedChoices = array_values($mergedChoices);
+
+        // Create response content similar to regular chat completion response
+        $responseContent = [
+            'id' => $this->getId(),
+            'object' => $this->getObject() ?: 'chat.completion',
+            'created' => $this->getCreated(),
+            'model' => $this->getModel(),
+            'choices' => $mergedChoices,
+        ];
+
+        // Add usage if available
+        if ($this->getUsage()) {
+            $responseContent['usage'] = $this->getUsage()->toArray();
+        }
+
+        // Create a mock response with the merged content
+        $jsonContent = json_encode($responseContent);
+        $mockResponse = new Response(200, ['Content-Type' => 'application/json'], $jsonContent);
+
+        // Create and return ChatCompletionResponse
+        return new ChatCompletionResponse($mockResponse, $this->logger);
     }
 }

@@ -56,6 +56,10 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
      */
     protected ModelOptions $modelOptions;
 
+    protected bool $streamIncludeUsage = false;
+
+    protected bool $includeBusinessParams = false;
+
     /**
      * 构造函数.
      */
@@ -92,6 +96,7 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
             $chatRequest->setFrequencyPenalty($frequencyPenalty);
             $chatRequest->setPresencePenalty($presencePenalty);
             $chatRequest->setBusinessParams($businessParams);
+            $chatRequest->setIncludeBusinessParams($this->includeBusinessParams);
             return $client->chatCompletions($chatRequest);
         } catch (Throwable $e) {
             $context = $this->createErrorContext([
@@ -132,6 +137,8 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
             $chatRequest->setFrequencyPenalty($frequencyPenalty);
             $chatRequest->setPresencePenalty($presencePenalty);
             $chatRequest->setBusinessParams($businessParams);
+            $chatRequest->setStreamIncludeUsage($this->streamIncludeUsage);
+            $chatRequest->setIncludeBusinessParams($this->includeBusinessParams);
             return $client->chatCompletionsStream($chatRequest);
         } catch (Throwable $e) {
             $context = $this->createErrorContext([
@@ -166,6 +173,7 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
         $chatRequest->setFrequencyPenalty($frequencyPenalty);
         $chatRequest->setPresencePenalty($presencePenalty);
         $chatRequest->setBusinessParams($businessParams);
+        $chatRequest->setIncludeBusinessParams($this->includeBusinessParams);
         return $client->completions($chatRequest);
     }
 
@@ -190,7 +198,7 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
         return new Embedding($embeddings[0]);
     }
 
-    public function embeddings(array|string $input, ?string $encoding_format = 'float', ?string $user = null): EmbeddingResponse
+    public function embeddings(array|string $input, ?string $encoding_format = 'float', ?string $user = null, array $businessParams = []): EmbeddingResponse
     {
         try {
             // 检查模型是否支持嵌入功能
@@ -201,6 +209,8 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
                 input: $input,
                 model: $this->model
             );
+            $embeddingRequest->setBusinessParams($businessParams);
+            $embeddingRequest->setIncludeBusinessParams($this->includeBusinessParams);
 
             return $client->embeddings($embeddingRequest);
         } catch (Throwable $e) {

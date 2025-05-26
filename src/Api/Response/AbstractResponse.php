@@ -84,5 +84,10 @@ abstract class AbstractResponse implements ResponseInterface
         return $this;
     }
 
+    public function removeBigObject(): void
+    {
+        unset($this->originResponse, $this->logger);
+    }
+
     abstract protected function parseContent(): self;
 }

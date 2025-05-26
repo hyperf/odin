@@ -20,6 +20,8 @@ use Hyperf\Odin\Factory\ClientFactory;
  */
 class AzureOpenAIModel extends AbstractModel
 {
+    protected bool $streamIncludeUsage = true;
+
     /**
      * 获取Azure OpenAI客户端实例.
      */

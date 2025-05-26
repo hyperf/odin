@@ -19,7 +19,7 @@ interface EmbeddingInterface
 {
     public function embedding(string $input): Embedding;
 
-    public function embeddings(array|string $input, ?string $encoding_format = 'float', ?string $user = null): EmbeddingResponse;
+    public function embeddings(array|string $input, ?string $encoding_format = 'float', ?string $user = null, array $businessParams = []): EmbeddingResponse;
 
     public function getModelName(): string;
 

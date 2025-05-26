@@ -13,6 +13,7 @@ declare(strict_types=1);
 namespace Hyperf\Odin\Api\Response;
 
 use Hyperf\Odin\Exception\LLMException\LLMApiException;
+use Hyperf\Odin\Utils\TokenEstimator;
 use Stringable;
 
 class ChatCompletionResponse extends AbstractResponse implements Stringable
@@ -29,6 +30,8 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
      * @var null|ChatCompletionChoice[]
      */
     protected ?array $choices = [];
+
+    private ?int $totalTokenEstimate = null;
 
     public function __toString(): string
     {
@@ -96,6 +99,18 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
     {
         $this->choices = $choices;
         return $this;
+    }
+
+    public function calculateTokenEstimates(): int
+    {
+        if ($this->totalTokenEstimate) {
+            return $this->totalTokenEstimate;
+        }
+        $estimator = new TokenEstimator($this->model);
+
+        $this->totalTokenEstimate = $estimator->estimateTokens($this->getFirstChoice()?->getMessage()?->getContent() ?? '');
+
+        return $this->totalTokenEstimate;
     }
 
     protected function parseContent(): self

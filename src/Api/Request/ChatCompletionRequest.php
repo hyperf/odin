@@ -31,6 +31,8 @@ class ChatCompletionRequest implements RequestInterface
 
     private float $presencePenalty = 0.0;
 
+    private bool $includeBusinessParams = false;
+
     private array $businessParams = [];
 
     private bool $toolsCache = false;
@@ -46,6 +48,8 @@ class ChatCompletionRequest implements RequestInterface
      * 所有消息和工具的总token估算数量.
      */
     private ?int $totalTokenEstimate = null;
+
+    private bool $streamIncludeUsage = false;
 
     public function __construct(
         /** @var MessageInterface[] $messages */
@@ -98,8 +102,13 @@ class ChatCompletionRequest implements RequestInterface
         if ($this->presencePenalty > 0) {
             $json['presence_penalty'] = $this->presencePenalty;
         }
-        if (! empty($this->businessParams)) {
+        if ($this->includeBusinessParams && ! empty($this->businessParams)) {
             $json['business_params'] = $this->businessParams;
+        }
+        if ($this->stream && $this->streamIncludeUsage) {
+            $json['stream_options'] = [
+                'include_usage' => true,
+            ];
         }
 
         return [
@@ -116,7 +125,10 @@ class ChatCompletionRequest implements RequestInterface
      */
     public function calculateTokenEstimates(): int
     {
-        $estimator = new TokenEstimator($model ?? $this->model);
+        if ($this->totalTokenEstimate) {
+            return $this->totalTokenEstimate;
+        }
+        $estimator = new TokenEstimator($this->model);
         $totalTokens = 0;
 
         // 为每个消息计算token
@@ -161,6 +173,16 @@ class ChatCompletionRequest implements RequestInterface
         $this->businessParams = $businessParams;
     }
 
+    public function getBusinessParams(): array
+    {
+        return $this->businessParams;
+    }
+
+    public function setIncludeBusinessParams(bool $includeBusinessParams): void
+    {
+        $this->includeBusinessParams = $includeBusinessParams;
+    }
+
     public function setStream(bool $stream): void
     {
         $this->stream = $stream;
@@ -179,6 +201,11 @@ class ChatCompletionRequest implements RequestInterface
     public function setStreamContentEnabled(bool $streamContentEnabled): void
     {
         $this->streamContentEnabled = $streamContentEnabled;
+    }
+
+    public function setStreamIncludeUsage(bool $streamIncludeUsage): void
+    {
+        $this->streamIncludeUsage = $streamIncludeUsage;
     }
 
     /**
