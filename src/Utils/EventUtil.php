@@ -19,7 +19,6 @@ class EventUtil
 {
     public static function dispatch(object $event): void
     {
-        var_dump($event);
         $container = ApplicationContext::getContainer();
         if (! $container->has(EventDispatcherInterface::class)) {
             return;
