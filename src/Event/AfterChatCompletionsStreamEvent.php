@@ -13,53 +13,21 @@ declare(strict_types=1);
 namespace Hyperf\Odin\Event;
 
 use Hyperf\Odin\Api\Request\ChatCompletionRequest;
-use Hyperf\Odin\Api\Response\ChatCompletionResponse;
 
-class AfterChatCompletionsStreamEvent
+class AfterChatCompletionsStreamEvent extends AfterChatCompletionsEvent
 {
-    public ChatCompletionRequest $completionRequest;
-
-    public ChatCompletionResponse $completionResponse;
-
-    public float $duration;
-
     public float $firstResponseDuration;
 
     public function __construct(
         ChatCompletionRequest $completionRequest,
         float $firstResponseDuration,
     ) {
-        $this->completionRequest = $completionRequest;
         $this->firstResponseDuration = $firstResponseDuration;
+        parent::__construct($completionRequest, null, 0);
     }
 
-    public function getCompletionRequest(): ChatCompletionRequest
+    public function getFirstResponseDuration(): float
     {
-        return $this->completionRequest;
-    }
-
-    public function setCompletionRequest(ChatCompletionRequest $completionRequest): void
-    {
-        $this->completionRequest = $completionRequest;
-    }
-
-    public function getCompletionResponse(): ChatCompletionResponse
-    {
-        return $this->completionResponse;
-    }
-
-    public function setCompletionResponse(ChatCompletionResponse $completionResponse): void
-    {
-        $this->completionResponse = $completionResponse;
-    }
-
-    public function getDuration(): float
-    {
-        return $this->duration;
-    }
-
-    public function setDuration(float $duration): void
-    {
-        $this->duration = $duration;
+        return $this->firstResponseDuration;
     }
 }
