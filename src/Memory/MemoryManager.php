@@ -112,7 +112,7 @@ class MemoryManager implements MemoryInterface
         // 合并系统消息和普通消息
         $systemMessages = $this->getSystemMessages();
         if (! empty($systemMessages)) {
-            $allMessages = array_merge([end($systemMessages)], $this->getMessages());
+            $allMessages = array_merge($systemMessages, $this->getMessages());
         } else {
             $allMessages = $this->getMessages();
         }
