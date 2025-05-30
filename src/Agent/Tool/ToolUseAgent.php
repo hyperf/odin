@@ -249,12 +249,7 @@ class ToolUseAgent
 
         while (true) {
             // 合并系统消息和普通消息
-            $systemMessages = $this->memory->getSystemMessages();
-            if (! empty($systemMessages)) {
-                $messages = array_merge($systemMessages, $this->memory->getMessages());
-            } else {
-                $messages = $this->memory->getMessages();
-            }
+            $messages = array_merge($this->memory->getSystemMessages(), $this->memory->getMessages());
 
             if (! $stream) {
                 $response = $this->model->chat(
