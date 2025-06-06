@@ -194,6 +194,10 @@ class ConverseClient extends Client
             ];
         }
 
+        if (! empty($chatRequest->getThinking())) {
+            $requestBody['thinking'] = $chatRequest->getThinking();
+        }
+
         // 添加工具调用支持
         if (! empty($chatRequest->getTools())) {
             $tools = $this->converter->convertTools($chatRequest->getTools(), $chatRequest->isToolsCache());

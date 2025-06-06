@@ -28,7 +28,7 @@ class AfterChatCompletionsEvent
         ?ChatCompletionResponse $completionResponse,
         float $duration
     ) {
-        $this->completionRequest = $completionRequest;
+        $this->setCompletionRequest($completionRequest);
         $this->setCompletionResponse($completionResponse);
         $this->duration = $duration;
     }
@@ -40,6 +40,8 @@ class AfterChatCompletionsEvent
 
     public function setCompletionRequest(ChatCompletionRequest $completionRequest): void
     {
+        $completionRequest = clone $completionRequest;
+        $completionRequest->removeBigObject();
         $this->completionRequest = $completionRequest;
     }
 

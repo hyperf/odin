@@ -8,6 +8,7 @@ Odin 是一个基于 PHP 的 LLM 应用开发框架，其命名灵感来自于�
 - **多模型支持**：支持 OpenAI、Azure OpenAI、AWS Bedrock、Doubao、ChatGLM 等多种大语言模型
 - **统一接口**：提供一致的 API 接口，简化与不同 LLM 提供商的集成
 - **工具调用**：支持 Function Calling，允许模型调用自定义工具和函数
+- **MCP 集成**：基于 [dtyq/php-mcp](https://github.com/dtyq/php-mcp) 实现 Model Context Protocol 支持，轻松接入外部工具和服务
 - **记忆管理**：提供灵活的记忆管理系统，支持会话上下文保持
 - **向量存储**：集成 Qdrant 向量数据库，支持知识检索和语义搜索
 - **Agent 开发**：内置 Agent 框架，支持智能代理开发
@@ -62,6 +63,7 @@ return [
 - 记忆管理
 - Agent 开发
 - 示例项目
+- MCP 集成
 - 常见问题解答
 
 ## License

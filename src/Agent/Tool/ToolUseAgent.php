@@ -63,12 +63,14 @@ class ToolUseAgent
 
     private array $businessParams = [];
 
+    private array $mcpTools = [];
+
     public function __construct(
-        private ModelInterface $model,
+        private readonly ModelInterface $model,
         private ?MemoryInterface $memory = null,
         private array $tools = [],
-        private float $temperature = 0.6,
-        private ?LoggerInterface $logger = null,
+        private readonly float $temperature = 0.6,
+        private readonly ?LoggerInterface $logger = null,
     ) {
         if ($this->memory === null) {
             $this->memory = new MemoryManager();
@@ -238,6 +240,11 @@ class ToolUseAgent
         return $this->usedTools;
     }
 
+    public function getMcpTools(): array
+    {
+        return $this->mcpTools;
+    }
+
     protected function call(?UserMessage $input = null, bool $stream = false): Generator
     {
         if ($input) {
@@ -383,6 +390,10 @@ class ToolUseAgent
                     $definitionTools[$definitionTool->getName()] = $definitionTool;
                 }
             }
+        }
+        foreach ($this->model->getMcpServerManager()?->getAllTools() ?? [] as $tool) {
+            $definitionTools[$tool->getName()] = $tool;
+            $this->mcpTools[$tool->getName()] = $tool;
         }
         return $definitionTools;
     }

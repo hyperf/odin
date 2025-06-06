@@ -432,6 +432,375 @@ echo "\n";
 echo '流式调用耗时：' . (microtime(true) - $start) . '秒' . PHP_EOL;
 ```
 
+## MCP 集成示例
+
+Odin 框架支持 Model Context Protocol (MCP) 集成，基于 **[dtyq/php-mcp](https://github.com/dtyq/php-mcp)** 库实现，可以轻松接入外部工具和服务。
+
+### HTTP MCP 服务器集成
+
+以下示例展示如何使用 HTTP MCP 服务器（如高德地图API）：
+
+```php
+<?php
+
+declare(strict_types=1);
+
+! defined('BASE_PATH') && define('BASE_PATH', dirname(__DIR__, 1));
+
+require_once dirname(__FILE__, 2) . '/vendor/autoload.php';
+
+use Hyperf\Context\ApplicationContext;
+use Hyperf\Di\ClassLoader;
+use Hyperf\Di\Container;
+use Hyperf\Di\Definition\DefinitionSourceFactory;
+use Hyperf\Odin\Api\Request\ChatCompletionRequest;
+use Hyperf\Odin\Logger;
+use Hyperf\Odin\Mcp\McpServerConfig;
+use Hyperf\Odin\Mcp\McpServerManager;
+use Hyperf\Odin\Mcp\McpType;
+use Hyperf\Odin\Message\SystemMessage;
+use Hyperf\Odin\Message\UserMessage;
+use Hyperf\Odin\Model\AzureOpenAIModel;
+
+use function Hyperf\Support\env;
+
+ClassLoader::init();
+
+$container = ApplicationContext::setContainer(new Container((new DefinitionSourceFactory())()));
+
+// 配置 MCP 服务器管理器
+$mcpServerManager = new McpServerManager([
+    new McpServerConfig(
+        McpType::Http,
+        '高德地图',
+        'https://mcp.amap.com/sse?key=' . env('AMAP_API_KEY'),
+    ),
+]);
+
+// 初始化模型
+$model = new AzureOpenAIModel(
+    'gpt-4o-global',
+    [
+        'api_key' => env('AZURE_OPENAI_4O_API_KEY'),
+        'api_base' => env('AZURE_OPENAI_4O_API_BASE'),
+        'api_version' => env('AZURE_OPENAI_4O_API_VERSION'),
+        'deployment_name' => env('AZURE_OPENAI_4O_DEPLOYMENT_NAME'),
+    ],
+    new Logger(),
+);
+
+// 启用函数调用并注册 MCP 服务器
+$model->getModelOptions()->setFunctionCall(true);
+$model->registerMcpServerManager($mcpServerManager);
+
+// 准备消息
+$messages = [
+    new SystemMessage('你是一个智能助手，可以使用地图API来查询位置和天气信息。'),
+    new UserMessage('使用高德地图API查询深圳20250101的天气情况'),
+];
+
+$start = microtime(true);
+
+// 使用非流式API调用
+$request = new ChatCompletionRequest($messages);
+$response = $model->chatWithRequest($request);
+
+// 输出完整响应
+$message = $response->getFirstChoice()->getMessage();
+var_dump($message);
+
+echo PHP_EOL;
+echo '耗时' . (microtime(true) - $start) . '秒' . PHP_EOL;
+```
+
+### STDIO MCP 服务器集成
+
+以下示例展示如何使用本地 STDIO MCP 服务器：
+
+```php
+<?php
+
+declare(strict_types=1);
+
+! defined('BASE_PATH') && define('BASE_PATH', dirname(__DIR__, 1));
+
+require_once dirname(__FILE__, 2) . '/vendor/autoload.php';
+
+use Hyperf\Context\ApplicationContext;
+use Hyperf\Di\ClassLoader;
+use Hyperf\Di\Container;
+use Hyperf\Di\Definition\DefinitionSourceFactory;
+use Hyperf\Odin\Api\Request\ChatCompletionRequest;
+use Hyperf\Odin\Logger;
+use Hyperf\Odin\Mcp\McpServerConfig;
+use Hyperf\Odin\Mcp\McpServerManager;
+use Hyperf\Odin\Mcp\McpType;
+use Hyperf\Odin\Message\SystemMessage;
+use Hyperf\Odin\Message\UserMessage;
+use Hyperf\Odin\Model\AzureOpenAIModel;
+
+use function Hyperf\Support\env;
+
+ClassLoader::init();
+
+$container = ApplicationContext::setContainer(new Container((new DefinitionSourceFactory())()));
+
+// 配置本地 STDIO MCP 服务器
+$mcpServerManager = new McpServerManager([
+    new McpServerConfig(
+        type: McpType::Stdio,
+        name: 'stdio 工具',
+        command: 'php',
+        args: [
+            BASE_PATH . '/examples/mcp/stdio_server.php',
+        ]
+    ),
+]);
+
+// 初始化模型
+$model = new AzureOpenAIModel(
+    'gpt-4o-global',
+    [
+        'api_key' => env('AZURE_OPENAI_4O_API_KEY'),
+        'api_base' => env('AZURE_OPENAI_4O_API_BASE'),
+        'api_version' => env('AZURE_OPENAI_4O_API_VERSION'),
+        'deployment_name' => env('AZURE_OPENAI_4O_DEPLOYMENT_NAME'),
+    ],
+    new Logger(),
+);
+
+// 启用函数调用并注册 MCP 服务器
+$model->getModelOptions()->setFunctionCall(true);
+$model->registerMcpServerManager($mcpServerManager);
+
+// 准备消息
+$messages = [
+    new SystemMessage('你是一个智能助手，可以使用各种本地工具。'),
+    new UserMessage('echo 一个字符串：odin'),
+];
+
+$start = microtime(true);
+
+// 使用非流式API调用
+$request = new ChatCompletionRequest($messages);
+$response = $model->chatWithRequest($request);
+
+// 输出完整响应
+$message = $response->getFirstChoice()->getMessage();
+var_dump($message);
+
+echo PHP_EOL;
+echo '耗时' . (microtime(true) - $start) . '秒' . PHP_EOL;
+```
+
+### MCP 与 Agent 集成示例
+
+结合 ToolUseAgent 使用 MCP 工具，实现更复杂的任务执行：
+
+```php
+<?php
+
+declare(strict_types=1);
+
+! defined('BASE_PATH') && define('BASE_PATH', dirname(__DIR__, 1));
+
+require_once dirname(__FILE__, 2) . '/vendor/autoload.php';
+
+use Hyperf\Context\ApplicationContext;
+use Hyperf\Di\ClassLoader;
+use Hyperf\Di\Container;
+use Hyperf\Di\Definition\DefinitionSourceFactory;
+use Hyperf\Odin\Agent\Tool\ToolUseAgent;
+use Hyperf\Odin\Api\RequestOptions\ApiOptions;
+use Hyperf\Odin\Factory\ModelFactory;
+use Hyperf\Odin\Logger;
+use Hyperf\Odin\Mcp\McpServerConfig;
+use Hyperf\Odin\Mcp\McpServerManager;
+use Hyperf\Odin\Mcp\McpType;
+use Hyperf\Odin\Memory\MemoryManager;
+use Hyperf\Odin\Message\AssistantMessage;
+use Hyperf\Odin\Message\SystemMessage;
+use Hyperf\Odin\Message\UserMessage;
+use Hyperf\Odin\Model\AzureOpenAIModel;
+use Hyperf\Odin\Model\ModelOptions;
+use Hyperf\Odin\Tool\Definition\ToolDefinition;
+use Hyperf\Odin\Tool\Definition\ToolParameters;
+
+use function Hyperf\Support\env;
+
+ClassLoader::init();
+$container = ApplicationContext::setContainer(new Container((new DefinitionSourceFactory())()));
+
+// 创建日志记录器
+$logger = new Logger();
+
+// 初始化模型
+$model = ModelFactory::create(
+    implementation: AzureOpenAIModel::class,
+    modelName: 'gpt-4o-global',
+    config: [
+        'api_key' => env('AZURE_OPENAI_4O_API_KEY'),
+        'api_base' => env('AZURE_OPENAI_4O_API_BASE'),
+        'api_version' => env('AZURE_OPENAI_4O_API_VERSION'),
+        'deployment_name' => env('AZURE_OPENAI_4O_DEPLOYMENT_NAME'),
+    ],
+    modelOptions: ModelOptions::fromArray([
+        'chat' => true,
+        'function_call' => true,
+        'embedding' => false,
+        'multi_modal' => true,
+        'vector_size' => 0,
+    ]),
+    apiOptions: ApiOptions::fromArray([
+        'timeout' => [
+            'connection' => 5.0,
+            'write' => 10.0,
+            'read' => 300.0,
+            'total' => 350.0,
+            'thinking' => 120.0,
+            'stream_chunk' => 30.0,
+            'stream_first' => 60.0,
+        ],
+        'custom_error_mapping_rules' => [],
+    ]),
+    logger: $logger
+);
+
+// 配置多个 MCP 服务器
+$key = $_ENV['MCP_API_KEY'] ?? getenv('MCP_API_KEY') ?: '123456';
+$mcpServerManager = new McpServerManager([
+    // HTTP MCP 服务器（高德地图）
+    new McpServerConfig(
+        McpType::Http,
+        '高德地图',
+        'https://mcp.amap.com/sse?key=' . $key,
+    ),
+    // STDIO MCP 服务器（本地工具）
+    new McpServerConfig(
+        type: McpType::Stdio,
+        name: '本地工具',
+        command: 'php',
+        args: [
+            BASE_PATH . '/examples/mcp/stdio_server.php',
+        ]
+    ),
+]);
+
+// 注册 MCP 服务器到模型
+$model->registerMcpServerManager($mcpServerManager);
+
+// 初始化内存管理器
+$memory = new MemoryManager();
+$memory->addSystemMessage(new SystemMessage('你是一个智能助手，能够使用各种工具完成复杂任务，包括地图查询、天气预报和本地计算等。'));
+
+// 定义本地计算工具
+$calculatorTool = new ToolDefinition(
+    name: 'calculator',
+    description: '用于执行基本数学运算的计算器工具',
+    parameters: ToolParameters::fromArray([
+        'type' => 'object',
+        'properties' => [
+            'operation' => [
+                'type' => 'string',
+                'enum' => ['add', 'subtract', 'multiply', 'divide'],
+                'description' => '要执行的数学运算类型',
+            ],
+            'a' => [
+                'type' => 'number',
+                'description' => '第一个操作数',
+            ],
+            'b' => [
+                'type' => 'number',
+                'description' => '第二个操作数',
+            ],
+        ],
+        'required' => ['operation', 'a', 'b'],
+    ]),
+    toolHandler: function ($params) {
+        $a = $params['a'];
+        $b = $params['b'];
+        switch ($params['operation']) {
+            case 'add':
+                return ['result' => $a + $b];
+            case 'subtract':
+                return ['result' => $a - $b];
+            case 'multiply':
+                return ['result' => $a * $b];
+            case 'divide':
+                if ($b == 0) {
+                    return ['error' => '除数不能为零'];
+                }
+                return ['result' => $a / $b];
+            default:
+                return ['error' => '未知操作'];
+        }
+    }
+);
+
+// 创建带有工具的代理
+$agent = new ToolUseAgent(
+    model: $model,
+    memory: $memory,
+    tools: [
+        $calculatorTool->getName() => $calculatorTool,
+    ],
+    temperature: 0.6,
+    logger: $logger
+);
+
+// 执行复杂任务
+echo "===== MCP 集成工具调用示例 =====\n";
+$start = microtime(true);
+
+$userMessage = new UserMessage('请计算 23 × 45，然后查询北京明天的天气，最后 echo 一个字符串：hello-odin。请详细说明每一步。');
+$response = $agent->chat($userMessage);
+
+$message = $response->getFirstChoice()->getMessage();
+if ($message instanceof AssistantMessage) {
+    echo $message->getContent();
+}
+
+echo "\n";
+echo 'MCP 集成调用耗时：' . (microtime(true) - $start) . '秒' . PHP_EOL;
+```
+
+在这个示例中，Agent 会依次：
+1. 使用本地计算器工具计算 23 × 45
+2. 使用高德地图 MCP 服务查询北京天气
+3. 使用本地 STDIO MCP 服务执行 echo 命令
+4. 整合所有结果生成完整的回答
+
+### MCP 工具发现示例
+
+```php
+<?php
+
+// 获取所有可用的 MCP 工具信息
+$tools = $mcpServerManager->getAllTools();
+
+echo "===== 可用的 MCP 工具 =====\n";
+foreach ($tools as $tool) {
+    echo "工具名称: " . $tool->getName() . "\n";
+    echo "工具描述: " . $tool->getDescription() . "\n";
+    echo "参数定义: " . json_encode($tool->getParameters()->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
+    echo "---\n";
+}
+
+// 直接调用特定的 MCP 工具
+try {
+    $result = $mcpServerManager->callMcpTool('mcp_a_weather', [
+        'city' => '北京'
+    ]);
+    
+    echo "直接调用结果:\n";
+    var_dump($result);
+} catch (Exception $e) {
+    echo "工具调用失败: " . $e->getMessage() . "\n";
+}
+```
+
+这些示例展示了 Odin 框架如何通过 `dtyq/php-mcp` 库无缝集成 MCP 协议，为您的 AI 应用提供强大的外部工具能力扩展。
+
 ## 进阶应用场景
 
 Odin 框架可以应用于各种复杂场景，例如：
