@@ -22,7 +22,7 @@
         "ext-bcmath": "*",
         "ext-mbstring": "*",
         "aws/aws-sdk-php": "^3.0",
-        "dtyq/php-mcp": "^0.0",
+        "dtyq/php-mcp": "0.1.*",
         "guzzlehttp/guzzle": "^7.0|^6.0",
         "hyperf/cache": "~2.2.0 || 3.0.* || 3.1.*",
         "hyperf/config": "~2.2.0 || 3.0.* || 3.1.*",
