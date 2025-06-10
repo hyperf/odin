@@ -116,8 +116,8 @@ class JsonSchemaBuilder
         bool $integer = false,
         ?float $minimum = null,
         ?float $maximum = null,
-        ?bool $exclusiveMinimum = null,
-        ?bool $exclusiveMaximum = null,
+        ?float $exclusiveMinimum = null,
+        ?float $exclusiveMaximum = null,
         ?float $multipleOf = null
     ): self {
         $property = [

@@ -138,8 +138,8 @@ class JsonSchemaBuilderTest extends ToolBaseTestCase
             true,   // 整数
             18,     // 最小值
             120,    // 最大值
-            false,  // 不是严格大于
-            false,  // 不是严格小于
+            17.0,   // 独占最小值 (严格大于17)
+            121.0,  // 独占最大值 (严格小于121)
             1       // 必须是1的倍数
         );
 

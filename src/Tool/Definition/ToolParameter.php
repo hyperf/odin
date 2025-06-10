@@ -79,14 +79,14 @@ class ToolParameter implements Arrayable
     protected ?float $maximum = null;
 
     /**
-     * 是否排除最小值.
+     * 独占最小值 (Draft 7+: 数值类型，表示排除的最小值边界).
      */
-    protected ?bool $exclusiveMinimum = null;
+    protected ?float $exclusiveMinimum = null;
 
     /**
-     * 是否排除最大值.
+     * 独占最大值 (Draft 7+: 数值类型，表示排除的最大值边界).
      */
-    protected ?bool $exclusiveMaximum = null;
+    protected ?float $exclusiveMaximum = null;
 
     /**
      * 数值类型的倍数.
@@ -612,23 +612,23 @@ class ToolParameter implements Arrayable
         return $this;
     }
 
-    public function getExclusiveMinimum(): ?bool
+    public function getExclusiveMinimum(): ?float
     {
         return $this->exclusiveMinimum;
     }
 
-    public function setExclusiveMinimum(bool $exclusiveMinimum): self
+    public function setExclusiveMinimum(float $exclusiveMinimum): self
     {
         $this->exclusiveMinimum = $exclusiveMinimum;
         return $this;
     }
 
-    public function getExclusiveMaximum(): ?bool
+    public function getExclusiveMaximum(): ?float
     {
         return $this->exclusiveMaximum;
     }
 
-    public function setExclusiveMaximum(bool $exclusiveMaximum): self
+    public function setExclusiveMaximum(float $exclusiveMaximum): self
     {
         $this->exclusiveMaximum = $exclusiveMaximum;
         return $this;
