@@ -90,11 +90,11 @@ class ToolParameterTest extends ToolBaseTestCase
         $this->assertEquals(0.01, $param->getMinimum());
         $this->assertEquals(9999.99, $param->getMaximum());
 
-        // 测试独占性最大最小值
-        $param->setExclusiveMinimum(true)->setExclusiveMaximum(true);
+        // 测试独占性最大最小值 (Draft 7+: 使用数值)
+        $param->setExclusiveMinimum(0.0)->setExclusiveMaximum(10000.0);
 
-        $this->assertTrue($param->getExclusiveMinimum());
-        $this->assertTrue($param->getExclusiveMaximum());
+        $this->assertEquals(0.0, $param->getExclusiveMinimum());
+        $this->assertEquals(10000.0, $param->getExclusiveMaximum());
 
         // 测试倍数设置
         $param->setMultipleOf(0.01);
@@ -107,8 +107,8 @@ class ToolParameterTest extends ToolBaseTestCase
         $this->assertEquals('价格', $array['description']);
         $this->assertEquals(0.01, $array['minimum']);
         $this->assertEquals(9999.99, $array['maximum']);
-        $this->assertTrue($array['exclusiveMinimum']);
-        $this->assertTrue($array['exclusiveMaximum']);
+        $this->assertEquals(0.0, $array['exclusiveMinimum']);
+        $this->assertEquals(10000.0, $array['exclusiveMaximum']);
         $this->assertEquals(0.01, $array['multipleOf']);
     }
 
