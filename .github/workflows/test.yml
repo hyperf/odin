@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest ]
-        php-version: [ '8.1', '8.2' ]
+        php-version: [ '8.1', '8.2', '8.3' ]
         engine: [ 'none', 'swoole', 'swow' ]
       max-parallel: 5
     steps:
