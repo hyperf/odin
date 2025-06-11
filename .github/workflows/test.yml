@@ -10,6 +10,7 @@ jobs:
   ci:
     name: Test PHP ${{ matrix.php-version }} on ${{ matrix.engine }}
     runs-on: "${{ matrix.os }}"
+    timeout-minutes: 30
     strategy:
       matrix:
         os: [ ubuntu-latest ]
@@ -26,6 +27,16 @@ jobs:
           tools: phpize
           ini-values: opcache.enable_cli=0
           coverage: none
+      - name: Get Composer Cache Directory
+        id: composer-cache
+        run: echo "::set-output name=dir::$(composer config cache-files-dir)"
+      - name: Cache Composer packages
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-php-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-php-${{ matrix.php-version }}-
       - name: Setup Swoole
         if: ${{ matrix.engine == 'swoole' }}
         run: |
@@ -62,7 +73,9 @@ jobs:
           sudo sh -c "echo extension=swow > /etc/php/${{ matrix.php-version }}/cli/conf.d/swow.ini"
           php --ri swow
       - name: Setup Packages
-        run: composer update -o --no-scripts
+        run: |
+          composer config --global process-timeout 600
+          composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
       - name: Run Test Cases
         run: |
           vendor/bin/php-cs-fixer fix --dry-run
