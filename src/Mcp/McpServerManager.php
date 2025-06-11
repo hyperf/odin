@@ -22,6 +22,7 @@ use Hyperf\Odin\Exception\InvalidArgumentException;
 use Hyperf\Odin\Exception\McpException;
 use Hyperf\Odin\Tool\Definition\ToolDefinition;
 use Hyperf\Odin\Tool\Definition\ToolParameters;
+use Psr\Log\LoggerInterface;
 use Throwable;
 
 class McpServerManager implements McpServerManagerInterface
@@ -50,6 +51,8 @@ class McpServerManager implements McpServerManagerInterface
 
     private bool $discovered = false;
 
+    private ?LoggerInterface $logger = null;
+
     /**
      * @param array<McpServerConfigInterface> $mcpServerConfigs
      * @throws InvalidArgumentException
@@ -65,7 +68,11 @@ class McpServerManager implements McpServerManagerInterface
         if (empty($this->mcpServerConfigs)) {
             throw new InvalidArgumentException('McpServerManager requires at least one McpServerConfig.');
         }
-        $this->mcpClient = new McpClient('Odin', '1.0.0', new Application(ApplicationContext::getContainer()));
+        $container = ApplicationContext::getContainer();
+        $this->mcpClient = new McpClient('Odin', '1.0.0', new Application($container));
+        if ($container->has(LoggerInterface::class)) {
+            $this->logger = $container->get(LoggerInterface::class);
+        }
     }
 
     public function __destruct()
@@ -96,11 +103,11 @@ class McpServerManager implements McpServerManagerInterface
                 $registered[] = $mcpServerConfig->getName();
                 ++$sessionIndex;
             } catch (Throwable $throwable) {
-                throw new McpException(sprintf(
-                    'Failed to connect to MCP server "%s" : %s',
-                    $mcpServerConfig->getName(),
-                    $throwable->getMessage()
-                ), 0, $throwable);
+                $this->logger?->warning('FailedToConnectToMCPServer', [
+                    'server' => $mcpServerConfig->getName(),
+                    'error' => $throwable->getMessage(),
+                    'trace' => $throwable->getTraceAsString(),
+                ]);
             }
         }
 
