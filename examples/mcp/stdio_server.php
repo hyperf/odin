@@ -64,7 +64,7 @@ $container = new class implements ContainerInterface {
             {
                 $timestamp = date('Y-m-d H:i:s') . rand(1, 9);
                 $contextStr = empty($context) ? '' : ' ' . json_encode($context);
-                file_put_contents(__DIR__ . '/stdio-server-test.log', "[{$timestamp}] {$level}: {$message}{$contextStr}\n", FILE_APPEND);
+                file_put_contents(BASE_PATH . '/runtime/stdio-server-test.log', "[{$timestamp}] {$level}: {$message}{$contextStr}\n", FILE_APPEND);
             }
         };
 
