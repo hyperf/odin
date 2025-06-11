@@ -16,6 +16,8 @@ use Hyperf\Odin\Api\Providers\AwsBedrock\Cache\Strategy\CacheStrategyInterface;
 use Hyperf\Odin\Api\Providers\AwsBedrock\Cache\Strategy\DynamicCacheStrategy;
 use Hyperf\Odin\Api\Providers\AwsBedrock\Cache\Strategy\NoneCacheStrategy;
 use Hyperf\Odin\Api\Request\ChatCompletionRequest;
+use HyperfTest\Odin\Mock\Cache;
+use Throwable;
 
 use function Hyperf\Support\make;
 
@@ -68,18 +70,18 @@ class AwsBedrockCachePointManager
     {
         try {
             return make($strategyClass);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             // 在测试环境或无Swoole环境下，直接实例化
             if ($strategyClass === NoneCacheStrategy::class) {
                 return new NoneCacheStrategy();
             }
-            
+
             if ($strategyClass === DynamicCacheStrategy::class) {
                 // DynamicCacheStrategy 需要 CacheInterface，使用模拟缓存
-                $cache = new \HyperfTest\Odin\Mock\Cache();
+                $cache = new Cache();
                 return new DynamicCacheStrategy($cache);
             }
-            
+
             throw $e;
         }
     }
