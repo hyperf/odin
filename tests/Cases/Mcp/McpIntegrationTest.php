@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace HyperfTest\Odin\Cases\Mcp;
 
+use Exception;
 use Hyperf\Context\ApplicationContext;
 use Hyperf\Di\ClassLoader;
 use Hyperf\Di\Container;
@@ -24,8 +25,8 @@ use HyperfTest\Odin\Cases\AbstractTestCase;
 
 /**
  * @internal
- * @covers \Hyperf\Odin\Mcp\McpServerManager
  * @covers \Hyperf\Odin\Mcp\McpServerConfig
+ * @covers \Hyperf\Odin\Mcp\McpServerManager
  * @covers \Hyperf\Odin\Mcp\McpType
  */
 class McpIntegrationTest extends AbstractTestCase
@@ -37,11 +38,11 @@ class McpIntegrationTest extends AbstractTestCase
         ClassLoader::init();
         ApplicationContext::setContainer(new Container((new DefinitionSourceFactory())()));
         parent::setUp();
-        
+
         $this->stdioServerPath = dirname(__DIR__, 3) . '/examples/mcp/stdio_server.php';
-        
+
         // Check if stdio server file exists
-        if (!file_exists($this->stdioServerPath)) {
+        if (! file_exists($this->stdioServerPath)) {
             $this->markTestSkipped('STDIO server file not found: ' . $this->stdioServerPath);
         }
     }
@@ -89,10 +90,10 @@ class McpIntegrationTest extends AbstractTestCase
         }
 
         // Step 4: Test tool execution scenarios
-        
+
         // Test 1: Simple echo from first server
         $echoResult1 = $manager->callMcpTool('mcp_a_echo', [
-            'message' => 'Hello from server A'
+            'message' => 'Hello from server A',
         ]);
         $this->assertIsArray($echoResult1);
         $this->assertArrayHasKey('content', $echoResult1);
@@ -100,7 +101,7 @@ class McpIntegrationTest extends AbstractTestCase
 
         // Test 2: Simple echo from second server
         $echoResult2 = $manager->callMcpTool('mcp_b_echo', [
-            'message' => 'Hello from server B'
+            'message' => 'Hello from server B',
         ]);
         $this->assertIsArray($echoResult2);
         $this->assertArrayHasKey('content', $echoResult2);
@@ -118,12 +119,12 @@ class McpIntegrationTest extends AbstractTestCase
             $calcResult = $manager->callMcpTool('mcp_a_calculate', [
                 'operation' => $calc['operation'],
                 'a' => $calc['a'],
-                'b' => $calc['b']
+                'b' => $calc['b'],
             ]);
 
             $this->assertIsArray($calcResult);
             $this->assertArrayHasKey('content', $calcResult);
-            
+
             $resultData = json_decode($calcResult['content'][0]['text'], true);
             $this->assertIsArray($resultData);
             $this->assertEquals($calc['operation'], $resultData['operation']);
@@ -133,7 +134,7 @@ class McpIntegrationTest extends AbstractTestCase
 
         // Test 4: Cross-server calculation validation
         $sameCalculation = ['operation' => 'multiply', 'a' => 9, 'b' => 9];
-        
+
         $resultA = $manager->callMcpTool('mcp_a_calculate', $sameCalculation);
         $resultB = $manager->callMcpTool('mcp_b_calculate', $sameCalculation);
 
@@ -158,7 +159,7 @@ class McpIntegrationTest extends AbstractTestCase
         $calcTool = $tools['mcp_a_calculate'];
         $parameters = $calcTool->getParameters();
         $this->assertNotNull($parameters);
-        
+
         $paramArray = $parameters->toArray();
         $this->assertArrayHasKey('properties', $paramArray);
         $this->assertArrayHasKey('operation', $paramArray['properties']);
@@ -189,10 +190,10 @@ class McpIntegrationTest extends AbstractTestCase
             $manager->callMcpTool('mcp_a_calculate', [
                 'operation' => 'divide',
                 'a' => 10,
-                'b' => 0
+                'b' => 0,
             ]);
             $this->fail('Expected exception for division by zero');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // The error message might be wrapped in a JSON-RPC error, just check for MCP error
             $this->assertStringContainsString('Failed to call MCP tool', $e->getMessage());
         }
@@ -202,10 +203,10 @@ class McpIntegrationTest extends AbstractTestCase
             $manager->callMcpTool('mcp_a_calculate', [
                 'operation' => 'invalid',
                 'a' => 10,
-                'b' => 5
+                'b' => 5,
             ]);
             $this->fail('Expected exception for invalid operation');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // The error message might be wrapped in a JSON-RPC error, just check for MCP error
             $this->assertStringContainsString('Failed to call MCP tool', $e->getMessage());
         }
@@ -229,7 +230,7 @@ class McpIntegrationTest extends AbstractTestCase
         // Get the echo tool and test its handler directly
         $echoTool = $tools['mcp_a_echo'];
         $handler = $echoTool->getToolHandler();
-        
+
         $this->assertIsCallable($handler);
 
         // Execute the handler directly
@@ -238,4 +239,4 @@ class McpIntegrationTest extends AbstractTestCase
         $this->assertArrayHasKey('content', $result);
         $this->assertStringContainsString('Echo: Direct handler test', $result['content'][0]['text']);
     }
-} 
+}

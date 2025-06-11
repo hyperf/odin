@@ -251,4 +251,4 @@ class McpServerConfigTest extends AbstractTestCase
         );
         $this->assertEquals(['tool1', 'tool2', 'tool3'], $config2->getAllowedTools());
     }
-} 
+}

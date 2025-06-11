@@ -34,8 +34,8 @@ class McpTypeTest extends AbstractTestCase
         // Test all cases exist
         $cases = McpType::cases();
         $this->assertCount(3, $cases);
-        
-        $values = array_map(fn($case) => $case->value, $cases);
+
+        $values = array_map(fn ($case) => $case->value, $cases);
         $this->assertContains('none', $values);
         $this->assertContains('stdio', $values);
         $this->assertContains('http', $values);
@@ -57,4 +57,4 @@ class McpTypeTest extends AbstractTestCase
         $this->assertEquals(McpType::Http, McpType::tryFrom('http'));
         $this->assertNull(McpType::tryFrom('invalid'));
     }
-} 
+}

@@ -17,12 +17,12 @@ use Hyperf\Di\ClassLoader;
 use Hyperf\Di\Container;
 use Hyperf\Di\Definition\DefinitionSourceFactory;
 use Hyperf\Odin\Exception\InvalidArgumentException;
-use Hyperf\Odin\Exception\McpException;
 use Hyperf\Odin\Mcp\McpServerConfig;
 use Hyperf\Odin\Mcp\McpServerManager;
 use Hyperf\Odin\Mcp\McpType;
 use Hyperf\Odin\Tool\Definition\ToolDefinition;
 use HyperfTest\Odin\Cases\AbstractTestCase;
+use ReflectionClass;
 
 /**
  * @internal
@@ -37,11 +37,11 @@ class McpServerManagerTest extends AbstractTestCase
         ClassLoader::init();
         ApplicationContext::setContainer(new Container((new DefinitionSourceFactory())()));
         parent::setUp();
-        
+
         $this->stdioServerPath = dirname(__DIR__, 3) . '/examples/mcp/stdio_server.php';
-        
+
         // Check if stdio server file exists
-        if (!file_exists($this->stdioServerPath)) {
+        if (! file_exists($this->stdioServerPath)) {
             $this->markTestSkipped('STDIO server file not found: ' . $this->stdioServerPath);
         }
     }
@@ -129,7 +129,7 @@ class McpServerManagerTest extends AbstractTestCase
         $this->assertArrayHasKey('content', $result);
         $this->assertIsArray($result['content']);
         $this->assertNotEmpty($result['content']);
-        
+
         // Check the echo result
         $content = $result['content'][0];
         $this->assertArrayHasKey('text', $content);
@@ -154,9 +154,9 @@ class McpServerManagerTest extends AbstractTestCase
         $result = $manager->callMcpTool('mcp_a_calculate', [
             'operation' => 'add',
             'a' => 10,
-            'b' => 5
+            'b' => 5,
         ]);
-        
+
         $this->assertIsArray($result);
         $this->assertArrayHasKey('content', $result);
         $this->assertIsArray($result['content']);
@@ -263,7 +263,7 @@ class McpServerManagerTest extends AbstractTestCase
         $manager = new McpServerManager($configs);
 
         // Test the private sessionIndexToLetter method via reflection
-        $reflection = new \ReflectionClass($manager);
+        $reflection = new ReflectionClass($manager);
         $method = $reflection->getMethod('sessionIndexToLetter');
 
         $this->assertEquals('a', $method->invoke($manager, 0));
@@ -289,7 +289,7 @@ class McpServerManagerTest extends AbstractTestCase
         // Call discover multiple times
         $manager->discover();
         $tools1 = $manager->getAllTools();
-        
+
         $manager->discover();
         $tools2 = $manager->getAllTools();
 
@@ -313,8 +313,165 @@ class McpServerManagerTest extends AbstractTestCase
 
         $tools = $manager->getAllTools();
         $echoTool = $tools['mcp_a_echo'] ?? null;
-        
+
         $this->assertNotNull($echoTool);
         $this->assertStringContainsString('MCP server [my-test-server]', $echoTool->getDescription());
     }
-} 
+
+    public function testAllowedToolsFiltering()
+    {
+        // Test with only echo tool allowed
+        $configs = [
+            new McpServerConfig(
+                type: McpType::Stdio,
+                name: 'filtered-server',
+                command: 'php',
+                args: [$this->stdioServerPath],
+                allowedTools: ['echo'] // Only allow echo tool
+            ),
+        ];
+
+        $manager = new McpServerManager($configs);
+        $manager->discover();
+
+        $tools = $manager->getAllTools();
+        $toolNames = array_keys($tools);
+
+        // Should only have echo tool, not calculate tool
+        $this->assertContains('mcp_a_echo', $toolNames);
+        $this->assertNotContains('mcp_a_calculate', $toolNames);
+        $this->assertCount(1, $tools);
+    }
+
+    public function testAllowedToolsWithMultipleTools()
+    {
+        // Test with both tools allowed explicitly
+        $configs = [
+            new McpServerConfig(
+                type: McpType::Stdio,
+                name: 'multi-tool-server',
+                command: 'php',
+                args: [$this->stdioServerPath],
+                allowedTools: ['echo', 'calculate'] // Allow both tools
+            ),
+        ];
+
+        $manager = new McpServerManager($configs);
+        $manager->discover();
+
+        $tools = $manager->getAllTools();
+        $toolNames = array_keys($tools);
+
+        // Should have both tools
+        $this->assertContains('mcp_a_echo', $toolNames);
+        $this->assertContains('mcp_a_calculate', $toolNames);
+        $this->assertCount(2, $tools);
+    }
+
+    public function testAllowedToolsWithNonExistentTool()
+    {
+        // Test with a non-existent tool in allowed list
+        $configs = [
+            new McpServerConfig(
+                type: McpType::Stdio,
+                name: 'non-existent-tool-server',
+                command: 'php',
+                args: [$this->stdioServerPath],
+                allowedTools: ['echo', 'nonexistent'] // Include non-existent tool
+            ),
+        ];
+
+        $manager = new McpServerManager($configs);
+        $manager->discover();
+
+        $tools = $manager->getAllTools();
+        $toolNames = array_keys($tools);
+
+        // Should only have echo tool (nonexistent tool should be ignored)
+        $this->assertContains('mcp_a_echo', $toolNames);
+        $this->assertNotContains('mcp_a_calculate', $toolNames);
+        $this->assertNotContains('mcp_a_nonexistent', $toolNames);
+        $this->assertCount(1, $tools);
+    }
+
+    public function testAllowedToolsWithEmptyList()
+    {
+        // Test with empty allowed tools list
+        $configs = [
+            new McpServerConfig(
+                type: McpType::Stdio,
+                name: 'empty-tools-server',
+                command: 'php',
+                args: [$this->stdioServerPath],
+                allowedTools: [] // Empty list - no tools allowed
+            ),
+        ];
+
+        $manager = new McpServerManager($configs);
+        $manager->discover();
+
+        $tools = $manager->getAllTools();
+
+        // Should have no tools
+        $this->assertEmpty($tools);
+    }
+
+    public function testAllowedToolsNullMeansAllTools()
+    {
+        // Test with null allowed tools (should allow all)
+        $configs = [
+            new McpServerConfig(
+                type: McpType::Stdio,
+                name: 'all-tools-server',
+                command: 'php',
+                args: [$this->stdioServerPath],
+                allowedTools: null // null means all tools allowed
+            ),
+        ];
+
+        $manager = new McpServerManager($configs);
+        $manager->discover();
+
+        $tools = $manager->getAllTools();
+        $toolNames = array_keys($tools);
+
+        // Should have all available tools
+        $this->assertContains('mcp_a_echo', $toolNames);
+        $this->assertContains('mcp_a_calculate', $toolNames);
+        $this->assertCount(2, $tools);
+    }
+
+    public function testMultipleServersWithDifferentAllowedTools()
+    {
+        // Test multiple servers with different allowed tools
+        $configs = [
+            new McpServerConfig(
+                type: McpType::Stdio,
+                name: 'echo-only-server',
+                command: 'php',
+                args: [$this->stdioServerPath],
+                allowedTools: ['echo'] // Only echo
+            ),
+            new McpServerConfig(
+                type: McpType::Stdio,
+                name: 'calc-only-server',
+                command: 'php',
+                args: [$this->stdioServerPath],
+                allowedTools: ['calculate'] // Only calculate
+            ),
+        ];
+
+        $manager = new McpServerManager($configs);
+        $manager->discover();
+
+        $tools = $manager->getAllTools();
+        $toolNames = array_keys($tools);
+
+        // Should have echo from first server and calculate from second server
+        $this->assertContains('mcp_a_echo', $toolNames);
+        $this->assertNotContains('mcp_a_calculate', $toolNames);
+        $this->assertNotContains('mcp_b_echo', $toolNames);
+        $this->assertContains('mcp_b_calculate', $toolNames);
+        $this->assertCount(2, $tools);
+    }
+}
