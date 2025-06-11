@@ -97,6 +97,10 @@ class ToolUseAgentTest extends AbstractTestCase
         $this->logger->shouldReceive('warning')->andReturn(null);
         $this->logger->shouldReceive('error')->andReturn(null);
 
+        // 添加对 getMcpServerManager 的期望
+        $this->model->shouldReceive('getMcpServerManager')
+            ->andReturn(null);
+
         // 创建测试用工具
         $this->tools = [
             'calculator' => new ToolDefinition(
@@ -861,6 +865,10 @@ class ToolUseAgentTest extends AbstractTestCase
         $model->shouldReceive('chat')
             ->atLeast(1)
             ->andReturn($mockResponse, $mockResponse);
+
+        // 添加对 getMcpServerManager 的期望
+        $model->shouldReceive('getMcpServerManager')
+            ->andReturn(null);
 
         // 设置 memory 的预期行为 - 验证消息被添加到内存中
         $memory->shouldReceive('addMessage')

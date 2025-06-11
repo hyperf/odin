@@ -151,13 +151,13 @@ class ToolParameters implements Arrayable
             foreach ($parameters['properties'] as $name => $property) {
                 // 从属性定义创建 ToolParameter 对象
                 $param = ToolParameter::fromArray($name, $property);
-
-                // 设置必需属性
-                if (in_array($name, $required)) {
-                    $param->setRequired(true);
+                if ($param) {
+                    // 设置必需属性
+                    if (in_array($name, $required)) {
+                        $param->setRequired(true);
+                    }
+                    $properties[] = $param;
                 }
-
-                $properties[] = $param;
             }
 
             $toolParameters->setProperties($properties);

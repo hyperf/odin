@@ -451,10 +451,12 @@ class ToolParameter implements Arrayable
             if (isset($schema['properties'])) {
                 foreach ($schema['properties'] as $propName => $propSchema) {
                     $property = self::fromArray($propName, $propSchema);
-                    if (isset($schema['required']) && in_array($propName, $schema['required'])) {
-                        $property->setRequired(true);
+                    if ($property) {
+                        if (isset($schema['required']) && in_array($propName, $schema['required'])) {
+                            $property->setRequired(true);
+                        }
+                        $parameter->addProperty($property);
                     }
-                    $parameter->addProperty($property);
                 }
             } else {
                 // 没有任何属性是 null
