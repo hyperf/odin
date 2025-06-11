@@ -17,11 +17,13 @@ use Hyperf\Context\ApplicationContext;
 use Hyperf\Di\ClassLoader;
 use Hyperf\Di\Container;
 use Hyperf\Di\Definition\DefinitionSourceFactory;
+use Hyperf\Odin\Logger;
 use Hyperf\Odin\Mcp\McpServerConfig;
 use Hyperf\Odin\Mcp\McpServerManager;
 use Hyperf\Odin\Mcp\McpType;
 use Hyperf\Odin\Tool\Definition\ToolDefinition;
 use HyperfTest\Odin\Cases\AbstractTestCase;
+use Psr\Log\LoggerInterface;
 use Throwable;
 
 /**
@@ -44,7 +46,9 @@ class McpIntegrationTest extends AbstractTestCase
         }
 
         ClassLoader::init();
-        ApplicationContext::setContainer(new Container((new DefinitionSourceFactory())()));
+        $container = new Container((new DefinitionSourceFactory())());
+        $container->set(LoggerInterface::class, new Logger());
+        ApplicationContext::setContainer($container);
 
         $this->stdioServerPath = dirname(__DIR__, 3) . '/examples/mcp/stdio_server.php';
 
