@@ -155,10 +155,18 @@ class McpServerManager implements McpServerManagerInterface
 
         $namePrefix = "mcp_{$sessionLetter}_";
         $descriptionPrefix = "MCP server [{$mcpServerConfig->getName()}] - ";
+        $allowedTools = $mcpServerConfig->getAllowedTools();
 
         $result = $clientSession->listTools();
         foreach ($result->getTools() as $mcpTool) {
-            $name = $namePrefix . $mcpTool->getName();
+            $originalToolName = $mcpTool->getName();
+
+            // Check if tool is allowed
+            if ($allowedTools !== null && ! in_array($originalToolName, $allowedTools, true)) {
+                continue; // Skip this tool if it's not in the allowed list
+            }
+
+            $name = $namePrefix . $originalToolName;
             $tool = new ToolDefinition(
                 name: $name,
                 description: $descriptionPrefix . $mcpTool->getDescription(),
