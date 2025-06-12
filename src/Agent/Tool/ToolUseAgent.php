@@ -32,6 +32,8 @@ use Throwable;
 
 class ToolUseAgent
 {
+    protected string $assistantEmptyContentPlaceholder = '';
+
     /**
      * 工具调用深度.
      */
@@ -195,7 +197,7 @@ class ToolUseAgent
             if (! empty($toolCalls)) {
                 // 如果有 toolsCall 但是 content 是空，自动加上
                 if ($content === '') {
-                    $content = 'tool_call';
+                    $content = $this->assistantEmptyContentPlaceholder;
                 }
                 $generatorSendMessage = new AssistantMessage($content, $toolCalls);
             }
@@ -327,7 +329,7 @@ class ToolUseAgent
                     'has_tool_calls' => $assistantMessage->hasToolCalls(),
                 ]);
                 if ($assistantMessage->getContent() === '') {
-                    $assistantMessage->setContent('tool_call');
+                    $assistantMessage->setContent($this->assistantEmptyContentPlaceholder);
                 }
             } else {
                 break;
