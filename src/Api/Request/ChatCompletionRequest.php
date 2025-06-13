@@ -54,6 +54,8 @@ class ChatCompletionRequest implements RequestInterface
 
     private ?array $thinking = null;
 
+    private array $optionKeyMaps = [];
+
     public function __construct(
         /** @var MessageInterface[] $messages */
         protected array $messages,
@@ -68,6 +70,11 @@ class ChatCompletionRequest implements RequestInterface
     public function addTool(ToolDefinition $toolDefinition): void
     {
         $this->tools[$toolDefinition->getName()] = $toolDefinition;
+    }
+
+    public function setOptionKeyMaps(array $optionKeyMaps): void
+    {
+        $this->optionKeyMaps = $optionKeyMaps;
     }
 
     public function validate(): void
@@ -94,7 +101,11 @@ class ChatCompletionRequest implements RequestInterface
             'stream' => $this->stream,
         ];
         if ($this->maxTokens > 0) {
-            $json['max_completion_tokens'] = $this->maxTokens;
+            if (isset($this->optionKeyMaps['max_tokens'])) {
+                $json[$this->optionKeyMaps['max_tokens']] = $this->maxTokens;
+            } else {
+                $json['max_tokens'] = $this->maxTokens;
+            }
         }
         if (! empty($this->stop)) {
             $json['stop'] = $this->stop;

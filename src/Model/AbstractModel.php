@@ -63,6 +63,8 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
 
     protected ?McpServerManagerInterface $mcpServerManager = null;
 
+    protected array $chatCompletionRequestOptionKeyMaps = [];
+
     /**
      * 构造函数.
      */
@@ -88,6 +90,7 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
 
     public function chatWithRequest(ChatCompletionRequest $request): ChatCompletionResponse
     {
+        $request->setOptionKeyMaps($this->chatCompletionRequestOptionKeyMaps);
         try {
             $this->registerMcp($request);
             $request->setModel($this->model);
@@ -106,6 +109,7 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
 
     public function chatStreamWithRequest(ChatCompletionRequest $request): ChatCompletionStreamResponse
     {
+        $request->setOptionKeyMaps($this->chatCompletionRequestOptionKeyMaps);
         try {
             $this->registerMcp($request);
             $request->setModel($this->model);
@@ -143,7 +147,7 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
 
             $client = $this->getClient();
             $chatRequest = new ChatCompletionRequest($messages, $this->model, $temperature, $maxTokens, $stop, $tools, false);
-
+            $chatRequest->setOptionKeyMaps($this->chatCompletionRequestOptionKeyMaps);
             $chatRequest->setFrequencyPenalty($frequencyPenalty);
             $chatRequest->setPresencePenalty($presencePenalty);
             $chatRequest->setBusinessParams($businessParams);
@@ -186,6 +190,7 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
 
             $client = $this->getClient();
             $chatRequest = new ChatCompletionRequest($messages, $this->model, $temperature, $maxTokens, $stop, $tools, true);
+            $chatRequest->setOptionKeyMaps($this->chatCompletionRequestOptionKeyMaps);
             $chatRequest->setFrequencyPenalty($frequencyPenalty);
             $chatRequest->setPresencePenalty($presencePenalty);
             $chatRequest->setBusinessParams($businessParams);

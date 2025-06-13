@@ -47,7 +47,7 @@ $messages = [
 $start = microtime(true);
 
 // 使用非流式API调用
-$request = new ChatCompletionRequest($messages);
+$request = new ChatCompletionRequest($messages, maxTokens: 8096);
 $request->setThinking([
     'type' => 'disabled',
 ]);
