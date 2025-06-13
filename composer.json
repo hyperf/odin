@@ -40,7 +40,9 @@
         "vlucas/phpdotenv": "^5.0"
     },
     "suggest": {
-        "swow/swow": "Required to create swow components."
+        "swow/swow": "Required to create swow components.",
+        "hyperf/engine-swow": "Required when using Swow as the event loop (^2.12).",
+        "hyperf/engine": "Required when using Swoole as the event loop (^2.14)."
     },
     "minimum-stability": "dev",
     "prefer-stable": true,
