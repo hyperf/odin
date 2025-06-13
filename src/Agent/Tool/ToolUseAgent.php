@@ -32,6 +32,8 @@ use Throwable;
 
 class ToolUseAgent
 {
+    protected string $assistantEmptyContentPlaceholder = '';
+
     /**
      * 工具调用深度.
      */
@@ -63,12 +65,14 @@ class ToolUseAgent
 
     private array $businessParams = [];
 
+    private array $mcpTools = [];
+
     public function __construct(
-        private ModelInterface $model,
+        private readonly ModelInterface $model,
         private ?MemoryInterface $memory = null,
         private array $tools = [],
-        private float $temperature = 0.6,
-        private ?LoggerInterface $logger = null,
+        private readonly float $temperature = 0.6,
+        private readonly ?LoggerInterface $logger = null,
     ) {
         if ($this->memory === null) {
             $this->memory = new MemoryManager();
@@ -193,7 +197,7 @@ class ToolUseAgent
             if (! empty($toolCalls)) {
                 // 如果有 toolsCall 但是 content 是空，自动加上
                 if ($content === '') {
-                    $content = 'tool_call';
+                    $content = $this->assistantEmptyContentPlaceholder;
                 }
                 $generatorSendMessage = new AssistantMessage($content, $toolCalls);
             }
@@ -236,6 +240,11 @@ class ToolUseAgent
     public function getUsedTools(): array
     {
         return $this->usedTools;
+    }
+
+    public function getMcpTools(): array
+    {
+        return $this->mcpTools;
     }
 
     protected function call(?UserMessage $input = null, bool $stream = false): Generator
@@ -320,7 +329,7 @@ class ToolUseAgent
                     'has_tool_calls' => $assistantMessage->hasToolCalls(),
                 ]);
                 if ($assistantMessage->getContent() === '') {
-                    $assistantMessage->setContent('tool_call');
+                    $assistantMessage->setContent($this->assistantEmptyContentPlaceholder);
                 }
             } else {
                 break;
@@ -383,6 +392,10 @@ class ToolUseAgent
                     $definitionTools[$definitionTool->getName()] = $definitionTool;
                 }
             }
+        }
+        foreach ($this->model->getMcpServerManager()?->getAllTools() ?? [] as $tool) {
+            $definitionTools[$tool->getName()] = $tool;
+            $this->mcpTools[$tool->getName()] = $tool;
         }
         return $definitionTools;
     }

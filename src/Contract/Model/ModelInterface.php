@@ -12,13 +12,19 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Contract\Model;
 
+use Hyperf\Odin\Api\Request\ChatCompletionRequest;
 use Hyperf\Odin\Api\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\Response\ChatCompletionStreamResponse;
 use Hyperf\Odin\Api\Response\TextCompletionResponse;
+use Hyperf\Odin\Contract\Mcp\McpServerManagerInterface;
 use Hyperf\Odin\Contract\Message\MessageInterface;
 
 interface ModelInterface
 {
+    public function registerMcpServerManager(?McpServerManagerInterface $mcpServerManager): void;
+
+    public function getMcpServerManager(): ?McpServerManagerInterface;
+
     /**
      * @param array<MessageInterface> $messages
      */
@@ -34,6 +40,14 @@ interface ModelInterface
     ): ChatCompletionResponse;
 
     /**
+     * 使用请求对象进行聊天对话.
+     *
+     * @param ChatCompletionRequest $request 聊天完成请求对象
+     * @return ChatCompletionResponse 聊天完成响应
+     */
+    public function chatWithRequest(ChatCompletionRequest $request): ChatCompletionResponse;
+
+    /**
      * @param array<MessageInterface> $messages
      */
     public function chatStream(
@@ -46,6 +60,14 @@ interface ModelInterface
         float $presencePenalty = 0.0,
         array $businessParams = [],
     ): ChatCompletionStreamResponse;
+
+    /**
+     * 使用请求对象进行流式聊天对话.
+     *
+     * @param ChatCompletionRequest $request 聊天完成请求对象
+     * @return ChatCompletionStreamResponse 聊天完成流式响应
+     */
+    public function chatStreamWithRequest(ChatCompletionRequest $request): ChatCompletionStreamResponse;
 
     public function completions(
         string $prompt,

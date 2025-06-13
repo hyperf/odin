@@ -61,6 +61,18 @@ class ToolCall implements Arrayable
         ];
     }
 
+    public function toArrayWithStream(): array
+    {
+        return [
+            'id' => $this->getId(),
+            'function' => [
+                'name' => $this->getName(),
+                'arguments' => $this->getStreamArguments(),
+            ],
+            'type' => $this->getType(),
+        ];
+    }
+
     public function getName(): string
     {
         return $this->name;

@@ -17,6 +17,7 @@ use Hyperf\Odin\Contract\Api\Request\RequestInterface;
 use Hyperf\Odin\Contract\Message\MessageInterface;
 use Hyperf\Odin\Exception\InvalidArgumentException;
 use Hyperf\Odin\Message\SystemMessage;
+use Hyperf\Odin\Tool\Definition\ToolDefinition;
 use Hyperf\Odin\Utils\MessageUtil;
 use Hyperf\Odin\Utils\TokenEstimator;
 use Hyperf\Odin\Utils\ToolUtil;
@@ -51,16 +52,23 @@ class ChatCompletionRequest implements RequestInterface
 
     private bool $streamIncludeUsage = false;
 
+    private ?array $thinking = null;
+
     public function __construct(
         /** @var MessageInterface[] $messages */
         protected array $messages,
-        protected string $model,
+        protected string $model = '',
         protected float $temperature = 0.5,
         protected int $maxTokens = 0,
         protected array $stop = [],
         protected array $tools = [],
         protected bool $stream = false,
     ) {}
+
+    public function addTool(ToolDefinition $toolDefinition): void
+    {
+        $this->tools[$toolDefinition->getName()] = $toolDefinition;
+    }
 
     public function validate(): void
     {
@@ -110,6 +118,9 @@ class ChatCompletionRequest implements RequestInterface
                 'include_usage' => true,
             ];
         }
+        if (! empty($this->thinking)) {
+            $json['thinking'] = $this->thinking;
+        }
 
         return [
             RequestOptions::JSON => $json,
@@ -156,6 +167,16 @@ class ChatCompletionRequest implements RequestInterface
         $this->totalTokenEstimate = $totalTokens;
 
         return $totalTokens;
+    }
+
+    public function setModel(string $model): void
+    {
+        $this->model = $model;
+    }
+
+    public function setThinking(?array $thinking): void
+    {
+        $this->thinking = $thinking;
     }
 
     public function setFrequencyPenalty(float $frequencyPenalty): void
@@ -253,6 +274,11 @@ class ChatCompletionRequest implements RequestInterface
         return $this->stop;
     }
 
+    public function getThinking(): ?array
+    {
+        return $this->thinking;
+    }
+
     public function isToolsCache(): bool
     {
         return $this->toolsCache;
@@ -297,5 +323,33 @@ class ChatCompletionRequest implements RequestInterface
             }, $this->messages),
             'tools' => $this->toolsTokenEstimate,
         ];
+    }
+
+    public function toArray(): array
+    {
+        return [
+            'messages' => $this->messages,
+            'model' => $this->model,
+            'temperature' => $this->temperature,
+            'max_tokens' => $this->maxTokens,
+            'stop' => $this->stop,
+            'tools' => ToolUtil::filter($this->tools),
+            'stream' => $this->stream,
+            'stream_content_enabled' => $this->streamContentEnabled,
+            'frequency_penalty' => $this->frequencyPenalty,
+            'presence_penalty' => $this->presencePenalty,
+            'include_business_params' => $this->includeBusinessParams,
+            'business_params' => $this->businessParams,
+            'tools_cache' => $this->toolsCache,
+            'system_token_estimate' => $this->systemTokenEstimate,
+            'tools_token_estimate' => $this->toolsTokenEstimate,
+            'total_token_estimate' => $this->totalTokenEstimate,
+            'stream_include_usage' => $this->streamIncludeUsage,
+        ];
+    }
+
+    public function removeBigObject(): void
+    {
+        $this->tools = ToolUtil::filter($this->tools);
     }
 }

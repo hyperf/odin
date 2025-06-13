@@ -21,6 +21,7 @@ use Hyperf\Odin\Api\Response\ChatCompletionStreamResponse;
 use Hyperf\Odin\Api\Response\EmbeddingResponse;
 use Hyperf\Odin\Api\Response\TextCompletionResponse;
 use Hyperf\Odin\Contract\Api\ClientInterface;
+use Hyperf\Odin\Contract\Mcp\McpServerManagerInterface;
 use Hyperf\Odin\Contract\Message\MessageInterface;
 use Hyperf\Odin\Contract\Model\EmbeddingInterface;
 use Hyperf\Odin\Contract\Model\ModelInterface;
@@ -60,6 +61,8 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
 
     protected bool $includeBusinessParams = false;
 
+    protected ?McpServerManagerInterface $mcpServerManager = null;
+
     /**
      * 构造函数.
      */
@@ -71,6 +74,53 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
         // 初始化，如果有需要修改的再修改
         $this->modelOptions = new ModelOptions();
         $this->apiRequestOptions = new ApiOptions();
+    }
+
+    public function registerMcpServerManager(?McpServerManagerInterface $mcpServerManager): void
+    {
+        $this->mcpServerManager = $mcpServerManager;
+    }
+
+    public function getMcpServerManager(): ?McpServerManagerInterface
+    {
+        return $this->mcpServerManager;
+    }
+
+    public function chatWithRequest(ChatCompletionRequest $request): ChatCompletionResponse
+    {
+        try {
+            $this->registerMcp($request);
+            $request->setModel($this->model);
+            $this->checkFunctionCallSupport($request->getTools());
+            $this->checkMultiModalSupport($request->getMessages());
+
+            $request->setStream(false);
+
+            $client = $this->getClient();
+            return $client->chatCompletions($request);
+        } catch (Throwable $e) {
+            $context = $this->createErrorContext($request->toArray());
+            throw $this->handleException($e, $context);
+        }
+    }
+
+    public function chatStreamWithRequest(ChatCompletionRequest $request): ChatCompletionStreamResponse
+    {
+        try {
+            $this->registerMcp($request);
+            $request->setModel($this->model);
+            $this->checkFunctionCallSupport($request->getTools());
+            $this->checkMultiModalSupport($request->getMessages());
+
+            $request->setStream(true);
+            $request->setStreamIncludeUsage($this->streamIncludeUsage);
+
+            $client = $this->getClient();
+            return $client->chatCompletionsStream($request);
+        } catch (Throwable $e) {
+            $context = $this->createErrorContext($request->toArray());
+            throw $this->handleException($e, $context);
+        }
     }
 
     /**
@@ -93,10 +143,12 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
 
             $client = $this->getClient();
             $chatRequest = new ChatCompletionRequest($messages, $this->model, $temperature, $maxTokens, $stop, $tools, false);
+
             $chatRequest->setFrequencyPenalty($frequencyPenalty);
             $chatRequest->setPresencePenalty($presencePenalty);
             $chatRequest->setBusinessParams($businessParams);
             $chatRequest->setIncludeBusinessParams($this->includeBusinessParams);
+            $this->registerMcp($chatRequest);
             return $client->chatCompletions($chatRequest);
         } catch (Throwable $e) {
             $context = $this->createErrorContext([
@@ -139,6 +191,7 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
             $chatRequest->setBusinessParams($businessParams);
             $chatRequest->setStreamIncludeUsage($this->streamIncludeUsage);
             $chatRequest->setIncludeBusinessParams($this->includeBusinessParams);
+            $this->registerMcp($chatRequest);
             return $client->chatCompletionsStream($chatRequest);
         } catch (Throwable $e) {
             $context = $this->createErrorContext([
@@ -281,6 +334,20 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
     public function setConfig(array $config): void
     {
         $this->config = $config;
+    }
+
+    protected function registerMcp(ChatCompletionRequest $request): void
+    {
+        if (! $this->modelOptions->supportsFunctionCall()) {
+            return;
+        }
+        if (! $this->mcpServerManager) {
+            return;
+        }
+        $this->mcpServerManager->discover();
+        foreach ($this->mcpServerManager->getAllTools() as $tool) {
+            $request->addTool($tool);
+        }
     }
 
     /**

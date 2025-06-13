@@ -110,6 +110,10 @@ class AwsBedrockConverseFormatConverter implements IteratorAggregate
                         if (! empty($textDelta)) {
                             yield $this->formatTextDeltaEvent($created, $textDelta);
                         }
+                        $thinking = $event['delta']['thinking'] ?? '';
+                        if (! empty($thinking)) {
+                            yield $this->formatThinkingDeltaEvent($created, $thinking);
+                        }
 
                         // 处理工具调用参数的JSON增量
                         if (isset($event['delta']['toolUse'])) {
@@ -263,6 +267,25 @@ class AwsBedrockConverseFormatConverter implements IteratorAggregate
                     'index' => 0,
                     'delta' => [
                         'content' => $textDelta,
+                    ],
+                    'finish_reason' => null,
+                ],
+            ],
+        ]);
+    }
+
+    private function formatThinkingDeltaEvent(int $created, string $thinking): string
+    {
+        return $this->formatOpenAiEvent([
+            'id' => $this->messageId ?? ('bedrock-' . uniqid()),
+            'object' => 'chat.completion.chunk',
+            'created' => $created,
+            'model' => $this->model ?: 'aws.bedrock',
+            'choices' => [
+                [
+                    'index' => 0,
+                    'delta' => [
+                        'reasoning_content' => $thinking,
                     ],
                     'finish_reason' => null,
                 ],

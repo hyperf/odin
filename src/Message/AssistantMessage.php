@@ -92,6 +92,25 @@ class AssistantMessage extends AbstractMessage
         return $result;
     }
 
+    public function toArrayWithStream(): array
+    {
+        $toolCalls = [];
+        foreach ($this->toolCalls as $toolCall) {
+            $toolCalls[] = $toolCall->toArrayWithStream();
+        }
+        $result = [
+            'role' => $this->role->value,
+            'content' => $this->content,
+        ];
+        if (! is_null($this->reasoningContent)) {
+            $result['reasoning_content'] = $this->reasoningContent;
+        }
+        if (! empty($toolCalls)) {
+            $result['tool_calls'] = $toolCalls;
+        }
+        return $result;
+    }
+
     /**
      * 获取消息内容.
      *

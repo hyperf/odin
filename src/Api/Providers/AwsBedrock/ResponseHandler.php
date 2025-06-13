@@ -29,6 +29,7 @@ class ResponseHandler
     public static function convertToPsrResponse(array $responseBody, string $model): ResponseInterface
     {
         $content = '';
+        $reasoningContent = '';
         $functionCalls = [];
 
         if (isset($responseBody['content']) && is_array($responseBody['content'])) {
@@ -45,6 +46,8 @@ class ResponseHandler
                             'arguments' => isset($item['input']) ? json_encode($item['input']) : '{}',
                         ],
                     ];
+                } elseif (isset($item['type']) && $item['type'] === 'thinking') {
+                    $reasoningContent .= $item['thinking'] ?? '';
                 }
             }
         }
@@ -55,6 +58,9 @@ class ResponseHandler
             'role' => 'assistant',
             'content' => $messageContent,
         ];
+        if ($reasoningContent !== '') {
+            $message['reasoning_content'] = $reasoningContent;
+        }
 
         // 如果有工具调用，添加到消息中
         if (! empty($functionCalls)) {
@@ -136,6 +142,12 @@ class ResponseHandler
                         'id' => $item['toolUse']['toolUseId'] ?? uniqid('fc-'),
                         'name' => $item['toolUse']['name'],
                         'input' => $item['toolUse']['input'] ?? [],
+                    ];
+                }
+                if (isset($item['thinking'])) {
+                    $content[] = [
+                        'type' => 'thinking',
+                        'thinking' => $item['thinking'],
                     ];
                 }
             }
