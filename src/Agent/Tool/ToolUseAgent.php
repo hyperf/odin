@@ -194,12 +194,13 @@ class ToolUseAgent
                 continue;
             }
 
-            if (! empty($toolCalls)) {
+            if ($content !== '' || ! empty($toolCalls)) {
+                $finalContentForMessage = $content;
                 // 如果有 toolsCall 但是 content 是空，自动加上
-                if ($content === '') {
-                    $content = $this->assistantEmptyContentPlaceholder;
+                if ($content === '' && ! empty($toolCalls)) {
+                    $finalContentForMessage = $this->assistantEmptyContentPlaceholder;
                 }
-                $generatorSendMessage = new AssistantMessage($content, $toolCalls);
+                $generatorSendMessage = new AssistantMessage($finalContentForMessage, $toolCalls);
             }
 
             $gen->send($generatorSendMessage);
