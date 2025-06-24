@@ -18,10 +18,13 @@ use Hyperf\Odin\Api\Request\ChatCompletionRequest;
 use Hyperf\Odin\Api\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\Response\ChatCompletionStreamResponse;
 use Hyperf\Odin\Contract\Message\MessageInterface;
+use Hyperf\Odin\Event\AfterChatCompletionsEvent;
+use Hyperf\Odin\Event\AfterChatCompletionsStreamEvent;
 use Hyperf\Odin\Message\AssistantMessage;
 use Hyperf\Odin\Message\SystemMessage;
 use Hyperf\Odin\Message\ToolMessage;
 use Hyperf\Odin\Message\UserMessage;
+use Hyperf\Odin\Utils\EventUtil;
 use Hyperf\Odin\Utils\LogUtil;
 use Throwable;
 
@@ -69,6 +72,8 @@ class ConverseClient extends Client
                 'usage' => $result['usage'] ?? [],
                 'content' => $chatCompletionResponse->getContent(),
             ]);
+
+            EventUtil::dispatch(new AfterChatCompletionsEvent($chatRequest, $chatCompletionResponse, $duration));
 
             return $chatCompletionResponse;
         } catch (AwsException $e) {
@@ -119,8 +124,10 @@ class ConverseClient extends Client
             // 创建 AWS Bedrock 格式转换器，负责将 AWS Bedrock 格式转换为 OpenAI 格式
             $bedrockConverter = new AwsBedrockConverseFormatConverter($result, $this->logger, $modelId);
 
-            // 创建流式响应对象并返回
-            return new ChatCompletionStreamResponse(logger: $this->logger, streamIterator: $bedrockConverter);
+            $chatCompletionStreamResponse = new ChatCompletionStreamResponse(logger: $this->logger, streamIterator: $bedrockConverter);
+            $chatCompletionStreamResponse->setAfterChatCompletionsStreamEvent(new AfterChatCompletionsStreamEvent($chatRequest, $firstResponseDuration));
+
+            return $chatCompletionStreamResponse;
         } catch (AwsException $e) {
             throw $this->convertAwsException($e);
         } catch (Throwable $e) {
