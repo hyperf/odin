@@ -39,6 +39,7 @@ class McpServerConfigTest extends AbstractTestCase
         $this->assertEmpty($config->getCommand());
         $this->assertEmpty($config->getArgs());
         $this->assertNull($config->getAllowedTools());
+        $this->assertEmpty($config->getHeaders());
     }
 
     public function testStdioServerConfigConstruction()
@@ -56,6 +57,7 @@ class McpServerConfigTest extends AbstractTestCase
         $this->assertEquals(['/path/to/server.php', '--arg1', 'value1'], $config->getArgs());
         $this->assertEmpty($config->getUrl());
         $this->assertNull($config->getAuthorizationToken());
+        $this->assertEmpty($config->getHeaders());
     }
 
     public function testSetToken()
@@ -73,6 +75,52 @@ class McpServerConfigTest extends AbstractTestCase
 
         $config->setToken(null);
         $this->assertNull($config->getAuthorizationToken());
+    }
+
+    public function testSetHeaders()
+    {
+        $config = new McpServerConfig(
+            type: McpType::Http,
+            name: 'test-server',
+            url: 'https://api.example.com'
+        );
+
+        $this->assertEmpty($config->getHeaders());
+
+        $newHeaders = [
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+            'Authorization' => 'Bearer test-token',
+        ];
+
+        $config->setHeaders($newHeaders);
+        $this->assertEquals($newHeaders, $config->getHeaders());
+
+        $config->setHeaders([]);
+        $this->assertEmpty($config->getHeaders());
+    }
+
+    public function testSetHeadersUpdatesConnectConfig()
+    {
+        $config = new McpServerConfig(
+            type: McpType::Http,
+            name: 'test-server',
+            url: 'https://api.example.com'
+        );
+
+        // Initially headers should be empty
+        $connectConfig = $config->getConnectConfig();
+        $this->assertEmpty($connectConfig['headers']);
+
+        // Set headers and verify connect config is updated
+        $newHeaders = [
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+        ];
+
+        $config->setHeaders($newHeaders);
+        $connectConfig = $config->getConnectConfig();
+        $this->assertEquals($newHeaders, $connectConfig['headers']);
     }
 
     public function testToArray()
@@ -93,6 +141,7 @@ class McpServerConfigTest extends AbstractTestCase
             'command' => '',
             'args' => [],
             'allowedTools' => ['tool1', 'tool2'],
+            'headers' => [],
         ];
 
         $this->assertEquals($expected, $config->toArray());
@@ -149,6 +198,7 @@ class McpServerConfigTest extends AbstractTestCase
                 'type' => 'bearer',
                 'token' => 'test-token',
             ],
+            'headers' => [],
         ];
 
         $this->assertEquals($expected, $config->getConnectConfig());
@@ -165,6 +215,7 @@ class McpServerConfigTest extends AbstractTestCase
         $expected = [
             'base_url' => 'https://api.example.com',
             'auth' => null,
+            'headers' => [],
         ];
 
         $this->assertEquals($expected, $config->getConnectConfig());
@@ -250,5 +301,87 @@ class McpServerConfigTest extends AbstractTestCase
             allowedTools: ['tool1', 'tool2', 'tool3']
         );
         $this->assertEquals(['tool1', 'tool2', 'tool3'], $config2->getAllowedTools());
+    }
+
+    public function testHeadersHandling()
+    {
+        // Test with empty headers (default)
+        $config1 = new McpServerConfig(
+            type: McpType::Http,
+            name: 'test-server',
+            url: 'https://api.example.com'
+        );
+        $this->assertEmpty($config1->getHeaders());
+
+        // Test with specific headers
+        $headers = [
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+            'User-Agent' => 'Test-Agent/1.0',
+        ];
+        $config2 = new McpServerConfig(
+            type: McpType::Http,
+            name: 'test-server',
+            url: 'https://api.example.com',
+            headers: $headers
+        );
+        $this->assertEquals($headers, $config2->getHeaders());
+    }
+
+    public function testGetConnectConfigForHttpWithHeaders()
+    {
+        $headers = [
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+        ];
+
+        $config = new McpServerConfig(
+            type: McpType::Http,
+            name: 'test-server',
+            url: 'https://api.example.com',
+            token: 'test-token',
+            headers: $headers
+        );
+
+        $expected = [
+            'base_url' => 'https://api.example.com',
+            'auth' => [
+                'type' => 'bearer',
+                'token' => 'test-token',
+            ],
+            'headers' => $headers,
+        ];
+
+        $this->assertEquals($expected, $config->getConnectConfig());
+    }
+
+    public function testToArrayWithHeaders()
+    {
+        $headers = [
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+        ];
+
+        $config = new McpServerConfig(
+            type: McpType::Http,
+            name: 'test-server',
+            url: 'https://api.example.com',
+            token: 'test-token',
+            allowedTools: ['tool1', 'tool2'],
+            headers: $headers
+        );
+
+        $expected = [
+            'type' => 'http',
+            'name' => 'test-server',
+            'url' => 'https://api.example.com',
+            'token' => 'test-token',
+            'command' => '',
+            'args' => [],
+            'allowedTools' => ['tool1', 'tool2'],
+            'headers' => $headers,
+        ];
+
+        $this->assertEquals($expected, $config->toArray());
     }
 }
