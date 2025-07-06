@@ -30,6 +30,8 @@ interface McpServerConfigInterface
 
     public function getAllowedTools(): ?array;
 
+    public function getHeaders(): array;
+
     public function toArray(): array;
 
     public function getConnectTransport(): string;
@@ -37,4 +39,6 @@ interface McpServerConfigInterface
     public function getConnectConfig(): array;
 
     public function setToken(?string $token): void;
+
+    public function setHeaders(array $headers): void;
 }

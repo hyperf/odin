@@ -25,6 +25,7 @@ class McpServerConfig implements McpServerConfigInterface
         protected string $command = '',
         protected array $args = [],
         protected ?array $allowedTools = null,
+        protected array $headers = [],
     ) {
         $this->validate();
     }
@@ -32,6 +33,11 @@ class McpServerConfig implements McpServerConfigInterface
     public function setToken(?string $token): void
     {
         $this->token = $token;
+    }
+
+    public function setHeaders(array $headers): void
+    {
+        $this->headers = $headers;
     }
 
     public function getType(): McpType
@@ -69,6 +75,11 @@ class McpServerConfig implements McpServerConfigInterface
         return $this->allowedTools;
     }
 
+    public function getHeaders(): array
+    {
+        return $this->headers;
+    }
+
     public function toArray(): array
     {
         return [
@@ -79,6 +90,7 @@ class McpServerConfig implements McpServerConfigInterface
             'command' => $this->command,
             'args' => $this->args,
             'allowedTools' => $this->allowedTools,
+            'headers' => $this->headers,
         ];
     }
 
@@ -97,6 +109,7 @@ class McpServerConfig implements McpServerConfigInterface
             McpType::Http => [
                 'base_url' => $this->url,
                 'auth' => $this->getAuthConfig(),
+                'headers' => $this->headers,
             ],
             McpType::Stdio => [
                 'command' => $this->command,
