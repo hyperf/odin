@@ -32,6 +32,8 @@ interface McpServerConfigInterface
 
     public function getHeaders(): array;
 
+    public function getEnv(): array;
+
     public function toArray(): array;
 
     public function getConnectTransport(): string;

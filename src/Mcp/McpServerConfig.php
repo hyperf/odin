@@ -81,6 +81,16 @@ class McpServerConfig implements McpServerConfigInterface
         return $this->headers;
     }
 
+    public function getEnv(): array
+    {
+        return $this->env;
+    }
+
+    public function setEnv(array $env): void
+    {
+        $this->env = $env;
+    }
+
     public function toArray(): array
     {
         return [
