@@ -67,7 +67,7 @@ class SchemaValidator
      * @param string $metaSchema 要使用的元Schema版本
      * @return bool 验证是否通过
      */
-    public function validate(array $schema, string $metaSchema = 'http://json-schema.org/draft-07/schema#'): bool
+    public function validate(array $schema, string $metaSchema = 'https://json-schema.org/draft-07/schema#'): bool
     {
         $this->errors = [];
 
@@ -142,20 +142,25 @@ class SchemaValidator
             return self::$metaSchemaCache[$metaSchemaUrl];
         }
 
-        // 生成缓存文件名
-        $cacheKey = md5($metaSchemaUrl);
-        $cacheFile = $this->cacheDir . '/' . $cacheKey . '.json';
-
-        // 检查文件缓存，如果本地有直接读取
-        if (file_exists($cacheFile)) {
-            $metaSchemaObject = json_decode(file_get_contents($cacheFile));
+        // 对于常用的 meta schema，使用内嵌的定义，避免网络请求
+        if ($metaSchemaUrl === 'https://json-schema.org/draft-07/schema#') {
+            $metaSchemaObject = json_decode(json_encode($this->getDraft07Schema()));
         } else {
-            // 本地没有才从远程获取并永久保存
-            $retriever = new UriRetriever();
-            $metaSchemaObject = $retriever->retrieve($metaSchemaUrl);
+            // 生成缓存文件名
+            $cacheKey = md5($metaSchemaUrl);
+            $cacheFile = $this->cacheDir . '/' . $cacheKey . '.json';
 
-            // 保存到文件缓存
-            file_put_contents($cacheFile, json_encode($metaSchemaObject));
+            // 检查文件缓存，如果本地有直接读取
+            if (file_exists($cacheFile)) {
+                $metaSchemaObject = json_decode(file_get_contents($cacheFile));
+            } else {
+                // 本地没有才从远程获取并永久保存
+                $retriever = new UriRetriever();
+                $metaSchemaObject = $retriever->retrieve($metaSchemaUrl);
+
+                // 保存到文件缓存
+                file_put_contents($cacheFile, json_encode($metaSchemaObject));
+            }
         }
 
         // 保存到内存缓存
@@ -245,5 +250,184 @@ class SchemaValidator
         }
 
         return $hasInvalidRef;
+    }
+
+    /**
+     * 获取内嵌的 Draft-07 Schema 定义，避免网络请求
+     */
+    private function getDraft07Schema(): array
+    {
+        return [
+            '$schema' => 'http://json-schema.org/draft-07/schema#',
+            '$id' => 'http://json-schema.org/draft-07/schema#',
+            'title' => 'Core schema meta-schema',
+            'definitions' => [
+                'schemaArray' => [
+                    'type' => 'array',
+                    'minItems' => 1,
+                    'items' => ['$ref' => '#'],
+                ],
+                'nonNegativeInteger' => [
+                    'type' => 'integer',
+                    'minimum' => 0,
+                ],
+                'nonNegativeIntegerDefault0' => [
+                    'allOf' => [
+                        ['$ref' => '#/definitions/nonNegativeInteger'],
+                        ['default' => 0],
+                    ],
+                ],
+                'simpleTypes' => [
+                    'enum' => [
+                        'array',
+                        'boolean',
+                        'integer',
+                        'null',
+                        'number',
+                        'object',
+                        'string',
+                    ],
+                ],
+                'stringArray' => [
+                    'type' => 'array',
+                    'items' => ['type' => 'string'],
+                    'uniqueItems' => true,
+                    'default' => [],
+                ],
+            ],
+            'type' => ['object', 'boolean'],
+            'properties' => [
+                '$id' => [
+                    'type' => 'string',
+                    'format' => 'uri-reference',
+                ],
+                '$schema' => [
+                    'type' => 'string',
+                    'format' => 'uri',
+                ],
+                '$ref' => [
+                    'type' => 'string',
+                    'format' => 'uri-reference',
+                ],
+                '$comment' => [
+                    'type' => 'string',
+                ],
+                'title' => [
+                    'type' => 'string',
+                ],
+                'description' => [
+                    'type' => 'string',
+                ],
+                'default' => true,
+                'readOnly' => [
+                    'type' => 'boolean',
+                    'default' => false,
+                ],
+                'writeOnly' => [
+                    'type' => 'boolean',
+                    'default' => false,
+                ],
+                'examples' => [
+                    'type' => 'array',
+                    'items' => true,
+                ],
+                'multipleOf' => [
+                    'type' => 'number',
+                    'exclusiveMinimum' => 0,
+                ],
+                'maximum' => [
+                    'type' => 'number',
+                ],
+                'exclusiveMaximum' => [
+                    'type' => 'number',
+                ],
+                'minimum' => [
+                    'type' => 'number',
+                ],
+                'exclusiveMinimum' => [
+                    'type' => 'number',
+                ],
+                'maxLength' => ['$ref' => '#/definitions/nonNegativeInteger'],
+                'minLength' => ['$ref' => '#/definitions/nonNegativeIntegerDefault0'],
+                'pattern' => [
+                    'type' => 'string',
+                    'format' => 'regex',
+                ],
+                'additionalItems' => ['$ref' => '#'],
+                'items' => [
+                    'anyOf' => [
+                        ['$ref' => '#'],
+                        ['$ref' => '#/definitions/schemaArray'],
+                    ],
+                    'default' => true,
+                ],
+                'maxItems' => ['$ref' => '#/definitions/nonNegativeInteger'],
+                'minItems' => ['$ref' => '#/definitions/nonNegativeIntegerDefault0'],
+                'uniqueItems' => [
+                    'type' => 'boolean',
+                    'default' => false,
+                ],
+                'contains' => ['$ref' => '#'],
+                'maxProperties' => ['$ref' => '#/definitions/nonNegativeInteger'],
+                'minProperties' => ['$ref' => '#/definitions/nonNegativeIntegerDefault0'],
+                'required' => ['$ref' => '#/definitions/stringArray'],
+                'additionalProperties' => ['$ref' => '#'],
+                'definitions' => [
+                    'type' => 'object',
+                    'additionalProperties' => ['$ref' => '#'],
+                    'default' => [],
+                ],
+                'properties' => [
+                    'type' => 'object',
+                    'additionalProperties' => ['$ref' => '#'],
+                    'default' => [],
+                ],
+                'patternProperties' => [
+                    'type' => 'object',
+                    'additionalProperties' => ['$ref' => '#'],
+                    'propertyNames' => ['format' => 'regex'],
+                    'default' => [],
+                ],
+                'dependencies' => [
+                    'type' => 'object',
+                    'additionalProperties' => [
+                        'anyOf' => [
+                            ['$ref' => '#'],
+                            ['$ref' => '#/definitions/stringArray'],
+                        ],
+                    ],
+                ],
+                'propertyNames' => ['$ref' => '#'],
+                'const' => true,
+                'enum' => [
+                    'type' => 'array',
+                    'items' => true,
+                    'minItems' => 1,
+                    'uniqueItems' => true,
+                ],
+                'type' => [
+                    'anyOf' => [
+                        ['$ref' => '#/definitions/simpleTypes'],
+                        [
+                            'type' => 'array',
+                            'items' => ['$ref' => '#/definitions/simpleTypes'],
+                            'minItems' => 1,
+                            'uniqueItems' => true,
+                        ],
+                    ],
+                ],
+                'format' => ['type' => 'string'],
+                'contentMediaType' => ['type' => 'string'],
+                'contentEncoding' => ['type' => 'string'],
+                'if' => ['$ref' => '#'],
+                'then' => ['$ref' => '#'],
+                'else' => ['$ref' => '#'],
+                'allOf' => ['$ref' => '#/definitions/schemaArray'],
+                'anyOf' => ['$ref' => '#/definitions/schemaArray'],
+                'oneOf' => ['$ref' => '#/definitions/schemaArray'],
+                'not' => ['$ref' => '#'],
+            ],
+            'default' => true,
+        ];
     }
 }

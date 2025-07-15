@@ -166,7 +166,7 @@ class MemoryManagerTest extends TestCase
             new SystemMessage('系统消息2'),
         ];
 
-        $allMessages = array_merge([$systemMessages[1]], $messages);
+        $allMessages = array_merge($systemMessages, $messages);
         $processedMessages = array_slice($allMessages, -3); // 只保留最新的3条消息
 
         $mockDriver = Mockery::mock(DriverInterface::class);

@@ -142,6 +142,7 @@ class McpServerConfigTest extends AbstractTestCase
             'args' => [],
             'allowedTools' => ['tool1', 'tool2'],
             'headers' => [],
+            'env' => [],
         ];
 
         $this->assertEquals($expected, $config->toArray());
@@ -233,6 +234,7 @@ class McpServerConfigTest extends AbstractTestCase
         $expected = [
             'command' => 'php',
             'args' => ['/path/to/server.php', '--arg1'],
+            'env' => [],
         ];
 
         $this->assertEquals($expected, $config->getConnectConfig());
@@ -380,6 +382,7 @@ class McpServerConfigTest extends AbstractTestCase
             'args' => [],
             'allowedTools' => ['tool1', 'tool2'],
             'headers' => $headers,
+            'env' => [],
         ];
 
         $this->assertEquals($expected, $config->toArray());

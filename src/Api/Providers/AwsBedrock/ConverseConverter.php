@@ -44,7 +44,7 @@ class ConverseConverter implements ConverterInterface
     {
         $contentBlocks = [];
         $hasCachePoint = false;
-        
+
         // Determine which tool messages to process
         if ($message instanceof MergedToolMessage) {
             // Handle merged tool message (multiple tool results)
@@ -53,21 +53,21 @@ class ConverseConverter implements ConverterInterface
             // Handle single tool message
             $toolMessages = [$message];
         }
-        
+
         // Process each tool message
         foreach ($toolMessages as $toolMessage) {
             // Check if this tool message has a cache point
             if ($toolMessage->getCachePoint()) {
                 $hasCachePoint = true;
             }
-            
+
             $result = json_decode($toolMessage->getContent(), true);
             if (! $result) {
                 $result = [
                     'result' => $toolMessage->getContent(),
                 ];
             }
-            
+
             $contentBlocks[] = [
                 'toolResult' => [
                     'toolUseId' => $toolMessage->getToolCallId(),
@@ -79,7 +79,7 @@ class ConverseConverter implements ConverterInterface
                 ],
             ];
         }
-        
+
         // Add cache point if any of the original tool messages has one
         if ($hasCachePoint) {
             $contentBlocks[] = [
@@ -88,7 +88,7 @@ class ConverseConverter implements ConverterInterface
                 ],
             ];
         }
-        
+
         return [
             'role' => Role::User->value,
             'content' => $contentBlocks,

@@ -16,8 +16,8 @@ use Hyperf\Odin\Message\ToolMessage;
 
 /**
  * Merged tool message class.
- * 
- * Used to represent multiple tool results that need to be combined 
+ *
+ * Used to represent multiple tool results that need to be combined
  * into a single user message for Claude's Converse API.
  */
 class MergedToolMessage extends ToolMessage
@@ -41,7 +41,7 @@ class MergedToolMessage extends ToolMessage
             $firstMessage->getName(),
             $firstMessage->getArguments()
         );
-        
+
         // Check all tool messages for cache points
         foreach ($toolMessages as $toolMessage) {
             if ($toolMessage->getCachePoint()) {
@@ -68,4 +68,4 @@ class MergedToolMessage extends ToolMessage
     {
         return true;
     }
-} 
+}

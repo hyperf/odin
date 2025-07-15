@@ -53,7 +53,7 @@ class ConverseConverterTest extends AbstractTestCase
     {
         $systemMessage = new SystemMessage('You are a helpful assistant.');
         $systemMessage->setCachePoint(new CachePoint('default'));
-        
+
         $result = $this->converter->convertSystemMessage($systemMessage);
 
         $this->assertIsArray($result);
@@ -99,7 +99,7 @@ class ConverseConverterTest extends AbstractTestCase
         $this->assertArrayHasKey('content', $result);
         $this->assertIsArray($result['content']);
         $this->assertCount(1, $result['content']);
-        
+
         // Check tool result structure
         $this->assertArrayHasKey('toolResult', $result['content'][0]);
         $this->assertArrayHasKey('toolUseId', $result['content'][0]['toolResult']);
@@ -110,7 +110,7 @@ class ConverseConverterTest extends AbstractTestCase
     {
         $toolMessage = new ToolMessage('Weather result', 'tool_call_1', 'weather', ['city' => 'Beijing']);
         $toolMessage->setCachePoint(new CachePoint('default'));
-        
+
         $result = $this->converter->convertToolMessage($toolMessage);
 
         $this->assertIsArray($result);
@@ -118,11 +118,11 @@ class ConverseConverterTest extends AbstractTestCase
         $this->assertArrayHasKey('content', $result);
         $this->assertIsArray($result['content']);
         $this->assertCount(2, $result['content']);
-        
+
         // Check tool result structure
         $this->assertArrayHasKey('toolResult', $result['content'][0]);
         $this->assertEquals('tool_call_1', $result['content'][0]['toolResult']['toolUseId']);
-        
+
         // Check cache point
         $this->assertArrayHasKey('cachePoint', $result['content'][1]);
         $this->assertEquals('default', $result['content'][1]['cachePoint']['type']);
@@ -132,7 +132,7 @@ class ConverseConverterTest extends AbstractTestCase
     {
         $toolMessage1 = new ToolMessage('Result 1', 'tool_call_1', 'weather', ['city' => 'Beijing']);
         $toolMessage2 = new ToolMessage('Result 2', 'tool_call_2', 'weather', ['city' => 'Shanghai']);
-        
+
         $mergedToolMessage = new MergedToolMessage([$toolMessage1, $toolMessage2]);
         $result = $this->converter->convertToolMessage($mergedToolMessage);
 
@@ -141,11 +141,11 @@ class ConverseConverterTest extends AbstractTestCase
         $this->assertArrayHasKey('content', $result);
         $this->assertIsArray($result['content']);
         $this->assertCount(2, $result['content']); // Only 2 tool results, no cache point
-        
+
         // Check first tool result
         $this->assertArrayHasKey('toolResult', $result['content'][0]);
         $this->assertEquals('tool_call_1', $result['content'][0]['toolResult']['toolUseId']);
-        
+
         // Check second tool result
         $this->assertArrayHasKey('toolResult', $result['content'][1]);
         $this->assertEquals('tool_call_2', $result['content'][1]['toolResult']['toolUseId']);
@@ -155,10 +155,10 @@ class ConverseConverterTest extends AbstractTestCase
     {
         $toolMessage1 = new ToolMessage('Result 1', 'tool_call_1', 'weather', ['city' => 'Beijing']);
         $toolMessage1->setCachePoint(new CachePoint('default'));
-        
+
         $toolMessage2 = new ToolMessage('Result 2', 'tool_call_2', 'weather', ['city' => 'Shanghai']);
         $toolMessage2->setCachePoint(new CachePoint('default'));
-        
+
         $mergedToolMessage = new MergedToolMessage([$toolMessage1, $toolMessage2]);
         $result = $this->converter->convertToolMessage($mergedToolMessage);
 
@@ -167,15 +167,15 @@ class ConverseConverterTest extends AbstractTestCase
         $this->assertArrayHasKey('content', $result);
         $this->assertIsArray($result['content']);
         $this->assertCount(3, $result['content']); // 2 tool results + 1 cache point
-        
+
         // Check first tool result
         $this->assertArrayHasKey('toolResult', $result['content'][0]);
         $this->assertEquals('tool_call_1', $result['content'][0]['toolResult']['toolUseId']);
-        
+
         // Check second tool result
         $this->assertArrayHasKey('toolResult', $result['content'][1]);
         $this->assertEquals('tool_call_2', $result['content'][1]['toolResult']['toolUseId']);
-        
+
         // Check cache point
         $this->assertArrayHasKey('cachePoint', $result['content'][2]);
         $this->assertEquals('default', $result['content'][2]['cachePoint']['type']);
@@ -185,10 +185,10 @@ class ConverseConverterTest extends AbstractTestCase
     {
         $toolMessage1 = new ToolMessage('Result 1', 'tool_call_1', 'weather', ['city' => 'Beijing']);
         $toolMessage1->setCachePoint(new CachePoint('default')); // Has cache point
-        
+
         $toolMessage2 = new ToolMessage('Result 2', 'tool_call_2', 'weather', ['city' => 'Shanghai']);
         // No cache point
-        
+
         $mergedToolMessage = new MergedToolMessage([$toolMessage1, $toolMessage2]);
         $result = $this->converter->convertToolMessage($mergedToolMessage);
 
@@ -197,15 +197,15 @@ class ConverseConverterTest extends AbstractTestCase
         $this->assertArrayHasKey('content', $result);
         $this->assertIsArray($result['content']);
         $this->assertCount(3, $result['content']); // 2 tool results + 1 cache point
-        
+
         // Check first tool result
         $this->assertArrayHasKey('toolResult', $result['content'][0]);
         $this->assertEquals('tool_call_1', $result['content'][0]['toolResult']['toolUseId']);
-        
+
         // Check second tool result
         $this->assertArrayHasKey('toolResult', $result['content'][1]);
         $this->assertEquals('tool_call_2', $result['content'][1]['toolResult']['toolUseId']);
-        
+
         // Check cache point (should be present because at least one tool message has it)
         $this->assertArrayHasKey('cachePoint', $result['content'][2]);
         $this->assertEquals('default', $result['content'][2]['cachePoint']['type']);
@@ -216,7 +216,7 @@ class ConverseConverterTest extends AbstractTestCase
         $toolMessage1 = new ToolMessage('Result 1', 'tool_call_1', 'weather', ['city' => 'Beijing']);
         $toolMessage2 = new ToolMessage('Result 2', 'tool_call_2', 'weather', ['city' => 'Shanghai']);
         // Neither has cache point
-        
+
         $mergedToolMessage = new MergedToolMessage([$toolMessage1, $toolMessage2]);
         $result = $this->converter->convertToolMessage($mergedToolMessage);
 
@@ -225,11 +225,11 @@ class ConverseConverterTest extends AbstractTestCase
         $this->assertArrayHasKey('content', $result);
         $this->assertIsArray($result['content']);
         $this->assertCount(2, $result['content']); // Only 2 tool results, no cache point
-        
+
         // Check first tool result
         $this->assertArrayHasKey('toolResult', $result['content'][0]);
         $this->assertEquals('tool_call_1', $result['content'][0]['toolResult']['toolUseId']);
-        
+
         // Check second tool result
         $this->assertArrayHasKey('toolResult', $result['content'][1]);
         $this->assertEquals('tool_call_2', $result['content'][1]['toolResult']['toolUseId']);
@@ -239,7 +239,7 @@ class ConverseConverterTest extends AbstractTestCase
     {
         $jsonContent = json_encode(['temperature' => 25, 'condition' => 'sunny']);
         $toolMessage = new ToolMessage($jsonContent, 'tool_call_1', 'weather', ['city' => 'Beijing']);
-        
+
         $result = $this->converter->convertToolMessage($toolMessage);
 
         $this->assertIsArray($result);
@@ -247,7 +247,7 @@ class ConverseConverterTest extends AbstractTestCase
         $this->assertArrayHasKey('toolResult', $result['content'][0]);
         $this->assertArrayHasKey('content', $result['content'][0]['toolResult']);
         $this->assertArrayHasKey('json', $result['content'][0]['toolResult']['content'][0]);
-        
+
         $expectedJson = ['temperature' => 25, 'condition' => 'sunny'];
         $this->assertEquals($expectedJson, $result['content'][0]['toolResult']['content'][0]['json']);
     }
@@ -255,7 +255,7 @@ class ConverseConverterTest extends AbstractTestCase
     public function testConvertToolMessageWithNonJsonContent()
     {
         $toolMessage = new ToolMessage('Simple text result', 'tool_call_1', 'weather', ['city' => 'Beijing']);
-        
+
         $result = $this->converter->convertToolMessage($toolMessage);
 
         $this->assertIsArray($result);
@@ -263,7 +263,7 @@ class ConverseConverterTest extends AbstractTestCase
         $this->assertArrayHasKey('toolResult', $result['content'][0]);
         $this->assertArrayHasKey('content', $result['content'][0]['toolResult']);
         $this->assertArrayHasKey('json', $result['content'][0]['toolResult']['content'][0]);
-        
+
         $expectedJson = ['result' => 'Simple text result'];
         $this->assertEquals($expectedJson, $result['content'][0]['toolResult']['content'][0]['json']);
     }
@@ -329,4 +329,4 @@ class ConverseConverterTest extends AbstractTestCase
         $this->assertArrayHasKey('cachePoint', $result[1]);
         $this->assertEquals('default', $result[1]['cachePoint']['type']);
     }
-} 
+}

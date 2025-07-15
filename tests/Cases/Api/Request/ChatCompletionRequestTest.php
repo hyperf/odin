@@ -163,6 +163,9 @@ class ChatCompletionRequestTest extends AbstractTestCase
             stream: false
         );
 
+        // 设置选项键映射
+        $request->setOptionKeyMaps(['max_tokens' => 'max_completion_tokens']);
+
         // 先调用validate确保filterMessages被设置
         $request->validate();
 
