@@ -152,7 +152,12 @@ class ConverseClient extends Client
 
         $messages = [];
         $systemMessage = '';
-        foreach ($chatRequest->getMessages() as $message) {
+        $originalMessages = $chatRequest->getMessages();
+
+        // Process messages with tool call grouping logic
+        $processedMessages = $this->processMessagesWithToolGrouping($originalMessages);
+
+        foreach ($processedMessages as $message) {
             if (! $message instanceof MessageInterface) {
                 continue;
             }
@@ -216,5 +221,83 @@ class ConverseClient extends Client
         }
 
         return $requestBody;
+    }
+
+    /**
+     * Process messages and group tool results for multi-tool calls.
+     *
+     * When an AssistantMessage contains multiple tool calls, Claude's Converse API
+     * requires all corresponding tool results to be in the same user message.
+     *
+     * @param array $messages Original messages array
+     * @return array Processed messages with grouped tool results
+     */
+    private function processMessagesWithToolGrouping(array $messages): array
+    {
+        $processedMessages = [];
+        $messageCount = count($messages);
+
+        for ($i = 0; $i < $messageCount; ++$i) {
+            $message = $messages[$i];
+
+            // Add non-assistant messages as-is
+            if (! $message instanceof AssistantMessage) {
+                $processedMessages[] = $message;
+                continue;
+            }
+
+            // Add the assistant message
+            $processedMessages[] = $message;
+
+            // Check if this assistant message has multiple tool calls
+            if (! $message->hasToolCalls() || count($message->getToolCalls()) <= 1) {
+                continue;
+            }
+
+            // Collect the expected tool call IDs
+            $expectedToolIds = [];
+            foreach ($message->getToolCalls() as $toolCall) {
+                $expectedToolIds[] = $toolCall->getId();
+            }
+
+            // Look for consecutive tool messages that match the expected tool IDs
+            $collectedToolMessages = [];
+            $j = $i + 1;
+
+            while ($j < $messageCount && $messages[$j] instanceof ToolMessage) {
+                $toolMessage = $messages[$j];
+                $toolCallId = $toolMessage->getToolCallId();
+
+                // Check if this tool message belongs to the current assistant message
+                if (in_array($toolCallId, $expectedToolIds)) {
+                    $collectedToolMessages[] = $toolMessage;
+                    ++$j;
+                } else {
+                    // This tool message doesn't belong to current assistant message
+                    break;
+                }
+            }
+
+            // If we found multiple tool messages, merge them
+            if (count($collectedToolMessages) > 1) {
+                $mergedToolMessage = $this->createMergedToolMessage($collectedToolMessages);
+                $processedMessages[] = $mergedToolMessage;
+                // Skip the original tool messages since we've merged them
+                $i = $j - 1;
+            }
+        }
+
+        return $processedMessages;
+    }
+
+    /**
+     * Create a merged tool message from multiple tool messages.
+     *
+     * @param array $toolMessages Array of ToolMessage instances
+     * @return ToolMessage Merged tool message
+     */
+    private function createMergedToolMessage(array $toolMessages): ToolMessage
+    {
+        return new MergedToolMessage($toolMessages);
     }
 }

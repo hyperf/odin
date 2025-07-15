@@ -42,31 +42,53 @@ class ConverseConverter implements ConverterInterface
 
     public function convertToolMessage(ToolMessage $message): array
     {
-        $result = json_decode($message->getContent(), true);
-        if (! $result) {
-            $result = [
-                'result' => $message->getContent(),
-            ];
+        $contentBlocks = [];
+        $hasCachePoint = false;
+        
+        // Determine which tool messages to process
+        if ($message instanceof MergedToolMessage) {
+            // Handle merged tool message (multiple tool results)
+            $toolMessages = $message->getToolMessages();
+        } else {
+            // Handle single tool message
+            $toolMessages = [$message];
         }
-        $contentBlocks = [
-            [
+        
+        // Process each tool message
+        foreach ($toolMessages as $toolMessage) {
+            // Check if this tool message has a cache point
+            if ($toolMessage->getCachePoint()) {
+                $hasCachePoint = true;
+            }
+            
+            $result = json_decode($toolMessage->getContent(), true);
+            if (! $result) {
+                $result = [
+                    'result' => $toolMessage->getContent(),
+                ];
+            }
+            
+            $contentBlocks[] = [
                 'toolResult' => [
-                    'toolUseId' => $message->getToolCallId(),
+                    'toolUseId' => $toolMessage->getToolCallId(),
                     'content' => [
                         [
                             'json' => $result,
                         ],
                     ],
                 ],
-            ],
-        ];
-        if ($message->getCachePoint()) {
+            ];
+        }
+        
+        // Add cache point if any of the original tool messages has one
+        if ($hasCachePoint) {
             $contentBlocks[] = [
                 'cachePoint' => [
                     'type' => 'default',
                 ],
             ];
         }
+        
         return [
             'role' => Role::User->value,
             'content' => $contentBlocks,
