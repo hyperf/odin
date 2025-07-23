@@ -51,15 +51,11 @@ class ToolCall implements Arrayable
 
     public function toArray(): array
     {
-        $arguments = $this->getSerializedArguments();
-        if ($arguments === '[]') {
-            $arguments = '{}';
-        }
         return [
             'id' => $this->getId(),
             'function' => [
                 'name' => $this->getName(),
-                'arguments' => $arguments,
+                'arguments' => $this->getSerializedArguments(),
             ],
             'type' => $this->getType(),
         ];
@@ -99,7 +95,11 @@ class ToolCall implements Arrayable
 
     public function getSerializedArguments(): string
     {
-        return json_encode($this->getArguments(), JSON_UNESCAPED_UNICODE);
+        $arguments = json_encode($this->getArguments(), JSON_UNESCAPED_UNICODE);
+        if ($arguments === '[]') {
+            $arguments = '{}';
+        }
+        return $arguments ?: '{}';
     }
 
     public function setArguments(array $arguments): self
