@@ -51,11 +51,15 @@ class ToolCall implements Arrayable
 
     public function toArray(): array
     {
+        $arguments = $this->getSerializedArguments();
+        if ($arguments === '[]') {
+            $arguments = '{}';
+        }
         return [
             'id' => $this->getId(),
             'function' => [
                 'name' => $this->getName(),
-                'arguments' => $this->getSerializedArguments(),
+                'arguments' => $arguments,
             ],
             'type' => $this->getType(),
         ];
