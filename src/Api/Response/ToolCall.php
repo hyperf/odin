@@ -95,6 +95,9 @@ class ToolCall implements Arrayable
 
     public function getSerializedArguments(): string
     {
+        if (! empty($this->streamArguments)) {
+            return $this->streamArguments;
+        }
         $arguments = json_encode($this->getArguments(), JSON_UNESCAPED_UNICODE);
         if ($arguments === '[]') {
             $arguments = '{}';
