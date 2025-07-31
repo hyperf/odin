@@ -212,7 +212,7 @@ class ConverseConverter implements ConverterInterface
                 $convertedTool['inputSchema'] = [
                     'json' => [
                         'type' => 'object',
-                        'properties' => [],
+                        'properties' => new stdClass(),
                     ],
                 ];
             }

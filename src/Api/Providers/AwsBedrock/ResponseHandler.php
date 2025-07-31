@@ -37,13 +37,17 @@ class ResponseHandler
                 if (isset($item['type']) && $item['type'] === 'text') {
                     $content .= $item['text'];
                 } elseif (isset($item['type']) && $item['type'] === 'tool_use') {
+                    $arguments = isset($item['input']) ? json_encode($item['input']) : '{}';
+                    if ($arguments === '[]') {
+                        $arguments = '{}'; // 确保空输入转换为JSON对象
+                    }
                     // 处理工具调用响应 - Anthropic格式
                     $functionCalls[] = [
                         'id' => $item['id'] ?? uniqid('fc-'),
                         'type' => 'function',
                         'function' => [
                             'name' => $item['name'],
-                            'arguments' => isset($item['input']) ? json_encode($item['input']) : '{}',
+                            'arguments' => $arguments,
                         ],
                     ];
                 } elseif (isset($item['type']) && $item['type'] === 'thinking') {
@@ -141,7 +145,7 @@ class ResponseHandler
                         'type' => 'tool_use',
                         'id' => $item['toolUse']['toolUseId'] ?? uniqid('fc-'),
                         'name' => $item['toolUse']['name'],
-                        'input' => $item['toolUse']['input'] ?? [],
+                        'input' => $item['toolUse']['input'] ?? new \stdClass(),
                     ];
                 }
                 if (isset($item['thinking'])) {
