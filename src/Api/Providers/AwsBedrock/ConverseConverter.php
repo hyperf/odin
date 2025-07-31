@@ -133,11 +133,15 @@ class ConverseConverter implements ConverterInterface
 
             // 2. 添加工具调用内容
             foreach ($message->getToolCalls() as $toolCall) {
+                $arguments = $toolCall->getArguments();
+                if (empty($arguments)) {
+                    $arguments = new stdClass();
+                }
                 $contentBlocks[] = [
                     'toolUse' => [
                         'toolUseId' => $toolCall->getId(),
                         'name' => $toolCall->getName(),
-                        'input' => $toolCall->getArguments(),
+                        'input' => $arguments,
                     ],
                 ];
             }
