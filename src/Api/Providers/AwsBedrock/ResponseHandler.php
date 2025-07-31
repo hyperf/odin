@@ -15,6 +15,7 @@ namespace Hyperf\Odin\Api\Providers\AwsBedrock;
 use GuzzleHttp\Psr7\Response;
 use Hyperf\Odin\Api\Response\Usage;
 use Psr\Http\Message\ResponseInterface;
+use stdClass;
 
 /**
  * 响应处理辅助类.
@@ -145,7 +146,7 @@ class ResponseHandler
                         'type' => 'tool_use',
                         'id' => $item['toolUse']['toolUseId'] ?? uniqid('fc-'),
                         'name' => $item['toolUse']['name'],
-                        'input' => $item['toolUse']['input'] ?? new \stdClass(),
+                        'input' => $item['toolUse']['input'] ?? new stdClass(),
                     ];
                 }
                 if (isset($item['thinking'])) {

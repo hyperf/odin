@@ -196,6 +196,19 @@ $translateTool = new ToolDefinition(
     }
 );
 
+$taskTool = new ToolDefinition(
+    name: 'trigger_task',
+    description: '触发任务执行',
+    parameters: ToolParameters::fromArray([
+        'type' => 'object',
+        'properties' => [],
+        'required' => [],
+    ]),
+    toolHandler: function () {
+        return ['status' => 'success', 'message' => '任务 已触发'];
+    }
+);
+
 // 创建带有所有工具的代理
 $agent = new ToolUseAgent(
     model: $model,
@@ -204,6 +217,7 @@ $agent = new ToolUseAgent(
         $calculatorTool->getName() => $calculatorTool,
         $weatherTool->getName() => $weatherTool,
         $translateTool->getName() => $translateTool,
+        $taskTool->getName() => $taskTool,
     ],
     temperature: 0.6,
     logger: $logger
@@ -213,7 +227,7 @@ $agent = new ToolUseAgent(
 echo "===== 顺序工具调用示例 =====\n";
 $start = microtime(true);
 
-$userMessage = new UserMessage('请计算 23 × 45，然后查询北京的天气，最后将"你好"翻译成英语。请详细说明每一步。');
+$userMessage = new UserMessage('请计算 23 × 45，然后查询北京的天气，最后将"你好"翻译成英语，和触发任务。请详细说明每一步。');
 $response = $agent->chat($userMessage);
 
 $message = $response->getFirstChoice()->getMessage();

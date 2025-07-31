@@ -10,7 +10,13 @@
     "autoload": {
         "psr-4": {
             "Hyperf\\Odin\\": "src/"
-        }
+        },
+        "classmap": [
+            "src/Api/Providers/AwsBedrock/ClassMap/"
+        ],
+        "exclude-from-classmap": [
+            "vendor/aws/aws-sdk-php/src/Api/Validator.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
