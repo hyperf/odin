@@ -43,8 +43,10 @@ $model = new AwsBedrockModel(
     new Logger(),
 );
 $model->setApiRequestOptions(new ApiOptions([
-    // 如果你的环境不需要代码，那就不用
+    // 如果你的环境不需要代理，那就不用
     'proxy' => env('HTTP_CLIENT_PROXY'),
+    // HTTP 处理器配置 - 支持环境变量 ODIN_HTTP_HANDLER
+    'http_handler' => env('ODIN_HTTP_HANDLER', 'auto'),
 ]));
 
 $messages = [

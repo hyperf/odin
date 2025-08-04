@@ -304,12 +304,12 @@ abstract class AbstractClient implements ClientInterface
             $options['proxy'] = $this->requestOptions->getProxy();
         }
 
-        // Guzzle 实际没有 WRITE_TIMEOUT 和 READ_TIMEOUT 常量，但可以通过自定义选项设置
-        // if (method_exists(RequestOptions::class, 'READ_TIMEOUT')) {
-        // $options[RequestOptions::READ_TIMEOUT] = $this->requestOptions->getReadTimeout();
-        // }
+        // 从 requestOptions 获取 HTTP 处理器配置
+        $handlerType = $this->requestOptions->getHttpHandler();
 
-        $this->client = new GuzzleClient($options);
+        // 使用配置的 HTTP 处理器创建客户端
+        $this->client = HttpHandlerFactory::createGuzzleClient($options, $handlerType);
+        $this->logger->debug('RequestOptions', $this->requestOptions->toArray());
     }
 
     /**

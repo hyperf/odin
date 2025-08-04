@@ -38,6 +38,13 @@ return [
                 'stream_first' => 60.0, // 首个流式块超时（秒）
             ],
             'custom_error_mapping_rules' => [],
+            /**
+             * HTTP 处理器配置
+             * 'auto': 自动选择最佳处理器（默认）
+             * 'curl': 强制使用 cURL（更好的性能和功能）
+             * 'stream': 强制使用 PHP Stream（纯 PHP，无外部依赖）.
+             */
+            'http_handler' => env('ODIN_HTTP_HANDLER', 'auto'),
         ],
         'models' => [
             'gpt-4o-global' => [

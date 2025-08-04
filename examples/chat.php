@@ -17,6 +17,7 @@ use Hyperf\Context\ApplicationContext;
 use Hyperf\Di\ClassLoader;
 use Hyperf\Di\Container;
 use Hyperf\Di\Definition\DefinitionSourceFactory;
+use Hyperf\Odin\Api\RequestOptions\ApiOptions;
 use Hyperf\Odin\Logger;
 use Hyperf\Odin\Message\AssistantMessage;
 use Hyperf\Odin\Message\SystemMessage;
@@ -39,6 +40,11 @@ $model = new AzureOpenAIModel(
     ],
     new Logger(),
 );
+
+$model->setApiRequestOptions(new ApiOptions([
+    // HTTP 处理器配置 - 支持环境变量 ODIN_HTTP_HANDLER
+    'http_handler' => env('ODIN_HTTP_HANDLER', 'auto'),
+]));
 
 $messages = [
     new SystemMessage(''),

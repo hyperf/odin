@@ -42,6 +42,11 @@ class ApiOptions
     protected ?string $proxy = null;
 
     /**
+     * @var string HTTP 处理器类型
+     */
+    protected string $httpHandler = 'auto';
+
+    /**
      * 构造函数.
      *
      * @param array $options 配置选项
@@ -58,6 +63,10 @@ class ApiOptions
 
         if (isset($options['proxy'])) {
             $this->proxy = $options['proxy'];
+        }
+
+        if (isset($options['http_handler'])) {
+            $this->httpHandler = $options['http_handler'];
         }
     }
 
@@ -78,6 +87,7 @@ class ApiOptions
             'timeout' => $this->timeout,
             'custom_error_mapping_rules' => $this->customErrorMappingRules,
             'proxy' => $this->proxy,
+            'http_handler' => $this->httpHandler,
         ];
     }
 
@@ -167,5 +177,22 @@ class ApiOptions
     public function hasProxy(): bool
     {
         return $this->proxy !== null;
+    }
+
+    /**
+     * 获取 HTTP 处理器类型.
+     */
+    public function getHttpHandler(): string
+    {
+        return $this->httpHandler;
+    }
+
+    /**
+     * 设置 HTTP 处理器类型.
+     */
+    public function setHttpHandler(string $httpHandler): self
+    {
+        $this->httpHandler = $httpHandler;
+        return $this;
     }
 }

@@ -16,6 +16,7 @@ use Aws\BedrockRuntime\BedrockRuntimeClient;
 use Aws\Exception\AwsException;
 use Hyperf\Odin\Api\Providers\AbstractClient;
 use Hyperf\Odin\Api\Providers\AwsBedrock\Cache\AutoCacheConfig;
+use Hyperf\Odin\Api\Providers\HttpHandlerFactory;
 use Hyperf\Odin\Api\Request\ChatCompletionRequest;
 use Hyperf\Odin\Api\Request\EmbeddingRequest;
 use Hyperf\Odin\Api\RequestOptions\ApiOptions;
@@ -190,15 +191,26 @@ class Client extends AbstractClient
         /** @var AwsBedrockConfig $config */
         $config = $this->config;
 
-        // 初始化 AWS Bedrock 客户端
-        $this->bedrockClient = new BedrockRuntimeClient([
+        // 准备客户端配置
+        $clientConfig = [
             'version' => 'latest',
             'region' => $config->region,
             'credentials' => [
                 'key' => $config->accessKey,
                 'secret' => $config->secretKey,
             ],
-        ]);
+        ];
+
+        // 从 requestOptions 获取 HTTP 处理器配置
+        $handlerType = $this->requestOptions->getHttpHandler();
+        if ($handlerType !== 'auto') {
+            // 使用 http_handler 而不是 handler，因为我们要处理 PSR-7 HTTP 请求
+            $clientConfig['http_handler'] = HttpHandlerFactory::create($handlerType);
+        }
+
+        // 初始化 AWS Bedrock 客户端
+        $this->bedrockClient = new BedrockRuntimeClient($clientConfig);
+        $this->logger->debug('RequestOptions', $this->requestOptions->toArray());
     }
 
     protected function buildChatCompletionsUrl(): string
