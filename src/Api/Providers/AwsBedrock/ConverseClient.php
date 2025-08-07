@@ -25,6 +25,7 @@ use Hyperf\Odin\Message\SystemMessage;
 use Hyperf\Odin\Message\ToolMessage;
 use Hyperf\Odin\Message\UserMessage;
 use Hyperf\Odin\Utils\EventUtil;
+use Hyperf\Odin\Utils\LoggingConfigHelper;
 use Hyperf\Odin\Utils\LogUtil;
 use Throwable;
 
@@ -50,11 +51,11 @@ class ConverseClient extends Client
             $args = array_merge($requestBody, $args);
 
             // 记录请求前日志
-            $this->logger?->debug('AwsBedrockConverseRequest', [
+            $this->logger?->debug('AwsBedrockConverseRequest', LoggingConfigHelper::filterAndFormatLogData([
                 'model_id' => $modelId,
-                'args' => LogUtil::formatLongText($args),
+                'args' => $args,
                 'token_estimate' => $chatRequest->getTokenEstimateDetail(),
-            ]);
+            ], $this->requestOptions));
 
             // 调用模型
             $result = $this->bedrockClient->converse($args);
@@ -66,12 +67,17 @@ class ConverseClient extends Client
             $psrResponse = ResponseHandler::convertConverseToPsrResponse($result['output'] ?? [], $result['usage'] ?? [], $chatRequest->getModel());
             $chatCompletionResponse = new ChatCompletionResponse($psrResponse, $this->logger);
 
-            $this->logger?->debug('AwsBedrockConverseResponse', [
+            $performanceFlag = LogUtil::getPerformanceFlag($duration);
+            $logData = [
                 'model_id' => $modelId,
                 'duration_ms' => $duration,
                 'usage' => $result['usage'] ?? [],
                 'content' => $chatCompletionResponse->getContent(),
-            ]);
+                'response_headers' => $result['@metadata']['headers'] ?? [],
+                'performance_flag' => $performanceFlag,
+            ];
+
+            $this->logger?->debug('AwsBedrockConverseResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
 
             EventUtil::dispatch(new AfterChatCompletionsEvent($chatRequest, $chatCompletionResponse, $duration));
 
@@ -103,11 +109,11 @@ class ConverseClient extends Client
             $args = array_merge($requestBody, $args);
 
             // 记录请求前日志
-            $this->logger?->debug('AwsBedrockConverseStreamRequest', [
+            $this->logger?->debug('AwsBedrockConverseStreamRequest', LoggingConfigHelper::filterAndFormatLogData([
                 'model_id' => $modelId,
-                'args' => LogUtil::formatLongText($args),
+                'args' => $args,
                 'token_estimate' => $chatRequest->getTokenEstimateDetail(),
-            ]);
+            ], $this->requestOptions));
 
             // 使用流式响应调用模型
             $result = $this->bedrockClient->converseStream($args);
@@ -116,10 +122,15 @@ class ConverseClient extends Client
             $firstResponseDuration = round(($firstResponseTime - $startTime) * 1000); // 毫秒
 
             // 记录首次响应日志
-            $this->logger?->debug('AwsBedrockConverseStreamFirstResponse', [
+            $performanceFlag = LogUtil::getPerformanceFlag($firstResponseDuration);
+            $logData = [
                 'model_id' => $modelId,
                 'first_response_ms' => $firstResponseDuration,
-            ]);
+                'response_headers' => $result['@metadata']['headers'] ?? [],
+                'performance_flag' => $performanceFlag,
+            ];
+
+            $this->logger?->debug('AwsBedrockConverseStreamFirstResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
 
             // 创建 AWS Bedrock 格式转换器，负责将 AWS Bedrock 格式转换为 OpenAI 格式
             $bedrockConverter = new AwsBedrockConverseFormatConverter($result, $this->logger, $modelId);

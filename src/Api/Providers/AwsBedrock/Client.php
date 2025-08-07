@@ -36,6 +36,7 @@ use Hyperf\Odin\Message\SystemMessage;
 use Hyperf\Odin\Message\ToolMessage;
 use Hyperf\Odin\Message\UserMessage;
 use Hyperf\Odin\Utils\EventUtil;
+use Hyperf\Odin\Utils\LoggingConfigHelper;
 use Hyperf\Odin\Utils\LogUtil;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
@@ -83,10 +84,10 @@ class Client extends AbstractClient
             ];
 
             // 记录请求前日志
-            $this->logger?->debug('AwsBedrockChatRequest', [
+            $this->logger?->debug('AwsBedrockChatRequest', LoggingConfigHelper::filterAndFormatLogData([
                 'model_id' => $modelId,
-                'args' => LogUtil::formatLongText($args),
-            ]);
+                'args' => $args,
+            ], $this->requestOptions));
 
             // 调用模型
             $result = $this->bedrockClient->invokeModel($args);
@@ -100,11 +101,17 @@ class Client extends AbstractClient
             $psrResponse = ResponseHandler::convertToPsrResponse($responseBody, $chatRequest->getModel());
             $chatCompletionResponse = new ChatCompletionResponse($psrResponse, $this->logger);
 
-            $this->logger?->debug('AwsBedrockChatResponse', [
+            $performanceFlag = LogUtil::getPerformanceFlag($duration);
+            $logData = [
                 'model_id' => $modelId,
                 'duration_ms' => $duration,
                 'content' => $chatCompletionResponse->getContent(),
-            ]);
+                'usage' => $responseBody['usage'] ?? [],
+                'response_headers' => $result['@metadata']['headers'] ?? [],
+                'performance_flag' => $performanceFlag,
+            ];
+
+            $this->logger?->debug('AwsBedrockChatResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
 
             EventUtil::dispatch(new AfterChatCompletionsEvent($chatRequest, $chatCompletionResponse, $duration));
 
@@ -137,10 +144,10 @@ class Client extends AbstractClient
             ];
 
             // 记录请求前日志
-            $this->logger?->debug('AwsBedrockStreamRequest', [
+            $this->logger?->debug('AwsBedrockStreamRequest', LoggingConfigHelper::filterAndFormatLogData([
                 'model_id' => $modelId,
                 'args' => $args,
-            ]);
+            ], $this->requestOptions));
 
             // 使用流式响应调用模型
             $result = $this->bedrockClient->invokeModelWithResponseStream($args);
@@ -149,10 +156,15 @@ class Client extends AbstractClient
             $firstResponseDuration = round(($firstResponseTime - $startTime) * 1000); // 毫秒
 
             // 记录首次响应日志
-            $this->logger?->debug('AwsBedrockStreamFirstResponse', [
+            $performanceFlag = LogUtil::getPerformanceFlag($firstResponseDuration);
+            $logData = [
                 'model_id' => $modelId,
                 'first_response_ms' => $firstResponseDuration,
-            ]);
+                'response_headers' => $result['@metadata']['headers'] ?? [],
+                'performance_flag' => $performanceFlag,
+            ];
+
+            $this->logger?->debug('AwsBedrockStreamFirstResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
 
             // 创建 AWS Bedrock 格式转换器，负责将 AWS Bedrock 格式转换为 OpenAI 格式
             $bedrockConverter = new AwsBedrockFormatConverter($result, $this->logger);

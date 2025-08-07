@@ -47,6 +47,14 @@ class ApiOptions
     protected string $httpHandler = 'auto';
 
     /**
+     * @var array 日志配置
+     */
+    protected array $logging = [
+        'enable_whitelist' => false,
+        'whitelist_fields' => [],
+    ];
+
+    /**
      * 构造函数.
      *
      * @param array $options 配置选项
@@ -68,6 +76,10 @@ class ApiOptions
         if (isset($options['http_handler'])) {
             $this->httpHandler = $options['http_handler'];
         }
+
+        if (isset($options['logging']) && is_array($options['logging'])) {
+            $this->logging = array_merge($this->logging, $options['logging']);
+        }
     }
 
     /**
@@ -88,6 +100,7 @@ class ApiOptions
             'custom_error_mapping_rules' => $this->customErrorMappingRules,
             'proxy' => $this->proxy,
             'http_handler' => $this->httpHandler,
+            'logging' => $this->logging,
         ];
     }
 
@@ -194,5 +207,29 @@ class ApiOptions
     {
         $this->httpHandler = $httpHandler;
         return $this;
+    }
+
+    /**
+     * 获取日志配置.
+     */
+    public function getLogging(): array
+    {
+        return $this->logging;
+    }
+
+    /**
+     * 获取日志白名单字段列表.
+     */
+    public function getLoggingWhitelistFields(): array
+    {
+        return $this->logging['whitelist_fields'] ?? [];
+    }
+
+    /**
+     * 检查是否启用日志白名单过滤.
+     */
+    public function isLoggingWhitelistEnabled(): bool
+    {
+        return (bool) ($this->logging['enable_whitelist'] ?? false);
     }
 }

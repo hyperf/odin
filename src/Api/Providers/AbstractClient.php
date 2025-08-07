@@ -33,6 +33,8 @@ use Hyperf\Odin\Exception\LLMException\ErrorHandlerInterface;
 use Hyperf\Odin\Exception\LLMException\ErrorMappingManager;
 use Hyperf\Odin\Exception\LLMException\LLMErrorHandler;
 use Hyperf\Odin\Utils\EventUtil;
+use Hyperf\Odin\Utils\LoggingConfigHelper;
+use Hyperf\Odin\Utils\LogUtil;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -75,7 +77,7 @@ abstract class AbstractClient implements ClientInterface
 
         $url = $this->buildChatCompletionsUrl();
 
-        $this->logger?->debug('ChatCompletionsRequest', ['url' => $url, 'options' => $options]);
+        $this->logger?->debug('ChatCompletionsRequest', LoggingConfigHelper::filterAndFormatLogData(['url' => $url, 'options' => $options], $this->requestOptions));
 
         $startTime = microtime(true);
         try {
@@ -85,10 +87,15 @@ abstract class AbstractClient implements ClientInterface
 
             $chatCompletionResponse = new ChatCompletionResponse($response, $this->logger);
 
-            $this->logger?->debug('ChatCompletionsResponse', [
+            $performanceFlag = LogUtil::getPerformanceFlag($duration);
+            $logData = [
                 'duration_ms' => $duration,
                 'content' => $chatCompletionResponse->getContent(),
-            ]);
+                'response_headers' => $response->getHeaders(),
+                'performance_flag' => $performanceFlag,
+            ];
+
+            $this->logger?->debug('ChatCompletionsResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
 
             EventUtil::dispatch(new AfterChatCompletionsEvent($chatRequest, $chatCompletionResponse, $duration));
 
@@ -111,7 +118,7 @@ abstract class AbstractClient implements ClientInterface
 
         $url = $this->buildChatCompletionsUrl();
 
-        $this->logger?->debug('ChatCompletionsStreamRequest', ['url' => $url, 'options' => $options]);
+        $this->logger?->debug('ChatCompletionsStreamRequest', LoggingConfigHelper::filterAndFormatLogData(['url' => $url, 'options' => $options], $this->requestOptions));
 
         $startTime = microtime(true);
         try {
@@ -133,9 +140,14 @@ abstract class AbstractClient implements ClientInterface
             $chatCompletionStreamResponse = new ChatCompletionStreamResponse($response, $this->logger, $sseClient);
             $chatCompletionStreamResponse->setAfterChatCompletionsStreamEvent(new AfterChatCompletionsStreamEvent($chatRequest, $firstResponseDuration));
 
-            $this->logger?->debug('ChatCompletionsStreamResponse', [
+            $performanceFlag = LogUtil::getPerformanceFlag($firstResponseDuration);
+            $logData = [
                 'first_response_ms' => $firstResponseDuration,
-            ]);
+                'response_headers' => $response->getHeaders(),
+                'performance_flag' => $performanceFlag,
+            ];
+
+            $this->logger?->debug('ChatCompletionsStreamResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
 
             return $chatCompletionStreamResponse;
         } catch (Throwable $e) {
