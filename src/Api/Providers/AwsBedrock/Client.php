@@ -72,6 +72,9 @@ class Client extends AbstractClient
             $modelId = $chatRequest->getModel();
             $requestBody = $this->prepareRequestBody($chatRequest);
 
+            // 生成请求ID
+            $requestId = $this->generateRequestId();
+
             $args = [
                 'body' => json_encode($requestBody, JSON_UNESCAPED_UNICODE),
                 'modelId' => $modelId,
@@ -85,6 +88,7 @@ class Client extends AbstractClient
 
             // 记录请求前日志
             $this->logger?->info('AwsBedrockChatRequest', LoggingConfigHelper::filterAndFormatLogData([
+                'request_id' => $requestId,
                 'model_id' => $modelId,
                 'args' => $args,
             ], $this->requestOptions));
@@ -103,6 +107,7 @@ class Client extends AbstractClient
 
             $performanceFlag = LogUtil::getPerformanceFlag($duration);
             $logData = [
+                'request_id' => $requestId,
                 'model_id' => $modelId,
                 'duration_ms' => $duration,
                 'content' => $chatCompletionResponse->getContent(),
@@ -135,6 +140,9 @@ class Client extends AbstractClient
             $modelId = $chatRequest->getModel();
             $requestBody = $this->prepareRequestBody($chatRequest);
 
+            // 生成请求ID
+            $requestId = $this->generateRequestId();
+
             $args = [
                 'body' => json_encode($requestBody, JSON_UNESCAPED_UNICODE),
                 'modelId' => $modelId,
@@ -145,6 +153,7 @@ class Client extends AbstractClient
 
             // 记录请求前日志
             $this->logger?->info('AwsBedrockStreamRequest', LoggingConfigHelper::filterAndFormatLogData([
+                'request_id' => $requestId,
                 'model_id' => $modelId,
                 'args' => $args,
             ], $this->requestOptions));
@@ -158,6 +167,7 @@ class Client extends AbstractClient
             // 记录首次响应日志
             $performanceFlag = LogUtil::getPerformanceFlag($firstResponseDuration);
             $logData = [
+                'request_id' => $requestId,
                 'model_id' => $modelId,
                 'first_response_ms' => $firstResponseDuration,
                 'response_headers' => $result['@metadata']['headers'] ?? [],

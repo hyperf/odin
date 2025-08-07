@@ -41,6 +41,9 @@ class ConverseClient extends Client
             $modelId = $chatRequest->getModel();
             $requestBody = $this->prepareConverseRequestBody($chatRequest);
 
+            // 生成请求ID
+            $requestId = $this->generateRequestId();
+
             $args = [
                 'modelId' => $modelId,
                 '@http' => $this->getHttpArgs(
@@ -52,6 +55,7 @@ class ConverseClient extends Client
 
             // 记录请求前日志
             $this->logger?->info('AwsBedrockConverseRequest', LoggingConfigHelper::filterAndFormatLogData([
+                'request_id' => $requestId,
                 'model_id' => $modelId,
                 'args' => $args,
                 'token_estimate' => $chatRequest->getTokenEstimateDetail(),
@@ -69,6 +73,7 @@ class ConverseClient extends Client
 
             $performanceFlag = LogUtil::getPerformanceFlag($duration);
             $logData = [
+                'request_id' => $requestId,
                 'model_id' => $modelId,
                 'duration_ms' => $duration,
                 'usage' => $result['usage'] ?? [],
@@ -99,6 +104,9 @@ class ConverseClient extends Client
             $modelId = $chatRequest->getModel();
             $requestBody = $this->prepareConverseRequestBody($chatRequest);
 
+            // 生成请求ID
+            $requestId = $this->generateRequestId();
+
             $args = [
                 'modelId' => $modelId,
                 '@http' => $this->getHttpArgs(
@@ -110,6 +118,7 @@ class ConverseClient extends Client
 
             // 记录请求前日志
             $this->logger?->info('AwsBedrockConverseStreamRequest', LoggingConfigHelper::filterAndFormatLogData([
+                'request_id' => $requestId,
                 'model_id' => $modelId,
                 'args' => $args,
                 'token_estimate' => $chatRequest->getTokenEstimateDetail(),
@@ -124,6 +133,7 @@ class ConverseClient extends Client
             // 记录首次响应日志
             $performanceFlag = LogUtil::getPerformanceFlag($firstResponseDuration);
             $logData = [
+                'request_id' => $requestId,
                 'model_id' => $modelId,
                 'first_response_ms' => $firstResponseDuration,
                 'response_headers' => $result['@metadata']['headers'] ?? [],

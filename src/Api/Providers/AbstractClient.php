@@ -75,9 +75,16 @@ abstract class AbstractClient implements ClientInterface
         $chatRequest->validate();
         $options = $chatRequest->createOptions();
 
+        // 动态生成请求ID并添加到请求头
+        $requestId = $this->generateRequestId();
+        if (! isset($options[RequestOptions::HEADERS])) {
+            $options[RequestOptions::HEADERS] = [];
+        }
+        $options[RequestOptions::HEADERS]['odin-request-id'] = $requestId;
+
         $url = $this->buildChatCompletionsUrl();
 
-        $this->logger?->info('ChatCompletionsRequest', LoggingConfigHelper::filterAndFormatLogData(['url' => $url, 'options' => $options], $this->requestOptions));
+        $this->logger?->info('ChatCompletionsRequest', LoggingConfigHelper::filterAndFormatLogData(['url' => $url, 'options' => $options, 'request_id' => $requestId], $this->requestOptions));
 
         $startTime = microtime(true);
         try {
@@ -89,6 +96,7 @@ abstract class AbstractClient implements ClientInterface
 
             $performanceFlag = LogUtil::getPerformanceFlag($duration);
             $logData = [
+                'request_id' => $requestId,
                 'duration_ms' => $duration,
                 'content' => $chatCompletionResponse->getContent(),
                 'response_headers' => $response->getHeaders(),
@@ -116,9 +124,16 @@ abstract class AbstractClient implements ClientInterface
         $chatRequest->validate();
         $options = $chatRequest->createOptions();
 
+        // 动态生成请求ID并添加到请求头
+        $requestId = $this->generateRequestId();
+        if (! isset($options[RequestOptions::HEADERS])) {
+            $options[RequestOptions::HEADERS] = [];
+        }
+        $options[RequestOptions::HEADERS]['odin-request-id'] = $requestId;
+
         $url = $this->buildChatCompletionsUrl();
 
-        $this->logger?->info('ChatCompletionsStreamRequest', LoggingConfigHelper::filterAndFormatLogData(['url' => $url, 'options' => $options], $this->requestOptions));
+        $this->logger?->info('ChatCompletionsStreamRequest', LoggingConfigHelper::filterAndFormatLogData(['url' => $url, 'options' => $options, 'request_id' => $requestId], $this->requestOptions));
 
         $startTime = microtime(true);
         try {
@@ -142,6 +157,7 @@ abstract class AbstractClient implements ClientInterface
 
             $performanceFlag = LogUtil::getPerformanceFlag($firstResponseDuration);
             $logData = [
+                'request_id' => $requestId,
                 'first_response_ms' => $firstResponseDuration,
                 'response_headers' => $response->getHeaders(),
                 'performance_flag' => $performanceFlag,
@@ -322,6 +338,14 @@ abstract class AbstractClient implements ClientInterface
         // 使用配置的 HTTP 处理器创建客户端
         $this->client = HttpHandlerFactory::createGuzzleClient($options, $handlerType);
         $this->logger->info('RequestOptions', $this->requestOptions->toArray());
+    }
+
+    /**
+     * 生成唯一的请求ID.
+     */
+    protected function generateRequestId(): string
+    {
+        return 'req_' . date('YmdHis') . '_' . uniqid() . '_' . bin2hex(random_bytes(4));
     }
 
     /**
