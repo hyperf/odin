@@ -80,7 +80,7 @@ abstract class AbstractClient implements ClientInterface
         if (! isset($options[RequestOptions::HEADERS])) {
             $options[RequestOptions::HEADERS] = [];
         }
-        $options[RequestOptions::HEADERS]['odin-request-id'] = $requestId;
+        $options[RequestOptions::HEADERS]['x-request-id'] = $requestId;
 
         $url = $this->buildChatCompletionsUrl();
 
@@ -129,7 +129,7 @@ abstract class AbstractClient implements ClientInterface
         if (! isset($options[RequestOptions::HEADERS])) {
             $options[RequestOptions::HEADERS] = [];
         }
-        $options[RequestOptions::HEADERS]['odin-request-id'] = $requestId;
+        $options[RequestOptions::HEADERS]['x-request-id'] = $requestId;
 
         $url = $this->buildChatCompletionsUrl();
 
@@ -186,7 +186,7 @@ abstract class AbstractClient implements ClientInterface
         if (! isset($options[RequestOptions::HEADERS])) {
             $options[RequestOptions::HEADERS] = [];
         }
-        $options[RequestOptions::HEADERS]['odin-request-id'] = $requestId;
+        $options[RequestOptions::HEADERS]['x-request-id'] = $requestId;
 
         $url = $this->buildEmbeddingsUrl();
 
