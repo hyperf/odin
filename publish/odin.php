@@ -100,9 +100,12 @@ return [
                     // 注意：以下字段被排除，不会打印
                     // - args.messages (用户消息内容)
                     // - args.tools (工具定义)
+                    // - args.input (嵌入请求的输入文本)
                     // - choices.0.message (响应消息内容)
                     // - choices.0.delta (流式响应增量内容)
                     // - content (响应内容)
+                    // - data.*.embedding (嵌入响应的向量数据)
+                    // - data.embedding (单个嵌入结果的向量数据)
                 ],
                 // 是否启用字段白名单过滤，默认true（启用过滤）
                 'enable_whitelist' => env('ODIN_LOG_WHITELIST_ENABLED', true),

@@ -181,9 +181,16 @@ abstract class AbstractClient implements ClientInterface
         $embeddingRequest->validate();
         $options = $embeddingRequest->createOptions();
 
+        // 动态生成请求ID并添加到请求头
+        $requestId = $this->generateRequestId();
+        if (! isset($options[RequestOptions::HEADERS])) {
+            $options[RequestOptions::HEADERS] = [];
+        }
+        $options[RequestOptions::HEADERS]['odin-request-id'] = $requestId;
+
         $url = $this->buildEmbeddingsUrl();
 
-        $this->logger?->info('EmbeddingsRequestRequest', ['url' => $url, 'options' => $options]);
+        $this->logger?->info('EmbeddingsRequest', LoggingConfigHelper::filterAndFormatLogData(['url' => $url, 'options' => $options, 'request_id' => $requestId], $this->requestOptions));
 
         $startTime = microtime(true);
 
@@ -194,10 +201,16 @@ abstract class AbstractClient implements ClientInterface
 
             $embeddingResponse = new EmbeddingResponse($response, $this->logger);
 
-            $this->logger?->info('EmbeddingsResponse', [
+            $performanceFlag = LogUtil::getPerformanceFlag($duration);
+            $logData = [
+                'request_id' => $requestId,
                 'duration_ms' => $duration,
                 'data' => $embeddingResponse->toArray(),
-            ]);
+                'response_headers' => $response->getHeaders(),
+                'performance_flag' => $performanceFlag,
+            ];
+
+            $this->logger?->info('EmbeddingsResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
 
             EventUtil::dispatch(new AfterEmbeddingsEvent($embeddingRequest, $embeddingResponse, $duration));
 
