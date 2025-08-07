@@ -51,7 +51,7 @@ class ConverseClient extends Client
             $args = array_merge($requestBody, $args);
 
             // 记录请求前日志
-            $this->logger?->debug('AwsBedrockConverseRequest', LoggingConfigHelper::filterAndFormatLogData([
+            $this->logger?->info('AwsBedrockConverseRequest', LoggingConfigHelper::filterAndFormatLogData([
                 'model_id' => $modelId,
                 'args' => $args,
                 'token_estimate' => $chatRequest->getTokenEstimateDetail(),
@@ -77,7 +77,7 @@ class ConverseClient extends Client
                 'performance_flag' => $performanceFlag,
             ];
 
-            $this->logger?->debug('AwsBedrockConverseResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
+            $this->logger?->info('AwsBedrockConverseResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
 
             EventUtil::dispatch(new AfterChatCompletionsEvent($chatRequest, $chatCompletionResponse, $duration));
 
@@ -109,7 +109,7 @@ class ConverseClient extends Client
             $args = array_merge($requestBody, $args);
 
             // 记录请求前日志
-            $this->logger?->debug('AwsBedrockConverseStreamRequest', LoggingConfigHelper::filterAndFormatLogData([
+            $this->logger?->info('AwsBedrockConverseStreamRequest', LoggingConfigHelper::filterAndFormatLogData([
                 'model_id' => $modelId,
                 'args' => $args,
                 'token_estimate' => $chatRequest->getTokenEstimateDetail(),
@@ -130,7 +130,7 @@ class ConverseClient extends Client
                 'performance_flag' => $performanceFlag,
             ];
 
-            $this->logger?->debug('AwsBedrockConverseStreamFirstResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
+            $this->logger?->info('AwsBedrockConverseStreamFirstResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
 
             // 创建 AWS Bedrock 格式转换器，负责将 AWS Bedrock 格式转换为 OpenAI 格式
             $bedrockConverter = new AwsBedrockConverseFormatConverter($result, $this->logger, $modelId);

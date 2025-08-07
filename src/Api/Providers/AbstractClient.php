@@ -77,7 +77,7 @@ abstract class AbstractClient implements ClientInterface
 
         $url = $this->buildChatCompletionsUrl();
 
-        $this->logger?->debug('ChatCompletionsRequest', LoggingConfigHelper::filterAndFormatLogData(['url' => $url, 'options' => $options], $this->requestOptions));
+        $this->logger?->info('ChatCompletionsRequest', LoggingConfigHelper::filterAndFormatLogData(['url' => $url, 'options' => $options], $this->requestOptions));
 
         $startTime = microtime(true);
         try {
@@ -95,7 +95,7 @@ abstract class AbstractClient implements ClientInterface
                 'performance_flag' => $performanceFlag,
             ];
 
-            $this->logger?->debug('ChatCompletionsResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
+            $this->logger?->info('ChatCompletionsResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
 
             EventUtil::dispatch(new AfterChatCompletionsEvent($chatRequest, $chatCompletionResponse, $duration));
 
@@ -118,7 +118,7 @@ abstract class AbstractClient implements ClientInterface
 
         $url = $this->buildChatCompletionsUrl();
 
-        $this->logger?->debug('ChatCompletionsStreamRequest', LoggingConfigHelper::filterAndFormatLogData(['url' => $url, 'options' => $options], $this->requestOptions));
+        $this->logger?->info('ChatCompletionsStreamRequest', LoggingConfigHelper::filterAndFormatLogData(['url' => $url, 'options' => $options], $this->requestOptions));
 
         $startTime = microtime(true);
         try {
@@ -147,7 +147,7 @@ abstract class AbstractClient implements ClientInterface
                 'performance_flag' => $performanceFlag,
             ];
 
-            $this->logger?->debug('ChatCompletionsStreamResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
+            $this->logger?->info('ChatCompletionsStreamResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
 
             return $chatCompletionStreamResponse;
         } catch (Throwable $e) {
@@ -321,7 +321,7 @@ abstract class AbstractClient implements ClientInterface
 
         // 使用配置的 HTTP 处理器创建客户端
         $this->client = HttpHandlerFactory::createGuzzleClient($options, $handlerType);
-        $this->logger->debug('RequestOptions', $this->requestOptions->toArray());
+        $this->logger->info('RequestOptions', $this->requestOptions->toArray());
     }
 
     /**

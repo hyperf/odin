@@ -84,7 +84,7 @@ class Client extends AbstractClient
             ];
 
             // 记录请求前日志
-            $this->logger?->debug('AwsBedrockChatRequest', LoggingConfigHelper::filterAndFormatLogData([
+            $this->logger?->info('AwsBedrockChatRequest', LoggingConfigHelper::filterAndFormatLogData([
                 'model_id' => $modelId,
                 'args' => $args,
             ], $this->requestOptions));
@@ -111,7 +111,7 @@ class Client extends AbstractClient
                 'performance_flag' => $performanceFlag,
             ];
 
-            $this->logger?->debug('AwsBedrockChatResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
+            $this->logger?->info('AwsBedrockChatResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
 
             EventUtil::dispatch(new AfterChatCompletionsEvent($chatRequest, $chatCompletionResponse, $duration));
 
@@ -144,7 +144,7 @@ class Client extends AbstractClient
             ];
 
             // 记录请求前日志
-            $this->logger?->debug('AwsBedrockStreamRequest', LoggingConfigHelper::filterAndFormatLogData([
+            $this->logger?->info('AwsBedrockStreamRequest', LoggingConfigHelper::filterAndFormatLogData([
                 'model_id' => $modelId,
                 'args' => $args,
             ], $this->requestOptions));
@@ -164,7 +164,7 @@ class Client extends AbstractClient
                 'performance_flag' => $performanceFlag,
             ];
 
-            $this->logger?->debug('AwsBedrockStreamFirstResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
+            $this->logger?->info('AwsBedrockStreamFirstResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
 
             // 创建 AWS Bedrock 格式转换器，负责将 AWS Bedrock 格式转换为 OpenAI 格式
             $bedrockConverter = new AwsBedrockFormatConverter($result, $this->logger);
@@ -222,7 +222,7 @@ class Client extends AbstractClient
 
         // 初始化 AWS Bedrock 客户端
         $this->bedrockClient = new BedrockRuntimeClient($clientConfig);
-        $this->logger->debug('RequestOptions', $this->requestOptions->toArray());
+        $this->logger->info('RequestOptions', $this->requestOptions->toArray());
     }
 
     protected function buildChatCompletionsUrl(): string
