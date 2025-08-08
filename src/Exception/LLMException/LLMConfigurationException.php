@@ -20,6 +20,7 @@ use Throwable;
  *
  * 这个类处理所有与配置相关的错误，如API密钥无效、URL无效等。
  * 错误码范围：1000-1999
+ * 默认HTTP状态码：500（服务端配置错误）
  */
 class LLMConfigurationException extends LLMException
 {
@@ -31,7 +32,7 @@ class LLMConfigurationException extends LLMException
     /**
      * 创建一个新的配置异常实例.
      */
-    public function __construct(string $message = '', int $code = 0, ?Throwable $previous = null, int $errorCode = 0, ?int $statusCode = null)
+    public function __construct(string $message = '', int $code = 0, ?Throwable $previous = null, int $errorCode = 0, int $statusCode = 500)
     {
         // 如果没有提供错误码，则使用默认基数
         $errorCode = $errorCode ?: (self::ERROR_CODE_BASE + $code);

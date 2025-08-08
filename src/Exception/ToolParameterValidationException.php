@@ -12,13 +12,12 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Exception;
 
-use Exception;
 use Throwable;
 
 /**
- * 工具参数验证异常.
+ * 工具参数验证异常，自动设置400状态码.
  */
-class ToolParameterValidationException extends Exception
+class ToolParameterValidationException extends LLMException
 {
     /**
      * 验证错误信息数组.
@@ -40,7 +39,7 @@ class ToolParameterValidationException extends Exception
         ?Throwable $previous = null
     ) {
         $this->validationErrors = $validationErrors;
-        parent::__construct($message, $code, $previous);
+        parent::__construct($message, $code, $previous, $code ?: 4001, 400);
     }
 
     /**

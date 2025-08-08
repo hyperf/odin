@@ -16,6 +16,7 @@ use Hyperf\Config\Config;
 use Hyperf\Odin\ModelMapper;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use ReflectionClass;
 
 /**
@@ -26,12 +27,13 @@ use ReflectionClass;
 class ModelMapperTest extends TestCase
 {
     private ModelMapper $modelMapper;
+
     private Config $config;
 
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Create a mock config with test data
         $this->config = new Config([
             'odin' => [
@@ -45,17 +47,17 @@ class ModelMapperTest extends TestCase
                         'claude-%' => 0.8,
                         '%gemini%' => 0.7,
                         'exact-model-name' => 0.9,
-                    ]
-                ]
-            ]
+                    ],
+                ],
+            ],
         ]);
 
-        $logger = new \Psr\Log\NullLogger();
+        $logger = new NullLogger();
         $this->modelMapper = new ModelMapper($this->config, $logger);
     }
 
     /**
-     * Test exact match for fixed temperature
+     * Test exact match for fixed temperature.
      */
     public function testExactMatchFixedTemperature()
     {
@@ -71,7 +73,7 @@ class ModelMapperTest extends TestCase
     }
 
     /**
-     * Test wildcard pattern matching
+     * Test wildcard pattern matching.
      */
     public function testWildcardPatternMatching()
     {
@@ -108,7 +110,7 @@ class ModelMapperTest extends TestCase
     }
 
     /**
-     * Test no match scenarios
+     * Test no match scenarios.
      */
     public function testNoMatchScenarios()
     {
@@ -129,13 +131,13 @@ class ModelMapperTest extends TestCase
     }
 
     /**
-     * Test exact match takes precedence over wildcard
+     * Test exact match takes precedence over wildcard.
      */
     public function testExactMatchPrecedence()
     {
         // Add exact match for a model that would also match wildcard
         $this->config->set('odin.llm.model_fixed_temperature.gpt-5-exact', 2.0);
-        
+
         $reflection = new ReflectionClass($this->modelMapper);
         $method = $reflection->getMethod('getFixedTemperatureForModel');
         $method->setAccessible(true);
@@ -146,7 +148,7 @@ class ModelMapperTest extends TestCase
     }
 
     /**
-     * Test wildcard pattern matching method directly
+     * Test wildcard pattern matching method directly.
      */
     public function testWildcardPatternMatchingDirect()
     {
@@ -158,30 +160,30 @@ class ModelMapperTest extends TestCase
         $this->assertTrue($method->invoke($this->modelMapper, 'gpt-5-turbo', '%gpt-5%'));
         $this->assertTrue($method->invoke($this->modelMapper, 'new-gpt-5-model', '%gpt-5%'));
         $this->assertTrue($method->invoke($this->modelMapper, 'gpt-5', '%gpt-5%'));
-        
+
         $this->assertTrue($method->invoke($this->modelMapper, 'claude-3', 'claude-%'));
         $this->assertTrue($method->invoke($this->modelMapper, 'claude-haiku', 'claude-%'));
-        
+
         $this->assertTrue($method->invoke($this->modelMapper, 'google-gemini-pro', '%gemini%'));
         $this->assertTrue($method->invoke($this->modelMapper, 'gemini', '%gemini%'));
-        
+
         // Test non-matches
         $this->assertFalse($method->invoke($this->modelMapper, 'gpt-4', '%gpt-5%'));
         $this->assertFalse($method->invoke($this->modelMapper, 'openai-claude', 'claude-%'));
         $this->assertFalse($method->invoke($this->modelMapper, 'palm-model', '%gemini%'));
-        
+
         // Test exact patterns (should return false as they're handled elsewhere)
         $this->assertFalse($method->invoke($this->modelMapper, 'exact-match', 'exact-match'));
     }
 
     /**
-     * Test complex wildcard patterns
+     * Test complex wildcard patterns.
      */
     public function testComplexWildcardPatterns()
     {
         // Add more complex patterns to config
         $this->config->set('odin.llm.model_fixed_temperature.%test-%-model%', 0.6);
-        
+
         $reflection = new ReflectionClass($this->modelMapper);
         $method = $reflection->getMethod('getFixedTemperatureForModel');
         $method->setAccessible(true);
@@ -191,14 +193,14 @@ class ModelMapperTest extends TestCase
 
         $result = $method->invoke($this->modelMapper, 'test-beta-model');
         $this->assertEquals(0.6, $result);
-        
+
         // Should not match
         $result = $method->invoke($this->modelMapper, 'test-model');
         $this->assertNull($result);
     }
 
     /**
-     * Test edge cases
+     * Test edge cases.
      */
     public function testEdgeCases()
     {
@@ -219,18 +221,18 @@ class ModelMapperTest extends TestCase
                     'models' => [],
                     'model_fixed_temperature' => [
                         '%test.model%' => 0.3,
-                    ]
-                ]
-            ]
+                    ],
+                ],
+            ],
         ]);
-        
-        $logger = new \Psr\Log\NullLogger();
+
+        $logger = new NullLogger();
         $specialMapper = new ModelMapper($specialConfig, $logger);
-        
+
         $specialReflection = new ReflectionClass($specialMapper);
         $specialMethod = $specialReflection->getMethod('getFixedTemperatureForModel');
         $specialMethod->setAccessible(true);
-        
+
         $result = $specialMethod->invoke($specialMapper, 'prefix-test.model-suffix');
         $this->assertEquals(0.3, $result);
     }

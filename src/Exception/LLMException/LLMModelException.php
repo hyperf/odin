@@ -36,7 +36,7 @@ class LLMModelException extends LLMException
     /**
      * 创建一个新的模型异常实例.
      */
-    public function __construct(string $message = '', int $code = 0, ?Throwable $previous = null, int $errorCode = 0, ?string $model = null, ?int $statusCode = null)
+    public function __construct(string $message = '', int $code = 0, ?Throwable $previous = null, int $errorCode = 0, ?string $model = null, int $statusCode = 400)
     {
         // 如果没有提供错误码，则使用默认基数
         $errorCode = $errorCode ?: (self::ERROR_CODE_BASE + $code);

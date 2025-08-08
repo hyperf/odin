@@ -17,24 +17,10 @@ use Throwable;
 class McpException extends OdinException
 {
     /**
-     * 错误代码.
-     */
-    protected int $errorCode = 0;
-
-    /**
      * 创建一个新的异常实例.
      */
-    public function __construct(string $message = '', int $code = 0, ?Throwable $previous = null, int $errorCode = 0)
+    public function __construct(string $message = '', int $code = 0, ?Throwable $previous = null, int $errorCode = 0, int $statusCode = 500)
     {
-        parent::__construct($message, $code, $previous);
-        $this->errorCode = $errorCode ?: $code;
-    }
-
-    /**
-     * 获取错误代码.
-     */
-    public function getErrorCode(): int
-    {
-        return $this->errorCode;
+        parent::__construct($message, $code, $previous, $errorCode, $statusCode);
     }
 }

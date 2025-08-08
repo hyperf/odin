@@ -74,47 +74,27 @@ abstract class AbstractClient implements ClientInterface
     {
         $chatRequest->validate();
         $options = $chatRequest->createOptions();
-
-        // 动态生成请求ID并添加到请求头
-        $requestId = $this->generateRequestId();
-        if (! isset($options[RequestOptions::HEADERS])) {
-            $options[RequestOptions::HEADERS] = [];
-        }
-        $options[RequestOptions::HEADERS]['x-request-id'] = $requestId;
-
+        $requestId = $this->addRequestIdToOptions($options);
         $url = $this->buildChatCompletionsUrl();
 
-        $this->logger?->info('ChatCompletionsRequest', LoggingConfigHelper::filterAndFormatLogData(['url' => $url, 'options' => $options, 'request_id' => $requestId], $this->requestOptions));
+        $this->logRequest('ChatCompletionsRequest', $url, $options, $requestId);
 
         $startTime = microtime(true);
         try {
             $response = $this->client->post($url, $options);
-            $endTime = microtime(true);
-            $duration = round(($endTime - $startTime) * 1000); // 毫秒
-
+            $duration = $this->calculateDuration($startTime);
             $chatCompletionResponse = new ChatCompletionResponse($response, $this->logger);
 
-            $performanceFlag = LogUtil::getPerformanceFlag($duration);
-            $logData = [
-                'request_id' => $requestId,
-                'duration_ms' => $duration,
+            $this->logResponse('ChatCompletionsResponse', $requestId, $duration, [
                 'content' => $chatCompletionResponse->getContent(),
                 'response_headers' => $response->getHeaders(),
-                'performance_flag' => $performanceFlag,
-            ];
-
-            $this->logger?->info('ChatCompletionsResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
+            ]);
 
             EventUtil::dispatch(new AfterChatCompletionsEvent($chatRequest, $chatCompletionResponse, $duration));
 
             return $chatCompletionResponse;
         } catch (Throwable $e) {
-            throw $this->convertException($e, [
-                'url' => $url,
-                'options' => $options,
-                'mode' => 'completions',
-                'api_options' => $this->requestOptions->toArray(),
-            ]);
+            throw $this->convertException($e, $this->createExceptionContext($url, $options, 'completions'));
         }
     }
 
@@ -123,25 +103,16 @@ abstract class AbstractClient implements ClientInterface
         $chatRequest->setStream(true);
         $chatRequest->validate();
         $options = $chatRequest->createOptions();
-
-        // 动态生成请求ID并添加到请求头
-        $requestId = $this->generateRequestId();
-        if (! isset($options[RequestOptions::HEADERS])) {
-            $options[RequestOptions::HEADERS] = [];
-        }
-        $options[RequestOptions::HEADERS]['x-request-id'] = $requestId;
-
+        $requestId = $this->addRequestIdToOptions($options);
         $url = $this->buildChatCompletionsUrl();
 
-        $this->logger?->info('ChatCompletionsStreamRequest', LoggingConfigHelper::filterAndFormatLogData(['url' => $url, 'options' => $options, 'request_id' => $requestId], $this->requestOptions));
+        $this->logRequest('ChatCompletionsStreamRequest', $url, $options, $requestId);
 
         $startTime = microtime(true);
         try {
             $options[RequestOptions::STREAM] = true;
             $response = $this->client->post($url, $options);
-
-            $firstResponseTime = microtime(true);
-            $firstResponseDuration = round(($firstResponseTime - $startTime) * 1000); // 毫秒
+            $firstResponseDuration = $this->calculateDuration($startTime);
 
             $stream = $response->getBody()->detach();
             $sseClient = new SSEClient(
@@ -155,24 +126,14 @@ abstract class AbstractClient implements ClientInterface
             $chatCompletionStreamResponse = new ChatCompletionStreamResponse($response, $this->logger, $sseClient);
             $chatCompletionStreamResponse->setAfterChatCompletionsStreamEvent(new AfterChatCompletionsStreamEvent($chatRequest, $firstResponseDuration));
 
-            $performanceFlag = LogUtil::getPerformanceFlag($firstResponseDuration);
-            $logData = [
-                'request_id' => $requestId,
+            $this->logResponse('ChatCompletionsStreamResponse', $requestId, $firstResponseDuration, [
                 'first_response_ms' => $firstResponseDuration,
                 'response_headers' => $response->getHeaders(),
-                'performance_flag' => $performanceFlag,
-            ];
-
-            $this->logger?->info('ChatCompletionsStreamResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
+            ]);
 
             return $chatCompletionStreamResponse;
         } catch (Throwable $e) {
-            throw $this->convertException($e, [
-                'url' => $url,
-                'options' => $options,
-                'mode' => 'stream',
-                'api_options' => $this->requestOptions->toArray(),
-            ]);
+            throw $this->convertException($e, $this->createExceptionContext($url, $options, 'stream'));
         }
     }
 
@@ -180,48 +141,27 @@ abstract class AbstractClient implements ClientInterface
     {
         $embeddingRequest->validate();
         $options = $embeddingRequest->createOptions();
-
-        // 动态生成请求ID并添加到请求头
-        $requestId = $this->generateRequestId();
-        if (! isset($options[RequestOptions::HEADERS])) {
-            $options[RequestOptions::HEADERS] = [];
-        }
-        $options[RequestOptions::HEADERS]['x-request-id'] = $requestId;
-
+        $requestId = $this->addRequestIdToOptions($options);
         $url = $this->buildEmbeddingsUrl();
 
-        $this->logger?->info('EmbeddingsRequest', LoggingConfigHelper::filterAndFormatLogData(['url' => $url, 'options' => $options, 'request_id' => $requestId], $this->requestOptions));
+        $this->logRequest('EmbeddingsRequest', $url, $options, $requestId);
 
         $startTime = microtime(true);
-
         try {
             $response = $this->client->post($url, $options);
-            $endTime = microtime(true);
-            $duration = round(($endTime - $startTime) * 1000); // 毫秒
-
+            $duration = $this->calculateDuration($startTime);
             $embeddingResponse = new EmbeddingResponse($response, $this->logger);
 
-            $performanceFlag = LogUtil::getPerformanceFlag($duration);
-            $logData = [
-                'request_id' => $requestId,
-                'duration_ms' => $duration,
+            $this->logResponse('EmbeddingsResponse', $requestId, $duration, [
                 'data' => $embeddingResponse->toArray(),
                 'response_headers' => $response->getHeaders(),
-                'performance_flag' => $performanceFlag,
-            ];
-
-            $this->logger?->info('EmbeddingsResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
+            ]);
 
             EventUtil::dispatch(new AfterEmbeddingsEvent($embeddingRequest, $embeddingResponse, $duration));
 
             return $embeddingResponse;
         } catch (Throwable $e) {
-            throw $this->convertException($e, [
-                'url' => $url,
-                'options' => $options,
-                'mode' => 'embeddings',
-                'api_options' => $this->requestOptions->toArray(),
-            ]);
+            throw $this->convertException($e, $this->createExceptionContext($url, $options, 'embeddings'));
         }
     }
 
@@ -229,31 +169,24 @@ abstract class AbstractClient implements ClientInterface
     {
         $completionRequest->validate();
         $options = $completionRequest->createOptions();
+        $requestId = $this->addRequestIdToOptions($options);
         $url = $this->buildCompletionsUrl();
 
-        $this->logger?->info('CompletionsRequest', ['url' => $url, 'options' => $options]);
+        $this->logRequest('CompletionsRequest', $url, $options, $requestId);
 
         $startTime = microtime(true);
         try {
             $response = $this->client->post($url, $options);
-            $endTime = microtime(true);
-            $duration = round(($endTime - $startTime) * 1000); // 毫秒
-
+            $duration = $this->calculateDuration($startTime);
             $completionResponse = new TextCompletionResponse($response, $this->logger);
 
-            $this->logger?->info('CompletionsResponse', [
-                'duration_ms' => $duration,
+            $this->logResponse('CompletionsResponse', $requestId, $duration, [
                 'choices' => $completionResponse->getContent(),
             ]);
 
             return $completionResponse;
         } catch (Throwable $e) {
-            throw $this->convertException($e, [
-                'url' => $url,
-                'options' => $options,
-                'mode' => 'completions',
-                'api_options' => $this->requestOptions->toArray(),
-            ]);
+            throw $this->convertException($e, $this->createExceptionContext($url, $options, 'completions'));
         }
     }
 
@@ -358,6 +291,70 @@ abstract class AbstractClient implements ClientInterface
     protected function generateRequestId(): string
     {
         return 'req_' . date('YmdHis') . '_' . uniqid() . '_' . bin2hex(random_bytes(4));
+    }
+
+    /**
+     * 为请求选项添加请求ID.
+     */
+    protected function addRequestIdToOptions(array &$options): string
+    {
+        $requestId = $this->generateRequestId();
+        if (! isset($options[RequestOptions::HEADERS])) {
+            $options[RequestOptions::HEADERS] = [];
+        }
+        $options[RequestOptions::HEADERS]['x-request-id'] = $requestId;
+        return $requestId;
+    }
+
+    /**
+     * 记录请求日志.
+     */
+    protected function logRequest(string $logType, string $url, array $options, string $requestId): void
+    {
+        $logData = [
+            'url' => $url,
+            'options' => $options,
+            'request_id' => $requestId,
+        ];
+
+        $this->logger?->info($logType, LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
+    }
+
+    /**
+     * 记录响应日志.
+     */
+    protected function logResponse(string $logType, string $requestId, float $duration, array $additionalData = []): void
+    {
+        $performanceFlag = LogUtil::getPerformanceFlag($duration);
+
+        $logData = array_merge([
+            'request_id' => $requestId,
+            'duration_ms' => $duration,
+            'performance_flag' => $performanceFlag,
+        ], $additionalData);
+
+        $this->logger?->info($logType, LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
+    }
+
+    /**
+     * 创建异常处理上下文.
+     */
+    protected function createExceptionContext(string $url, array $options, string $mode): array
+    {
+        return [
+            'url' => $url,
+            'options' => $options,
+            'mode' => $mode,
+            'api_options' => $this->requestOptions->toArray(),
+        ];
+    }
+
+    /**
+     * 计算请求持续时间（毫秒）.
+     */
+    protected function calculateDuration(float $startTime): float
+    {
+        return round((microtime(true) - $startTime) * 1000);
     }
 
     /**

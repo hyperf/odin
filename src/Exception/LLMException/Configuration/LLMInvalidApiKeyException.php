@@ -31,6 +31,6 @@ class LLMInvalidApiKeyException extends LLMConfigurationException
     public function __construct(string $message = '无效的API密钥或API密钥缺失', ?Throwable $previous = null, string $provider = '')
     {
         $message = $provider ? sprintf('[%s] %s', $provider, $message) : $message;
-        parent::__construct($message, self::ERROR_CODE, $previous);
+        parent::__construct($message, self::ERROR_CODE, $previous, 0, 401);
     }
 }
