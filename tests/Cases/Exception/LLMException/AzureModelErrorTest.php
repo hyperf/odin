@@ -16,7 +16,7 @@ use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use Hyperf\Odin\Exception\LLMException\ErrorMappingManager;
-use Hyperf\Odin\Exception\LLMException\LLMApiException;
+use Hyperf\Odin\Exception\LLMException\LLMNetworkException;
 use Hyperf\Odin\Exception\LLMException\Model\LLMContentFilterException;
 use PHPUnit\Framework\TestCase;
 
@@ -69,7 +69,7 @@ class AzureModelErrorTest extends TestCase
     }
 
     /**
-     * 测试 Azure OpenAI server_error 被正确处理为 API 服务端错误.
+     * 测试 Azure OpenAI server_error 被正确处理为可重试的网络错误.
      */
     public function testAzureServerErrorHandling(): void
     {
@@ -94,15 +94,53 @@ class AzureModelErrorTest extends TestCase
         $errorMappingManager = new ErrorMappingManager();
         $mappedException = $errorMappingManager->mapException($requestException);
 
-        // 这应该是 LLMApiException (服务端错误)，不是 LLMContentFilterException
+        // 这应该是 LLMNetworkException (可重试的网络错误)，不是 LLMContentFilterException
         $this->assertNotInstanceOf(LLMContentFilterException::class, $mappedException);
-        $this->assertInstanceOf(LLMApiException::class, $mappedException);
+        $this->assertInstanceOf(LLMNetworkException::class, $mappedException);
 
         // 状态码应该是500 (服务端错误)
         $this->assertEquals(500, $mappedException->getStatusCode());
 
-        // 错误消息应该表明这是服务端错误
-        $this->assertStringContainsString('LLM服务端错误', $mappedException->getMessage());
+        // 错误消息应该表明这是可重试的服务错误
+        $this->assertStringContainsString('Azure OpenAI 服务暂时不可用', $mappedException->getMessage());
+        $this->assertStringContainsString('建议稍后重试', $mappedException->getMessage());
+    }
+
+    /**
+     * 测试 Azure OpenAI server_error 可以参与重试机制.
+     */
+    public function testAzureServerErrorIsRetryable(): void
+    {
+        $errorBody = json_encode([
+            'error' => [
+                'message' => 'The server had an error while processing your request. Sorry about that!',
+                'type' => 'server_error',
+                'param' => null,
+                'code' => null,
+            ],
+        ]);
+
+        $request = new Request('POST', 'https://test-azure-openai.example.com/openai/deployments/test-gpt/chat/completions');
+        $response = new Response(500, ['Content-Type' => 'application/json'], $errorBody);
+
+        $requestException = new RequestException(
+            'Server error: The server had an error while processing your request',
+            $request,
+            $response
+        );
+
+        $errorMappingManager = new ErrorMappingManager();
+        $mappedException = $errorMappingManager->mapException($requestException);
+
+        // 验证这是网络异常，可以参与重试
+        $this->assertInstanceOf(LLMNetworkException::class, $mappedException);
+
+        // 验证在重试逻辑中会被识别为可重试异常
+        // 模拟 AbstractModel::callWithNetworkRetry 的检查逻辑
+        $isRetryable = $mappedException instanceof LLMNetworkException
+            || ($mappedException && $mappedException->getPrevious() instanceof LLMNetworkException);
+
+        $this->assertTrue($isRetryable, 'Azure server_error 应该可以参与重试机制');
     }
 
     /**

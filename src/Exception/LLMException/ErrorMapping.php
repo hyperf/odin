@@ -63,7 +63,7 @@ class ErrorMapping
                         $message = $e->getMessage();
                         // 尝试从消息中提取主机名
                         preg_match('/Could not resolve host: ([^\s\(\)]+)/i', $message, $matches);
-                        $hostname = isset($matches[1]) ? $matches[1] : '未知主机';
+                        $hostname = $matches[1] ?? '未知主机';
                         return new LLMNetworkException(
                             sprintf('无法解析LLM服务域名: %s', $hostname),
                             4,
@@ -113,7 +113,7 @@ class ErrorMapping
                         return new LLMRateLimitException('API请求频率超出限制', $e, 429, $retryAfter);
                     },
                 ],
-                // Azure OpenAI 模型错误
+                // Azure OpenAI 模型内容过滤错误
                 [
                     'regex' => '/model\s+produced\s+invalid\s+content|model_error/i',
                     'status' => [500],
@@ -128,7 +128,7 @@ class ErrorMapping
                             $data = json_decode($body, true);
                             if (isset($data['error'])) {
                                 $errorType = $data['error']['type'] ?? 'model_error';
-                                if (isset($data['error']['message']) && strpos($data['error']['message'], 'modifying your prompt') !== false) {
+                                if (isset($data['error']['message']) && str_contains($data['error']['message'], 'modifying your prompt')) {
                                     $suggestion = '建议修改您的提示词内容';
                                 }
                             }
@@ -140,6 +140,21 @@ class ErrorMapping
                         }
 
                         return new LLMContentFilterException($message, $e, null, [$errorType], $statusCode);
+                    },
+                ],
+                // Azure OpenAI 服务端内部错误 (可重试的网络错误)
+                [
+                    'regex' => '/server\s+had\s+an\s+error|server_error/i',
+                    'status' => [500, 502, 503, 504],
+                    'factory' => function (RequestException $e) {
+                        $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : 500;
+                        return new LLMNetworkException(
+                            'Azure OpenAI 服务暂时不可用，建议稍后重试',
+                            4,
+                            $e,
+                            ErrorCode::NETWORK_CONNECTION_ERROR,
+                            $statusCode
+                        );
                     },
                 ],
                 // 内容过滤
