@@ -26,6 +26,10 @@ class ConverseConverter implements ConverterInterface
 {
     public function convertSystemMessage(SystemMessage $message): array|string
     {
+        if (empty($message->getContent())) {
+            return [];
+        }
+
         $data = [
             [
                 'text' => $message->getContent(),

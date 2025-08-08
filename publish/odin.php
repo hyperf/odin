@@ -53,11 +53,23 @@ return [
                 // 注意：messages 和 tools 字段不在白名单中，不会被打印
                 'whitelist_fields' => [
                     // 基本请求信息
+                    'request_id',                  // 请求ID
                     'model_id',                    // 模型ID
                     'model',                       // 模型名称
                     'duration_ms',                 // 请求耗时
                     'url',                         // 请求URL
                     'status_code',                 // 响应状态码
+
+                    // options 信息
+                    'options.headers',
+                    'options.json.model',
+                    'options.json.temperature',
+                    'options.json.max_tokens',
+                    'options.json.stop',
+                    'options.json.frequency_penalty',
+                    'options.json.presence_penalty',
+                    'options.json.business_params',
+                    'options.json.thinking',
 
                     // 使用量统计
                     'usage',                       // 完整的usage对象

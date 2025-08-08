@@ -232,7 +232,6 @@ class Client extends AbstractClient
 
         // 初始化 AWS Bedrock 客户端
         $this->bedrockClient = new BedrockRuntimeClient($clientConfig);
-        $this->logger->info('RequestOptions', $this->requestOptions->toArray());
     }
 
     protected function buildChatCompletionsUrl(): string

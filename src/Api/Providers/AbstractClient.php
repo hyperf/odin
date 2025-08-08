@@ -350,7 +350,6 @@ abstract class AbstractClient implements ClientInterface
 
         // 使用配置的 HTTP 处理器创建客户端
         $this->client = HttpHandlerFactory::createGuzzleClient($options, $handlerType);
-        $this->logger->info('RequestOptions', $this->requestOptions->toArray());
     }
 
     /**
