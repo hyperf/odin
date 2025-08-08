@@ -202,7 +202,7 @@ class LogUtil
             }
 
             // 处理超长字符串
-            if (strlen($data) > 1000) {
+            if (strlen($data) > 2000) {
                 return '[Long Text]';
             }
         }
