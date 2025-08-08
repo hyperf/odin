@@ -33,15 +33,12 @@ use Hyperf\Odin\Message\UserMessage;
 use Hyperf\Retry\Retry;
 use Hyperf\Retry\RetryContext;
 use Psr\Log\LoggerInterface;
-use Throwable;
 
 /**
  * 模型抽象基类，实现模型的通用行为.
  */
 abstract class AbstractModel implements ModelInterface, EmbeddingInterface
 {
-
-
     /**
      * API请求选项.
      */
@@ -296,8 +293,6 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
         }
     }
 
-
-
     /**
      * 检查模型是否支持函数调用.
      */
@@ -343,8 +338,6 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
         }
         return false;
     }
-
-
 
     /**
      * 获取客户端实例，由子类实现.

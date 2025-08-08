@@ -17,9 +17,7 @@ use Hyperf\Odin\Api\RequestOptions\ApiOptions;
 use Hyperf\Odin\Api\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\Response\ChatCompletionStreamResponse;
 use Hyperf\Odin\Contract\Api\ClientInterface;
-
 use Hyperf\Odin\Exception\LLMException\Model\LLMFunctionCallNotSupportedException;
-use Hyperf\Odin\Message\UserMessage;
 use Hyperf\Odin\Model\AbstractModel;
 use Hyperf\Odin\Model\ModelOptions;
 use HyperfTest\Odin\Cases\AbstractTestCase;
@@ -131,10 +129,6 @@ class AbstractModelTest extends AbstractTestCase
         $this->assertSame($model, $result);
         $this->assertSame($modelOptions, $this->getNonpublicProperty($model, 'modelOptions'));
     }
-
-
-
-
 
     /**
      * 测试 checkFunctionCallSupport 方法（抛出异常的情况）.

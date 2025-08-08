@@ -113,6 +113,35 @@ class ErrorMapping
                         return new LLMRateLimitException('API请求频率超出限制', $e, 429, $retryAfter);
                     },
                 ],
+                // Azure OpenAI 模型错误
+                [
+                    'regex' => '/model\s+produced\s+invalid\s+content|model_error/i',
+                    'status' => [500],
+                    'factory' => function (RequestException $e) {
+                        $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : 500;
+                        $body = '';
+                        $errorType = 'model_error';
+                        $suggestion = '';
+
+                        if ($e->getResponse()) {
+                            $body = $e->getResponse()->getBody()->getContents();
+                            $data = json_decode($body, true);
+                            if (isset($data['error'])) {
+                                $errorType = $data['error']['type'] ?? 'model_error';
+                                if (isset($data['error']['message']) && strpos($data['error']['message'], 'modifying your prompt') !== false) {
+                                    $suggestion = '建议修改您的提示词内容';
+                                }
+                            }
+                        }
+
+                        $message = '模型生成了无效内容';
+                        if ($suggestion) {
+                            $message .= '，' . $suggestion;
+                        }
+
+                        return new LLMContentFilterException($message, $e, null, [$errorType], $statusCode);
+                    },
+                ],
                 // 内容过滤
                 [
                     'regex' => '/content\s+filter|content\s+policy|inappropriate|unsafe content|violate|policy/i',
@@ -125,7 +154,8 @@ class ErrorMapping
                                 $labels = array_keys($data['error']['content_filter_results']);
                             }
                         }
-                        return new LLMContentFilterException('内容被系统安全过滤', $e, null, $labels);
+                        $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : 400;
+                        return new LLMContentFilterException('内容被系统安全过滤', $e, null, $labels, $statusCode);
                     },
                 ],
                 // 上下文长度超出限制
@@ -170,9 +200,9 @@ class ErrorMapping
                         return new LLMImageUrlAccessException('多模态图片URL不可访问', $e, null, $imageUrl);
                     },
                 ],
-                // 无效请求
+                // 无效请求 (更精确的匹配，避免误匹配模型错误)
                 [
-                    'regex' => '/invalid|bad\s+request/i',
+                    'regex' => '/invalid\s+(request|parameter|api|endpoint)|bad\s+request|malformed/i',
                     'status' => [400],
                     'factory' => function (RequestException $e) {
                         $invalidFields = null;

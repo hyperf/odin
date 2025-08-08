@@ -16,7 +16,6 @@ use Hyperf\Odin\Api\Request\EmbeddingRequest;
 use Hyperf\Odin\Api\Response\EmbeddingResponse;
 use Hyperf\Odin\Contract\Api\ClientInterface;
 use Hyperf\Odin\Factory\ClientFactory;
-use Throwable;
 
 class QianFanModel extends AbstractModel
 {
