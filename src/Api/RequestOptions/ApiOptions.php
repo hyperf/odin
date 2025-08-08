@@ -54,6 +54,8 @@ class ApiOptions
         'whitelist_fields' => [],
     ];
 
+    protected int $networkRetryCount = 0;
+
     /**
      * 构造函数.
      *
@@ -80,6 +82,10 @@ class ApiOptions
         if (isset($options['logging']) && is_array($options['logging'])) {
             $this->logging = array_merge($this->logging, $options['logging']);
         }
+
+        if (isset($options['network_retry_count']) && is_int($options['network_retry_count'])) {
+            $this->networkRetryCount = $options['network_retry_count'];
+        }
     }
 
     /**
@@ -101,6 +107,7 @@ class ApiOptions
             'proxy' => $this->proxy,
             'http_handler' => $this->httpHandler,
             'logging' => $this->logging,
+            'network_retry_count' => $this->networkRetryCount,
         ];
     }
 
@@ -231,5 +238,13 @@ class ApiOptions
     public function isLoggingWhitelistEnabled(): bool
     {
         return (bool) ($this->logging['enable_whitelist'] ?? false);
+    }
+
+    /**
+     * 获取网络重试次数.
+     */
+    public function getNetworkRetryCount(): int
+    {
+        return (int) max($this->networkRetryCount, 0);
     }
 }

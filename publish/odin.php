@@ -122,6 +122,7 @@ return [
                 // 是否启用字段白名单过滤，默认true（启用过滤）
                 'enable_whitelist' => env('ODIN_LOG_WHITELIST_ENABLED', true),
             ],
+            'network_retry_count' => 0,
         ],
         'models' => [
             'gpt-4o-global' => [

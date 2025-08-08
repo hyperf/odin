@@ -28,12 +28,15 @@ use Hyperf\Odin\Contract\Model\ModelInterface;
 use Hyperf\Odin\Exception\LLMException;
 use Hyperf\Odin\Exception\LLMException\ErrorHandlerInterface;
 use Hyperf\Odin\Exception\LLMException\LLMErrorHandler;
+use Hyperf\Odin\Exception\LLMException\LLMNetworkException;
 use Hyperf\Odin\Exception\LLMException\Model\LLMEmbeddingNotSupportedException;
 use Hyperf\Odin\Exception\LLMException\Model\LLMFunctionCallNotSupportedException;
 use Hyperf\Odin\Exception\LLMException\Model\LLMModalityNotSupportedException;
 use Hyperf\Odin\Message\UserMessage;
 use Hyperf\Odin\Utils\MessageUtil;
 use Hyperf\Odin\Utils\ToolUtil;
+use Hyperf\Retry\Retry;
+use Hyperf\Retry\RetryContext;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -90,43 +93,47 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
 
     public function chatWithRequest(ChatCompletionRequest $request): ChatCompletionResponse
     {
-        $request->setOptionKeyMaps($this->chatCompletionRequestOptionKeyMaps);
-        try {
-            $this->registerMcp($request);
-            $request->setModel($this->model);
-            $this->checkFunctionCallSupport($request->getTools());
-            $this->checkMultiModalSupport($request->getMessages());
-            $this->checkFixedTemperature($request);
+        return $this->callWithNetworkRetry(function () use ($request) {
+            $request->setOptionKeyMaps($this->chatCompletionRequestOptionKeyMaps);
+            try {
+                $this->registerMcp($request);
+                $request->setModel($this->model);
+                $this->checkFunctionCallSupport($request->getTools());
+                $this->checkMultiModalSupport($request->getMessages());
+                $this->checkFixedTemperature($request);
 
-            $request->setStream(false);
+                $request->setStream(false);
 
-            $client = $this->getClient();
-            return $client->chatCompletions($request);
-        } catch (Throwable $e) {
-            $context = $this->createErrorContext($request->toArray());
-            throw $this->handleException($e, $context);
-        }
+                $client = $this->getClient();
+                return $client->chatCompletions($request);
+            } catch (Throwable $e) {
+                $context = $this->createErrorContext($request->toArray());
+                throw $this->handleException($e, $context);
+            }
+        });
     }
 
     public function chatStreamWithRequest(ChatCompletionRequest $request): ChatCompletionStreamResponse
     {
-        $request->setOptionKeyMaps($this->chatCompletionRequestOptionKeyMaps);
-        try {
-            $this->registerMcp($request);
-            $request->setModel($this->model);
-            $this->checkFunctionCallSupport($request->getTools());
-            $this->checkMultiModalSupport($request->getMessages());
-            $this->checkFixedTemperature($request);
+        return $this->callWithNetworkRetry(function () use ($request) {
+            $request->setOptionKeyMaps($this->chatCompletionRequestOptionKeyMaps);
+            try {
+                $this->registerMcp($request);
+                $request->setModel($this->model);
+                $this->checkFunctionCallSupport($request->getTools());
+                $this->checkMultiModalSupport($request->getMessages());
+                $this->checkFixedTemperature($request);
 
-            $request->setStream(true);
-            $request->setStreamIncludeUsage($this->streamIncludeUsage);
+                $request->setStream(true);
+                $request->setStreamIncludeUsage($this->streamIncludeUsage);
 
-            $client = $this->getClient();
-            return $client->chatCompletionsStream($request);
-        } catch (Throwable $e) {
-            $context = $this->createErrorContext($request->toArray());
-            throw $this->handleException($e, $context);
-        }
+                $client = $this->getClient();
+                return $client->chatCompletionsStream($request);
+            } catch (Throwable $e) {
+                $context = $this->createErrorContext($request->toArray());
+                throw $this->handleException($e, $context);
+            }
+        });
     }
 
     /**
@@ -468,6 +475,24 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
                 $this->model
             );
         }
+    }
+
+    private function callWithNetworkRetry(callable $callable): mixed
+    {
+        return Retry::max($this->apiRequestOptions->getNetworkRetryCount() + 1)
+            ->backoff(1000)
+            ->when(function (RetryContext $context) {
+                // 第一次执行时允许尝试
+                if ($context->isFirstTry()) {
+                    return true;
+                }
+
+                $throwable = $context->lastThrowable;
+                // 只有网络异常才重试
+                return $throwable instanceof LLMNetworkException
+                    || ($throwable && $throwable->getPrevious() instanceof LLMNetworkException);
+            })
+            ->call($callable);
     }
 
     private function checkFixedTemperature(ChatCompletionRequest $request): void
