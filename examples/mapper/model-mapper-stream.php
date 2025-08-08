@@ -9,9 +9,9 @@ declare(strict_types=1);
  * @contact  group@hyperf.io
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
-! defined('BASE_PATH') && define('BASE_PATH', dirname(__DIR__, 1));
+! defined('BASE_PATH') && define('BASE_PATH', dirname(__DIR__, 2));
 
-require_once dirname(__FILE__, 2) . '/vendor/autoload.php';
+require_once dirname(__FILE__, 3) . '/vendor/autoload.php';
 
 use Hyperf\Context\ApplicationContext;
 use Hyperf\Di\ClassLoader;
@@ -38,7 +38,7 @@ $messages = [
     new UserMessage('你好，你是谁'),
 ];
 
-$response = $model->chatStream($messages, 1);
+$response = $model->chatStream($messages);
 
 // 使用流式API调用
 $start = microtime(true);

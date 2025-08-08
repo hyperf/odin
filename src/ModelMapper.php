@@ -175,6 +175,11 @@ class ModelMapper
         $modelOptions = new ModelOptions($modelOptionsArray);
         $apiOptions = new ApiOptions($apiOptionsArray);
 
+        $fixedTemperature = $this->config->get('odin.llm.model_fixed_temperature.' . $model);
+        if ($fixedTemperature !== null) {
+            $modelOptions->setFixedTemperature((float) $fixedTemperature);
+        }
+
         // 获取配置
         $config = $item['config'] ?? [];
 

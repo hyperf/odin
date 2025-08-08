@@ -378,6 +378,10 @@ return [
                 // '自定义错误关键词' => \Hyperf\Odin\Exception\LLMException\LLMTimeoutError::class,
             ],
         ],
+
+        'model_fixed_temperature' => [
+            'gpt-5' => 1,
+        ],
     ],
     'content_copy_keys' => [
         'request-id', 'x-b3-trace-id',

@@ -96,6 +96,7 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
             $request->setModel($this->model);
             $this->checkFunctionCallSupport($request->getTools());
             $this->checkMultiModalSupport($request->getMessages());
+            $this->checkFixedTemperature($request);
 
             $request->setStream(false);
 
@@ -115,6 +116,7 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
             $request->setModel($this->model);
             $this->checkFunctionCallSupport($request->getTools());
             $this->checkMultiModalSupport($request->getMessages());
+            $this->checkFixedTemperature($request);
 
             $request->setStream(true);
             $request->setStreamIncludeUsage($this->streamIncludeUsage);
@@ -140,34 +142,13 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
         float $presencePenalty = 0.0,
         array $businessParams = [],
     ): ChatCompletionResponse {
-        try {
-            // 首先进行模型能力检测
-            $this->checkFunctionCallSupport($tools);
-            $this->checkMultiModalSupport($messages);
-
-            $client = $this->getClient();
-            $chatRequest = new ChatCompletionRequest($messages, $this->model, $temperature, $maxTokens, $stop, $tools, false);
-            $chatRequest->setOptionKeyMaps($this->chatCompletionRequestOptionKeyMaps);
-            $chatRequest->setFrequencyPenalty($frequencyPenalty);
-            $chatRequest->setPresencePenalty($presencePenalty);
-            $chatRequest->setBusinessParams($businessParams);
-            $chatRequest->setIncludeBusinessParams($this->includeBusinessParams);
-            $this->registerMcp($chatRequest);
-            return $client->chatCompletions($chatRequest);
-        } catch (Throwable $e) {
-            $context = $this->createErrorContext([
-                'messages' => $messages,
-                'temperature' => $temperature,
-                'max_tokens' => $maxTokens,
-                'stop' => $stop,
-                'tools' => $tools,
-                'is_stream' => false,
-                'frequency_penalty' => $frequencyPenalty,
-                'presence_penalty' => $presencePenalty,
-                'business_params' => $businessParams,
-            ]);
-            throw $this->handleException($e, $context);
-        }
+        $chatRequest = new ChatCompletionRequest($messages, $this->model, $temperature, $maxTokens, $stop, $tools, false);
+        $chatRequest->setOptionKeyMaps($this->chatCompletionRequestOptionKeyMaps);
+        $chatRequest->setFrequencyPenalty($frequencyPenalty);
+        $chatRequest->setPresencePenalty($presencePenalty);
+        $chatRequest->setBusinessParams($businessParams);
+        $chatRequest->setIncludeBusinessParams($this->includeBusinessParams);
+        return $this->chatWithRequest($chatRequest);
     }
 
     /**
@@ -183,35 +164,14 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
         float $presencePenalty = 0.0,
         array $businessParams = [],
     ): ChatCompletionStreamResponse {
-        try {
-            // 首先进行模型能力检测
-            $this->checkFunctionCallSupport($tools);
-            $this->checkMultiModalSupport($messages);
-
-            $client = $this->getClient();
-            $chatRequest = new ChatCompletionRequest($messages, $this->model, $temperature, $maxTokens, $stop, $tools, true);
-            $chatRequest->setOptionKeyMaps($this->chatCompletionRequestOptionKeyMaps);
-            $chatRequest->setFrequencyPenalty($frequencyPenalty);
-            $chatRequest->setPresencePenalty($presencePenalty);
-            $chatRequest->setBusinessParams($businessParams);
-            $chatRequest->setStreamIncludeUsage($this->streamIncludeUsage);
-            $chatRequest->setIncludeBusinessParams($this->includeBusinessParams);
-            $this->registerMcp($chatRequest);
-            return $client->chatCompletionsStream($chatRequest);
-        } catch (Throwable $e) {
-            $context = $this->createErrorContext([
-                'messages' => $messages,
-                'temperature' => $temperature,
-                'max_tokens' => $maxTokens,
-                'stop' => $stop,
-                'tools' => $tools,
-                'is_stream' => true,
-                'frequency_penalty' => $frequencyPenalty,
-                'presence_penalty' => $presencePenalty,
-                'business_params' => $businessParams,
-            ]);
-            throw $this->handleException($e, $context);
-        }
+        $chatRequest = new ChatCompletionRequest($messages, $this->model, $temperature, $maxTokens, $stop, $tools, true);
+        $chatRequest->setOptionKeyMaps($this->chatCompletionRequestOptionKeyMaps);
+        $chatRequest->setFrequencyPenalty($frequencyPenalty);
+        $chatRequest->setPresencePenalty($presencePenalty);
+        $chatRequest->setBusinessParams($businessParams);
+        $chatRequest->setStreamIncludeUsage($this->streamIncludeUsage);
+        $chatRequest->setIncludeBusinessParams($this->includeBusinessParams);
+        return $this->chatStreamWithRequest($chatRequest);
     }
 
     /**
@@ -507,6 +467,13 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
                 null,
                 $this->model
             );
+        }
+    }
+
+    private function checkFixedTemperature(ChatCompletionRequest $request): void
+    {
+        if ($this->getModelOptions()->getFixedTemperature()) {
+            $request->setTemperature($this->getModelOptions()->getFixedTemperature());
         }
     }
 }

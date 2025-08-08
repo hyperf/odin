@@ -38,7 +38,7 @@ $messages = [
 
 // 使用非流式API调用
 $start = microtime(true);
-$response = $model->chat($messages, 1);
+$response = $model->chat($messages);
 $message = $response->getFirstChoice()->getMessage();
 if ($message instanceof AssistantMessage) {
     echo $message->getReasoningContent() ?? $message->getContent();

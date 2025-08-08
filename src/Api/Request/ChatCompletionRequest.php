@@ -305,6 +305,11 @@ class ChatCompletionRequest implements RequestInterface
         return $this->systemTokenEstimate;
     }
 
+    public function setTemperature(float $temperature): void
+    {
+        $this->temperature = $temperature;
+    }
+
     /**
      * 获取工具的token估算数量.
      *
