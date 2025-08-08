@@ -28,12 +28,18 @@ class LLMException extends OdinException
     protected int $errorCode = 0;
 
     /**
+     * HTTP状态码.
+     */
+    protected ?int $statusCode = null;
+
+    /**
      * 创建一个新的异常实例.
      */
-    public function __construct(string $message = '', int $code = 0, ?Throwable $previous = null, int $errorCode = 0)
+    public function __construct(string $message = '', int $code = 0, ?Throwable $previous = null, int $errorCode = 0, ?int $statusCode = null)
     {
         parent::__construct($message, $code, $previous);
         $this->errorCode = $errorCode ?: $code;
+        $this->statusCode = $statusCode;
     }
 
     /**
@@ -42,5 +48,22 @@ class LLMException extends OdinException
     public function getErrorCode(): int
     {
         return $this->errorCode;
+    }
+
+    /**
+     * 获取HTTP状态码.
+     */
+    public function getStatusCode(): ?int
+    {
+        return $this->statusCode;
+    }
+
+    /**
+     * 设置HTTP状态码.
+     */
+    public function setStatusCode(?int $statusCode): self
+    {
+        $this->statusCode = $statusCode;
+        return $this;
     }
 }

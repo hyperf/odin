@@ -199,6 +199,8 @@ class ErrorMapping
                             if ($statusCode >= 400) {
                                 return new LLMApiException('LLM客户端请求错误: ' . $e->getMessage(), 2, $e, ErrorCode::API_INVALID_REQUEST, $statusCode);
                             }
+                            // 其他状态码仍然当作网络异常，但记录状态码
+                            return new LLMNetworkException('LLM网络请求错误: ' . $e->getMessage(), 4, $e, ErrorCode::NETWORK_CONNECTION_ERROR, $statusCode);
                         }
                         return new LLMNetworkException('LLM网络请求错误: ' . $e->getMessage(), 4, $e, ErrorCode::NETWORK_CONNECTION_ERROR);
                     },

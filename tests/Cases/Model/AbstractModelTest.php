@@ -17,8 +17,7 @@ use Hyperf\Odin\Api\RequestOptions\ApiOptions;
 use Hyperf\Odin\Api\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\Response\ChatCompletionStreamResponse;
 use Hyperf\Odin\Contract\Api\ClientInterface;
-use Hyperf\Odin\Exception\LLMException\ErrorHandlerInterface;
-use Hyperf\Odin\Exception\LLMException\LLMErrorHandler;
+
 use Hyperf\Odin\Exception\LLMException\Model\LLMFunctionCallNotSupportedException;
 use Hyperf\Odin\Message\UserMessage;
 use Hyperf\Odin\Model\AbstractModel;
@@ -133,58 +132,9 @@ class AbstractModelTest extends AbstractTestCase
         $this->assertSame($modelOptions, $this->getNonpublicProperty($model, 'modelOptions'));
     }
 
-    /**
-     * 测试 getErrorHandler 方法.
-     */
-    public function testGetErrorHandler()
-    {
-        $model = new TestModel('test-model', []);
 
-        $errorHandler = $this->callNonpublicMethod($model, 'getErrorHandler');
 
-        $this->assertInstanceOf(ErrorHandlerInterface::class, $errorHandler);
-        $this->assertInstanceOf(LLMErrorHandler::class, $errorHandler);
-    }
 
-    /**
-     * 测试创建错误上下文方法.
-     */
-    public function testCreateErrorContext()
-    {
-        $model = new TestModel('test-model', ['api_key' => 'test-key']);
-
-        $messages = [new UserMessage('Test')];
-        $temperature = 0.7;
-        $maxTokens = 100;
-        $stop = ['stop'];
-        $tools = [];
-        $isStream = true;
-
-        $params = [
-            'messages' => $messages,
-            'temperature' => $temperature,
-            'max_tokens' => $maxTokens,
-            'stop' => $stop,
-            'tools' => $tools,
-            'is_stream' => $isStream,
-        ];
-
-        $context = $this->callNonpublicMethod(
-            $model,
-            'createErrorContext',
-            $params
-        );
-
-        $this->assertIsArray($context);
-        $this->assertEquals('test-model', $context['model']);
-        $this->assertArrayHasKey('messages', $context);
-        $this->assertEquals($temperature, $context['temperature']);
-        $this->assertEquals($maxTokens, $context['max_tokens']);
-        $this->assertEquals($stop, $context['stop']);
-        $this->assertEquals($tools, $context['tools']);
-        $this->assertEquals($isStream, $context['is_stream']);
-        $this->assertEquals(['api_key' => 'test-key'], $context['config']);
-    }
 
     /**
      * 测试 checkFunctionCallSupport 方法（抛出异常的情况）.
