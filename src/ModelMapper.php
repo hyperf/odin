@@ -175,7 +175,7 @@ class ModelMapper
         $modelOptions = new ModelOptions($modelOptionsArray);
         $apiOptions = new ApiOptions($apiOptionsArray);
 
-        $fixedTemperature = $this->config->get('odin.llm.model_fixed_temperature.' . $model);
+        $fixedTemperature = $this->getFixedTemperatureForModel($model);
         if ($fixedTemperature !== null) {
             $modelOptions->setFixedTemperature((float) $fixedTemperature);
         }
@@ -203,5 +203,65 @@ class ModelMapper
         if ($modelOptions->isChat() && $modelObject instanceof ModelInterface) {
             $this->models[ModelType::CHAT][$model] = $modelObject;
         }
+    }
+
+    /**
+     * Get fixed temperature for a model, supporting wildcard matching.
+     *
+     * @param string $model The model name
+     * @return null|float The fixed temperature value or null if not configured
+     */
+    protected function getFixedTemperatureForModel(string $model): ?float
+    {
+        // First try exact match
+        $exactMatch = $this->config->get('odin.llm.model_fixed_temperature.' . $model);
+        if ($exactMatch !== null) {
+            return (float) $exactMatch;
+        }
+
+        // If no exact match, try wildcard matching
+        $allFixedTemperatures = $this->config->get('odin.llm.model_fixed_temperature', []);
+        if (! is_array($allFixedTemperatures)) {
+            return null;
+        }
+
+        foreach ($allFixedTemperatures as $pattern => $temperature) {
+            if ($this->matchesWildcardPattern($model, $pattern)) {
+                return (float) $temperature;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if a model name matches a wildcard pattern.
+     * Supports % as wildcard character.
+     *
+     * @param string $modelName The model name to check
+     * @param string $pattern The pattern with % wildcards
+     * @return bool True if the model name matches the pattern
+     */
+    protected function matchesWildcardPattern(string $modelName, string $pattern): bool
+    {
+        // If pattern doesn't contain %, it's exact match (already handled above)
+        if (! str_contains($pattern, '%')) {
+            return false;
+        }
+
+        // Replace % with a placeholder first, then escape, then replace placeholder with regex
+        $placeholder = '__WILDCARD_PLACEHOLDER__';
+        $regexPattern = str_replace('%', $placeholder, $pattern);
+
+        // Escape special regex characters
+        $regexPattern = preg_quote($regexPattern, '/');
+
+        // Replace placeholder with .*
+        $regexPattern = str_replace($placeholder, '.*', $regexPattern);
+
+        // Wrap with ^ and $ for full string match
+        $regexPattern = '/^' . $regexPattern . '$/';
+
+        return preg_match($regexPattern, $modelName) === 1;
     }
 }
