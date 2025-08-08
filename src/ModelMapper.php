@@ -18,6 +18,7 @@ use Hyperf\Odin\Constants\ModelType;
 use Hyperf\Odin\Contract\Model\EmbeddingInterface;
 use Hyperf\Odin\Contract\Model\ModelInterface;
 use Hyperf\Odin\Factory\ModelFactory;
+use Hyperf\Odin\Model\AbstractModel;
 use Hyperf\Odin\Model\ModelOptions;
 use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
@@ -158,6 +159,22 @@ class ModelMapper
      */
     public function addModel(string $model, array $item): void
     {
+        $modelObject = $this->createModel($model, $item);
+
+        if ($modelObject instanceof AbstractModel) {
+            $modelOptions = $modelObject->getModelOptions();
+            // 根据模型类型缓存实例
+            if ($modelOptions->isEmbedding()) {
+                $this->models[ModelType::EMBEDDING][$model] = $modelObject;
+            }
+            if ($modelOptions->isChat()) {
+                $this->models[ModelType::CHAT][$model] = $modelObject;
+            }
+        }
+    }
+
+    protected function createModel(string $model, array $item): EmbeddingInterface|ModelInterface
+    {
         $implementation = $item['implementation'] ?? '';
         if (! class_exists($implementation)) {
             throw new InvalidArgumentException(sprintf('Implementation %s is not defined.', $implementation));
@@ -187,7 +204,7 @@ class ModelMapper
         $endpoint = empty($item['model']) ? $model : $item['model'];
 
         // 使用ModelFactory创建模型实例
-        $modelObject = ModelFactory::create(
+        return ModelFactory::create(
             $implementation,
             $endpoint,
             $config,
@@ -195,14 +212,6 @@ class ModelMapper
             $apiOptions,
             $this->logger
         );
-
-        // 根据模型类型缓存实例
-        if ($modelOptions->isEmbedding() && $modelObject instanceof EmbeddingInterface) {
-            $this->models[ModelType::EMBEDDING][$model] = $modelObject;
-        }
-        if ($modelOptions->isChat() && $modelObject instanceof ModelInterface) {
-            $this->models[ModelType::CHAT][$model] = $modelObject;
-        }
     }
 
     /**
