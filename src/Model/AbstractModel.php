@@ -91,6 +91,9 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
             $this->checkMultiModalSupport($request->getMessages());
             $this->checkFixedTemperature($request);
 
+            // 验证请求参数（包括消息序列）
+            $request->validate();
+
             $request->setStream(false);
 
             $client = $this->getClient();
@@ -112,6 +115,9 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
             $this->checkFunctionCallSupport($request->getTools());
             $this->checkMultiModalSupport($request->getMessages());
             $this->checkFixedTemperature($request);
+
+            // 验证请求参数（包括消息序列）
+            $request->validate();
 
             $request->setStream(true);
             $request->setStreamIncludeUsage($this->streamIncludeUsage);
