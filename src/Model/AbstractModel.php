@@ -30,6 +30,7 @@ use Hyperf\Odin\Exception\LLMException\LLMNetworkException;
 use Hyperf\Odin\Exception\LLMException\Model\LLMEmbeddingNotSupportedException;
 use Hyperf\Odin\Exception\LLMException\Model\LLMFunctionCallNotSupportedException;
 use Hyperf\Odin\Exception\LLMException\Model\LLMModalityNotSupportedException;
+use Hyperf\Odin\Message\AssistantMessage;
 use Hyperf\Odin\Message\UserMessage;
 use Hyperf\Retry\Retry;
 use Hyperf\Retry\RetryContext;
@@ -446,9 +447,16 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
      */
     private function validateResponseContent(ChatCompletionResponse $response): void
     {
-        $content = $response->getFirstChoice()?->getMessage()->getContent();
-        // 检查是否为null、空字符串或只包含空白字符，但不排除字符串"0"
-        if ($content === null || $content === '' || trim($content) === '') {
+        /** @var AssistantMessage $message */
+        $message = $response->getFirstChoice()?->getMessage();
+        if (! $message instanceof AssistantMessage) {
+            throw new LLMModelException('Model returned empty content response');
+        }
+        if ($message->hasToolCalls()) {
+            return;
+        }
+        $content = $message->getContent();
+        if ($content === '' || trim($content) === '') {
             throw new LLMModelException('Model returned empty content response');
         }
     }
