@@ -25,6 +25,7 @@ use Hyperf\Odin\Contract\Mcp\McpServerManagerInterface;
 use Hyperf\Odin\Contract\Message\MessageInterface;
 use Hyperf\Odin\Contract\Model\EmbeddingInterface;
 use Hyperf\Odin\Contract\Model\ModelInterface;
+use Hyperf\Odin\Exception\LLMException\LLMModelException;
 use Hyperf\Odin\Exception\LLMException\LLMNetworkException;
 use Hyperf\Odin\Exception\LLMException\Model\LLMEmbeddingNotSupportedException;
 use Hyperf\Odin\Exception\LLMException\Model\LLMFunctionCallNotSupportedException;
@@ -93,7 +94,12 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
             $request->setStream(false);
 
             $client = $this->getClient();
-            return $client->chatCompletions($request);
+            $response = $client->chatCompletions($request);
+
+            // 统一检查响应内容是否为空
+            $this->validateResponseContent($response);
+
+            return $response;
         });
     }
 
@@ -426,6 +432,18 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
     {
         if ($this->getModelOptions()->getFixedTemperature()) {
             $request->setTemperature($this->getModelOptions()->getFixedTemperature());
+        }
+    }
+
+    /**
+     * 验证非流式响应内容是否为空.
+     */
+    private function validateResponseContent(ChatCompletionResponse $response): void
+    {
+        $content = $response->getFirstChoice()?->getMessage()->getContent();
+        // 检查是否为null、空字符串或只包含空白字符，但不排除字符串"0"
+        if ($content === null || $content === '' || trim($content) === '') {
+            throw new LLMModelException('Model returned empty content response');
         }
     }
 }
