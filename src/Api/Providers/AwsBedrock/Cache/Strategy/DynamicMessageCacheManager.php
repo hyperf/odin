@@ -41,22 +41,34 @@ class DynamicMessageCacheManager
 
     public function getToolsHash(): string
     {
-        return $this->cachePointMessages[0]?->getHash() ?? '';
+        if (! isset($this->cachePointMessages[0])) {
+            return '';
+        }
+        return $this->cachePointMessages[0]->getHash() ?? '';
     }
 
     public function getSystemMessageHash(): string
     {
-        return $this->cachePointMessages[1]?->getHash() ?? '';
+        if (! isset($this->cachePointMessages[1])) {
+            return '';
+        }
+        return $this->cachePointMessages[1]->getHash() ?? '';
     }
 
     public function getToolTokens(): int
     {
-        return $this->cachePointMessages[0]?->getTokens() ?? 0;
+        if (! isset($this->cachePointMessages[0])) {
+            return 0;
+        }
+        return $this->cachePointMessages[0]->getTokens() ?? 0;
     }
 
     public function getSystemTokens(): int
     {
-        return $this->cachePointMessages[1]?->getTokens() ?? 0;
+        if (! isset($this->cachePointMessages[1])) {
+            return 0;
+        }
+        return $this->cachePointMessages[1]->getTokens() ?? 0;
     }
 
     public function addCachePointIndex(int $index): void
