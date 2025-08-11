@@ -89,7 +89,17 @@ class ModelOptionsTest extends AbstractTestCase
         $options = new ModelOptions($initialData);
         $array = $options->toArray();
 
+        // toArray() 方法会包含所有字段，包括未在初始化数据中设置的字段
+        $expectedArray = [
+            'chat' => false,
+            'embedding' => true,
+            'multi_modal' => true,
+            'function_call' => true,
+            'vector_size' => 1536,
+            'fixed_temperature' => null, // 未设置时为 null
+        ];
+
         $this->assertIsArray($array);
-        $this->assertEquals($initialData, $array);
+        $this->assertEquals($expectedArray, $array);
     }
 }

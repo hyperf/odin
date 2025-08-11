@@ -242,7 +242,7 @@ class LoggingConfigHelperTest extends TestCase
         ]);
         $this->setMockContainer($mockConfig);
 
-        $longText = str_repeat('x', 1500); // > 1000 characters
+        $longText = str_repeat('x', 2500); // > 2000 characters
         $logData = [
             'model_id' => 'gpt-4o',
             'long_content' => $longText,

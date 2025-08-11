@@ -39,7 +39,7 @@ class LogUtilTest extends TestCase
 
     public function testFormatLongTextWithLongString()
     {
-        $longText = str_repeat('a', 1500); // > 1000 characters
+        $longText = str_repeat('a', 2500); // > 2000 characters
         $data = [
             'model_id' => 'gpt-4o',
             'content' => $longText,
@@ -170,7 +170,7 @@ class LogUtilTest extends TestCase
 
     public function testFilterAndFormatLogDataWithComplexData()
     {
-        $longText = str_repeat('x', 1500);
+        $longText = str_repeat('x', 2500);
         $binaryData = "\x00\x01\x02\x03";
 
         $logData = [
@@ -350,7 +350,7 @@ class LogUtilTest extends TestCase
 
     public function testFilterAndFormatLogDataWithNestedFieldsAndFormatting()
     {
-        $longText = str_repeat('x', 1500);
+        $longText = str_repeat('x', 2500);
         $binaryData = "\x00\x01\x02\x03";
 
         $logData = [
