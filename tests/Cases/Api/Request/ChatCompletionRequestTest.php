@@ -513,11 +513,33 @@ class ChatCompletionRequestTest extends AbstractTestCase
         );
 
         $this->expectException(LLMModelException::class);
-        $this->expectExceptionMessageMatches('/Invalid message sequence: Found consecutive assistant messages at positions 1 and 2/');
+        $this->expectExceptionMessageMatches('/Invalid message sequence: Assistant message with tool calls at position 1 must be followed by tool result messages/');
         $this->expectExceptionMessageMatches('/Tool calls: weather_tool\(id:tool-123\)/');
         $this->expectExceptionMessageMatches('/Solution: After an assistant message with tool_calls/');
 
         $request->validate();
+    }
+
+    /**
+     * 测试正常场景 - 连续的assistant消息（没有tool calls）应该是允许的.
+     */
+    public function testValidateMessageSequenceConsecutiveAssistantMessagesWithoutToolCalls()
+    {
+        $messages = [
+            new UserMessage('Hello'),
+            new AssistantMessage('Hi there'),
+            new AssistantMessage('How can I help?'), // 连续的assistant消息，但前一个没有tool calls
+        ];
+
+        $request = new ChatCompletionRequest(
+            messages: $messages,
+            model: 'gpt-3.5-turbo'
+        );
+
+        // 应该不抛出异常
+        $this->assertNotThrows(function () use ($request) {
+            $request->validate();
+        });
     }
 
     /**
@@ -676,11 +698,12 @@ class ChatCompletionRequestTest extends AbstractTestCase
     public function testValidateMessageSequenceContentTruncation()
     {
         $longContent = str_repeat('这是一个很长的消息内容，用来测试内容截断功能。', 10); // 超过100字符
+        $toolCall = new ToolCall('weather_tool', ['location' => 'Beijing'], 'tool-123');
 
         $messages = [
             new UserMessage('查询天气'),
-            new AssistantMessage($longContent),
-            new AssistantMessage('另一条消息'), // 错误：连续的assistant消息
+            new AssistantMessage($longContent, [$toolCall]), // 包含tool calls
+            new AssistantMessage('另一条消息'), // 错误：应该是tool消息
         ];
 
         $request = new ChatCompletionRequest(

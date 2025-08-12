@@ -393,38 +393,43 @@ class ChatCompletionRequest implements RequestInterface
         foreach ($messages as $index => $message) {
             $role = $message->getRole();
 
-            // 检查连续的assistant消息
+            // 检查带有工具调用的assistant消息后是否跟随了tool消息
             if ($previousMessage && $previousMessage->getRole() === Role::Assistant && $role === Role::Assistant) {
-                $previousContent = $this->truncateContent($previousMessage->getContent());
-                $currentContent = $this->truncateContent($message->getContent());
-
-                $errorMsg = 'Invalid message sequence: Found consecutive assistant messages at positions '
-                    . ($index - 1) . " and {$index}.\n\n";
-
-                // 显示前一个assistant消息的详情
-                $errorMsg .= 'Message at position ' . ($index - 1) . " (assistant):\n";
-                $errorMsg .= "Content: \"{$previousContent}\"\n";
-
+                // 检查前一个assistant消息是否包含tool calls
+                $hasToolCalls = false;
+                $toolCalls = [];
                 if (method_exists($previousMessage, 'getToolCalls')) {
                     $toolCalls = $previousMessage->getToolCalls();
-                    if (! empty($toolCalls)) {
-                        $errorMsg .= 'Tool calls: ';
-                        $toolInfo = array_map(function ($toolCall) {
-                            $name = method_exists($toolCall, 'getName') ? $toolCall->getName() : 'unknown';
-                            $id = method_exists($toolCall, 'getId') ? $toolCall->getId() : '';
-                            return "{$name}(id:{$id})";
-                        }, $toolCalls);
-                        $errorMsg .= implode(', ', $toolInfo) . "\n";
-                    }
+                    $hasToolCalls = ! empty($toolCalls);
                 }
 
-                // 显示当前assistant消息的详情
-                $errorMsg .= "\nMessage at position {$index} (assistant):\n";
-                $errorMsg .= "Content: \"{$currentContent}\"\n\n";
+                // 只有当前一个assistant消息包含tool calls时才报错
+                if ($hasToolCalls) {
+                    $previousContent = $this->truncateContent($previousMessage->getContent());
+                    $currentContent = $this->truncateContent($message->getContent());
 
-                $errorMsg .= 'Solution: After an assistant message with tool_calls, you must provide tool result messages before the next assistant message.';
+                    $errorMsg = 'Invalid message sequence: Assistant message with tool calls at position '
+                        . ($index - 1) . " must be followed by tool result messages, not another assistant message.\n\n";
 
-                throw new LLMModelException($errorMsg);
+                    // 显示前一个assistant消息的详情
+                    $errorMsg .= 'Message at position ' . ($index - 1) . " (assistant with tool calls):\n";
+                    $errorMsg .= "Content: \"{$previousContent}\"\n";
+                    $errorMsg .= 'Tool calls: ';
+                    $toolInfo = array_map(function ($toolCall) {
+                        $name = method_exists($toolCall, 'getName') ? $toolCall->getName() : 'unknown';
+                        $id = method_exists($toolCall, 'getId') ? $toolCall->getId() : '';
+                        return "{$name}(id:{$id})";
+                    }, $toolCalls);
+                    $errorMsg .= implode(', ', $toolInfo) . "\n";
+
+                    // 显示当前assistant消息的详情
+                    $errorMsg .= "\nMessage at position {$index} (assistant):\n";
+                    $errorMsg .= "Content: \"{$currentContent}\"\n\n";
+
+                    $errorMsg .= 'Solution: After an assistant message with tool_calls, you must provide tool result messages before the next assistant message.';
+
+                    throw new LLMModelException($errorMsg);
+                }
             }
 
             // 检查工具调用序列
