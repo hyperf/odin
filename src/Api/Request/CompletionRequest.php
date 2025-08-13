@@ -42,9 +42,9 @@ class CompletionRequest implements RequestInterface
         if ($this->prompt === '') {
             throw new InvalidArgumentException('Prompt is required.');
         }
-        // 温度只能在 [0,1]
-        if ($this->temperature < 0 || $this->temperature > 1) {
-            throw new InvalidArgumentException('Temperature must be between 0 and 1.');
+        // 温度只能在 [0,2]
+        if ($this->temperature < 0 || $this->temperature > 2) {
+            throw new InvalidArgumentException('Temperature must be between 0 and 2.');
         }
     }
 

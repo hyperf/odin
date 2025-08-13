@@ -121,12 +121,12 @@ class ChatCompletionRequestTest extends AbstractTestCase
         $request = new ChatCompletionRequest(
             messages: $messages,
             model: 'gpt-3.5-turbo',
-            temperature: 1.5 // 超出0-1范围
+            temperature: 2.5 // 超出0-2范围
         );
 
         // 应该抛出异常
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Temperature must be between 0 and 1.');
+        $this->expectExceptionMessage('Temperature must be between 0 and 2.');
         $request->validate();
     }
 
