@@ -20,6 +20,7 @@ use Hyperf\Odin\Exception\LLMException\Api\LLMRateLimitException;
 use Hyperf\Odin\Exception\LLMException\Configuration\LLMInvalidApiKeyException;
 use Hyperf\Odin\Exception\LLMException\Model\LLMContentFilterException;
 use Hyperf\Odin\Exception\LLMException\Model\LLMContextLengthException;
+use Hyperf\Odin\Exception\LLMException\Model\LLMEmbeddingInputTooLargeException;
 use Hyperf\Odin\Exception\LLMException\Model\LLMImageUrlAccessException;
 use Hyperf\Odin\Exception\LLMException\Network\LLMConnectionTimeoutException;
 use Throwable;
@@ -124,7 +125,9 @@ class ErrorMapping
                         $suggestion = '';
 
                         if ($e->getResponse()) {
-                            $body = $e->getResponse()->getBody()->getContents();
+                            $response = $e->getResponse();
+                            $response->getBody()->rewind(); // 重置流位置
+                            $body = $response->getBody()->getContents();
                             $data = json_decode($body, true);
                             if (isset($data['error'])) {
                                 $errorType = $data['error']['type'] ?? 'model_error';
@@ -140,6 +143,66 @@ class ErrorMapping
                         }
 
                         return new LLMContentFilterException($message, $e, null, [$errorType], $statusCode);
+                    },
+                ],
+                // 嵌入输入过大错误
+                [
+                    'regex' => '/input\s+is\s+too\s+large|input\s+too\s+large|input\s+size\s+exceeds|batch\s+size\s+too\s+large|increase.+batch.+size/i',
+                    'status' => [400, 413, 500],
+                    'factory' => function (RequestException $e) {
+                        $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : 400;
+                        $model = null;
+                        $inputLength = null;
+                        $maxInputLength = null;
+
+                        // 尝试从请求中提取模型名称
+                        if ($e->getRequest() && $e->getRequest()->getBody()) {
+                            $requestBody = (string) $e->getRequest()->getBody();
+                            $data = json_decode($requestBody, true);
+                            if (isset($data['model'])) {
+                                $model = $data['model'];
+                            }
+
+                            // 尝试估算输入长度
+                            if (isset($data['input'])) {
+                                if (is_string($data['input'])) {
+                                    $inputLength = mb_strlen($data['input'], 'UTF-8');
+                                } elseif (is_array($data['input'])) {
+                                    $inputLength = array_sum(array_map(function ($item) {
+                                        return is_string($item) ? mb_strlen($item, 'UTF-8') : 0;
+                                    }, $data['input']));
+                                }
+                            }
+                        }
+
+                        // 尝试从错误响应中提取更多信息
+                        if ($e->getResponse()) {
+                            $response = $e->getResponse();
+                            $response->getBody()->rewind(); // 重置流位置
+                            $body = $response->getBody()->getContents();
+                            $data = json_decode($body, true);
+                            if (isset($data['error']['message'])) {
+                                // 尝试从错误消息中提取数字限制
+                                preg_match('/(\d+)/', $data['error']['message'], $matches);
+                                if (! empty($matches[1])) {
+                                    $maxInputLength = (int) $matches[1];
+                                }
+                            }
+                        }
+
+                        $message = '嵌入请求输入内容过大，超出模型处理限制';
+                        if ($model) {
+                            $message .= "（模型：{$model}）";
+                        }
+
+                        return new LLMEmbeddingInputTooLargeException(
+                            $message,
+                            $e,
+                            $model,
+                            $inputLength,
+                            $maxInputLength,
+                            $statusCode
+                        );
                     },
                 ],
                 // Azure OpenAI 服务端内部错误 (可重试的网络错误)
@@ -163,7 +226,9 @@ class ErrorMapping
                     'factory' => function (RequestException $e) {
                         $labels = null;
                         if ($e->getResponse()) {
-                            $body = $e->getResponse()->getBody()->getContents();
+                            $response = $e->getResponse();
+                            $response->getBody()->rewind(); // 重置流位置
+                            $body = $response->getBody()->getContents();
                             $data = json_decode($body, true);
                             if (isset($data['error']['content_filter_results'])) {
                                 $labels = array_keys($data['error']['content_filter_results']);
@@ -222,7 +287,9 @@ class ErrorMapping
                     'factory' => function (RequestException $e) {
                         $invalidFields = null;
                         if ($e->getResponse()) {
-                            $body = $e->getResponse()->getBody()->getContents();
+                            $response = $e->getResponse();
+                            $response->getBody()->rewind(); // 重置流位置
+                            $body = $response->getBody()->getContents();
                             $data = json_decode($body, true);
                             if (isset($data['error']['param'])) {
                                 $invalidFields = [$data['error']['param'] => $data['error']['message'] ?? '无效参数'];

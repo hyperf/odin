@@ -82,6 +82,8 @@ class ErrorCode
 
     public const MODEL_IMAGE_URL_ACCESS_ERROR = self::MODEL_ERROR_BASE + 6;
 
+    public const MODEL_EMBEDDING_INPUT_TOO_LARGE = self::MODEL_ERROR_BASE + 7;
+
     /**
      * 错误码映射表.
      */
@@ -116,6 +118,7 @@ class ErrorCode
             self::MODEL_MULTI_MODAL_NOT_SUPPORTED => '模型不支持多模态输入',
             self::MODEL_EMBEDDING_NOT_SUPPORTED => '模型不支持嵌入向量生成',
             self::MODEL_IMAGE_URL_ACCESS_ERROR => '多模态图片URL不可访问',
+            self::MODEL_EMBEDDING_INPUT_TOO_LARGE => '嵌入请求输入内容过大，超出模型处理限制',
         ];
     }
 
