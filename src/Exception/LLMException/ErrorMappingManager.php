@@ -174,6 +174,15 @@ class ErrorMappingManager
         // 检查正则表达式匹配
         if (isset($handler['regex'])) {
             $message = $exception->getMessage();
+
+            // 对于RequestException，也检查响应体内容
+            if ($exception instanceof RequestException && $exception->getResponse()) {
+                $response = $exception->getResponse();
+                $response->getBody()->rewind(); // 重置流位置
+                $responseBody = (string) $response->getBody();
+                $message .= ' ' . $responseBody; // 将响应体内容加入匹配文本中
+            }
+
             if (! preg_match($handler['regex'], $message)) {
                 return false;
             }

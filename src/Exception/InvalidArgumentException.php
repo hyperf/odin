@@ -14,10 +14,13 @@ namespace Hyperf\Odin\Exception;
 
 use Throwable;
 
-class InvalidArgumentException extends OdinException
+/**
+ * 参数验证异常，自动设置400状态码.
+ */
+class InvalidArgumentException extends LLMException
 {
     public function __construct(string $message = 'Invalid argument', int $code = 0, ?Throwable $previous = null)
     {
-        parent::__construct($message, $code, $previous);
+        parent::__construct($message, $code, $previous, $code ?: 400, 400);
     }
 }

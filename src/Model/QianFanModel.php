@@ -16,7 +16,6 @@ use Hyperf\Odin\Api\Request\EmbeddingRequest;
 use Hyperf\Odin\Api\Response\EmbeddingResponse;
 use Hyperf\Odin\Contract\Api\ClientInterface;
 use Hyperf\Odin\Factory\ClientFactory;
-use Throwable;
 
 class QianFanModel extends AbstractModel
 {
@@ -24,30 +23,22 @@ class QianFanModel extends AbstractModel
 
     public function embeddings(array|string $input, ?string $encoding_format = 'float', ?string $user = null, array $businessParams = []): EmbeddingResponse
     {
-        try {
-            // 检查模型是否支持嵌入功能
-            $this->checkEmbeddingSupport();
+        // 检查模型是否支持嵌入功能
+        $this->checkEmbeddingSupport();
 
-            if (is_string($input)) {
-                $input = [$input];
-            }
-
-            $client = $this->getClient();
-            $embeddingRequest = new EmbeddingRequest(
-                input: $input,
-                model: $this->model
-            );
-            $embeddingRequest->setBusinessParams($businessParams);
-            $embeddingRequest->setIncludeBusinessParams($this->includeBusinessParams);
-
-            return $client->embeddings($embeddingRequest);
-        } catch (Throwable $e) {
-            $context = [
-                'model' => $this->model,
-                'input' => $input,
-            ];
-            throw $this->handleException($e, $context);
+        if (is_string($input)) {
+            $input = [$input];
         }
+
+        $client = $this->getClient();
+        $embeddingRequest = new EmbeddingRequest(
+            input: $input,
+            model: $this->model
+        );
+        $embeddingRequest->setBusinessParams($businessParams);
+        $embeddingRequest->setIncludeBusinessParams($this->includeBusinessParams);
+
+        return $client->embeddings($embeddingRequest);
     }
 
     protected function getClient(): ClientInterface

@@ -30,6 +30,6 @@ class LLMModalityNotSupportedException extends LLMModelException
      */
     public function __construct(string $message = '模型不支持多模态输入', ?Throwable $previous = null, ?string $model = null)
     {
-        parent::__construct($message, self::ERROR_CODE, $previous, 0, $model);
+        parent::__construct($message, self::ERROR_CODE, $previous, 0, $model, 400);
     }
 }

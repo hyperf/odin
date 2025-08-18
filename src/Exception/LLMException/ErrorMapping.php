@@ -20,6 +20,7 @@ use Hyperf\Odin\Exception\LLMException\Api\LLMRateLimitException;
 use Hyperf\Odin\Exception\LLMException\Configuration\LLMInvalidApiKeyException;
 use Hyperf\Odin\Exception\LLMException\Model\LLMContentFilterException;
 use Hyperf\Odin\Exception\LLMException\Model\LLMContextLengthException;
+use Hyperf\Odin\Exception\LLMException\Model\LLMEmbeddingInputTooLargeException;
 use Hyperf\Odin\Exception\LLMException\Model\LLMImageUrlAccessException;
 use Hyperf\Odin\Exception\LLMException\Network\LLMConnectionTimeoutException;
 use Throwable;
@@ -63,7 +64,7 @@ class ErrorMapping
                         $message = $e->getMessage();
                         // 尝试从消息中提取主机名
                         preg_match('/Could not resolve host: ([^\s\(\)]+)/i', $message, $matches);
-                        $hostname = isset($matches[1]) ? $matches[1] : '未知主机';
+                        $hostname = $matches[1] ?? '未知主机';
                         return new LLMNetworkException(
                             sprintf('无法解析LLM服务域名: %s', $hostname),
                             4,
@@ -113,19 +114,128 @@ class ErrorMapping
                         return new LLMRateLimitException('API请求频率超出限制', $e, 429, $retryAfter);
                     },
                 ],
+                // Azure OpenAI 模型内容过滤错误
+                [
+                    'regex' => '/model\s+produced\s+invalid\s+content|model_error/i',
+                    'status' => [500],
+                    'factory' => function (RequestException $e) {
+                        $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : 500;
+                        $body = '';
+                        $errorType = 'model_error';
+                        $suggestion = '';
+
+                        if ($e->getResponse()) {
+                            $response = $e->getResponse();
+                            $response->getBody()->rewind(); // 重置流位置
+                            $body = $response->getBody()->getContents();
+                            $data = json_decode($body, true);
+                            if (isset($data['error'])) {
+                                $errorType = $data['error']['type'] ?? 'model_error';
+                                if (isset($data['error']['message']) && str_contains($data['error']['message'], 'modifying your prompt')) {
+                                    $suggestion = '建议修改您的提示词内容';
+                                }
+                            }
+                        }
+
+                        $message = '模型生成了无效内容';
+                        if ($suggestion) {
+                            $message .= '，' . $suggestion;
+                        }
+
+                        return new LLMContentFilterException($message, $e, null, [$errorType], $statusCode);
+                    },
+                ],
+                // 嵌入输入过大错误
+                [
+                    'regex' => '/input\s+is\s+too\s+large|input\s+too\s+large|input\s+size\s+exceeds|batch\s+size\s+too\s+large|increase.+batch.+size/i',
+                    'status' => [400, 413, 500],
+                    'factory' => function (RequestException $e) {
+                        $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : 400;
+                        $model = null;
+                        $inputLength = null;
+                        $maxInputLength = null;
+
+                        // 尝试从请求中提取模型名称
+                        if ($e->getRequest() && $e->getRequest()->getBody()) {
+                            $requestBody = (string) $e->getRequest()->getBody();
+                            $data = json_decode($requestBody, true);
+                            if (isset($data['model'])) {
+                                $model = $data['model'];
+                            }
+
+                            // 尝试估算输入长度
+                            if (isset($data['input'])) {
+                                if (is_string($data['input'])) {
+                                    $inputLength = mb_strlen($data['input'], 'UTF-8');
+                                } elseif (is_array($data['input'])) {
+                                    $inputLength = array_sum(array_map(function ($item) {
+                                        return is_string($item) ? mb_strlen($item, 'UTF-8') : 0;
+                                    }, $data['input']));
+                                }
+                            }
+                        }
+
+                        // 尝试从错误响应中提取更多信息
+                        if ($e->getResponse()) {
+                            $response = $e->getResponse();
+                            $response->getBody()->rewind(); // 重置流位置
+                            $body = $response->getBody()->getContents();
+                            $data = json_decode($body, true);
+                            if (isset($data['error']['message'])) {
+                                // 尝试从错误消息中提取数字限制
+                                preg_match('/(\d+)/', $data['error']['message'], $matches);
+                                if (! empty($matches[1])) {
+                                    $maxInputLength = (int) $matches[1];
+                                }
+                            }
+                        }
+
+                        $message = '嵌入请求输入内容过大，超出模型处理限制';
+                        if ($model) {
+                            $message .= "（模型：{$model}）";
+                        }
+
+                        return new LLMEmbeddingInputTooLargeException(
+                            $message,
+                            $e,
+                            $model,
+                            $inputLength,
+                            $maxInputLength,
+                            $statusCode
+                        );
+                    },
+                ],
+                // Azure OpenAI 服务端内部错误 (可重试的网络错误)
+                [
+                    'regex' => '/server\s+had\s+an\s+error|server_error/i',
+                    'status' => [500, 502, 503, 504],
+                    'factory' => function (RequestException $e) {
+                        $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : 500;
+                        return new LLMNetworkException(
+                            'Azure OpenAI 服务暂时不可用，建议稍后重试',
+                            4,
+                            $e,
+                            ErrorCode::NETWORK_CONNECTION_ERROR,
+                            $statusCode
+                        );
+                    },
+                ],
                 // 内容过滤
                 [
                     'regex' => '/content\s+filter|content\s+policy|inappropriate|unsafe content|violate|policy/i',
                     'factory' => function (RequestException $e) {
                         $labels = null;
                         if ($e->getResponse()) {
-                            $body = $e->getResponse()->getBody()->getContents();
+                            $response = $e->getResponse();
+                            $response->getBody()->rewind(); // 重置流位置
+                            $body = $response->getBody()->getContents();
                             $data = json_decode($body, true);
                             if (isset($data['error']['content_filter_results'])) {
                                 $labels = array_keys($data['error']['content_filter_results']);
                             }
                         }
-                        return new LLMContentFilterException('内容被系统安全过滤', $e, null, $labels);
+                        $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : 400;
+                        return new LLMContentFilterException('内容被系统安全过滤', $e, null, $labels, $statusCode);
                     },
                 ],
                 // 上下文长度超出限制
@@ -170,14 +280,16 @@ class ErrorMapping
                         return new LLMImageUrlAccessException('多模态图片URL不可访问', $e, null, $imageUrl);
                     },
                 ],
-                // 无效请求
+                // 无效请求 (更精确的匹配，避免误匹配模型错误)
                 [
-                    'regex' => '/invalid|bad\s+request/i',
+                    'regex' => '/invalid\s+(request|parameter|api|endpoint)|bad\s+request|malformed/i',
                     'status' => [400],
                     'factory' => function (RequestException $e) {
                         $invalidFields = null;
                         if ($e->getResponse()) {
-                            $body = $e->getResponse()->getBody()->getContents();
+                            $response = $e->getResponse();
+                            $response->getBody()->rewind(); // 重置流位置
+                            $body = $response->getBody()->getContents();
                             $data = json_decode($body, true);
                             if (isset($data['error']['param'])) {
                                 $invalidFields = [$data['error']['param'] => $data['error']['message'] ?? '无效参数'];
@@ -199,6 +311,8 @@ class ErrorMapping
                             if ($statusCode >= 400) {
                                 return new LLMApiException('LLM客户端请求错误: ' . $e->getMessage(), 2, $e, ErrorCode::API_INVALID_REQUEST, $statusCode);
                             }
+                            // 其他状态码仍然当作网络异常，但记录状态码
+                            return new LLMNetworkException('LLM网络请求错误: ' . $e->getMessage(), 4, $e, ErrorCode::NETWORK_CONNECTION_ERROR, $statusCode);
                         }
                         return new LLMNetworkException('LLM网络请求错误: ' . $e->getMessage(), 4, $e, ErrorCode::NETWORK_CONNECTION_ERROR);
                     },

@@ -18,6 +18,7 @@ use Hyperf\Odin\Constants\ModelType;
 use Hyperf\Odin\Contract\Model\EmbeddingInterface;
 use Hyperf\Odin\Contract\Model\ModelInterface;
 use Hyperf\Odin\Factory\ModelFactory;
+use Hyperf\Odin\Model\AbstractModel;
 use Hyperf\Odin\Model\ModelOptions;
 use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
@@ -158,6 +159,22 @@ class ModelMapper
      */
     public function addModel(string $model, array $item): void
     {
+        $modelObject = $this->createModel($model, $item);
+
+        if ($modelObject instanceof AbstractModel) {
+            $modelOptions = $modelObject->getModelOptions();
+            // 根据模型类型缓存实例
+            if ($modelOptions->isEmbedding()) {
+                $this->models[ModelType::EMBEDDING][$model] = $modelObject;
+            }
+            if ($modelOptions->isChat()) {
+                $this->models[ModelType::CHAT][$model] = $modelObject;
+            }
+        }
+    }
+
+    protected function createModel(string $model, array $item): EmbeddingInterface|ModelInterface
+    {
         $implementation = $item['implementation'] ?? '';
         if (! class_exists($implementation)) {
             throw new InvalidArgumentException(sprintf('Implementation %s is not defined.', $implementation));
@@ -175,6 +192,11 @@ class ModelMapper
         $modelOptions = new ModelOptions($modelOptionsArray);
         $apiOptions = new ApiOptions($apiOptionsArray);
 
+        $fixedTemperature = $this->getFixedTemperatureForModel($model);
+        if ($fixedTemperature !== null) {
+            $modelOptions->setFixedTemperature((float) $fixedTemperature);
+        }
+
         // 获取配置
         $config = $item['config'] ?? [];
 
@@ -182,7 +204,7 @@ class ModelMapper
         $endpoint = empty($item['model']) ? $model : $item['model'];
 
         // 使用ModelFactory创建模型实例
-        $modelObject = ModelFactory::create(
+        return ModelFactory::create(
             $implementation,
             $endpoint,
             $config,
@@ -190,13 +212,65 @@ class ModelMapper
             $apiOptions,
             $this->logger
         );
+    }
 
-        // 根据模型类型缓存实例
-        if ($modelOptions->isEmbedding() && $modelObject instanceof EmbeddingInterface) {
-            $this->models[ModelType::EMBEDDING][$model] = $modelObject;
+    /**
+     * Get fixed temperature for a model, supporting wildcard matching.
+     *
+     * @param string $model The model name
+     * @return null|float The fixed temperature value or null if not configured
+     */
+    protected function getFixedTemperatureForModel(string $model): ?float
+    {
+        // First try exact match
+        $exactMatch = $this->config->get('odin.llm.model_fixed_temperature.' . $model);
+        if ($exactMatch !== null) {
+            return (float) $exactMatch;
         }
-        if ($modelOptions->isChat() && $modelObject instanceof ModelInterface) {
-            $this->models[ModelType::CHAT][$model] = $modelObject;
+
+        // If no exact match, try wildcard matching
+        $allFixedTemperatures = $this->config->get('odin.llm.model_fixed_temperature', []);
+        if (! is_array($allFixedTemperatures)) {
+            return null;
         }
+
+        foreach ($allFixedTemperatures as $pattern => $temperature) {
+            if ($this->matchesWildcardPattern($model, $pattern)) {
+                return (float) $temperature;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if a model name matches a wildcard pattern.
+     * Supports % as wildcard character.
+     *
+     * @param string $modelName The model name to check
+     * @param string $pattern The pattern with % wildcards
+     * @return bool True if the model name matches the pattern
+     */
+    protected function matchesWildcardPattern(string $modelName, string $pattern): bool
+    {
+        // If pattern doesn't contain %, it's exact match (already handled above)
+        if (! str_contains($pattern, '%')) {
+            return false;
+        }
+
+        // Replace % with a placeholder first, then escape, then replace placeholder with regex
+        $placeholder = '__WILDCARD_PLACEHOLDER__';
+        $regexPattern = str_replace('%', $placeholder, $pattern);
+
+        // Escape special regex characters
+        $regexPattern = preg_quote($regexPattern, '/');
+
+        // Replace placeholder with .*
+        $regexPattern = str_replace($placeholder, '.*', $regexPattern);
+
+        // Wrap with ^ and $ for full string match
+        $regexPattern = '/^' . $regexPattern . '$/';
+
+        return preg_match($regexPattern, $modelName) === 1;
     }
 }

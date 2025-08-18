@@ -25,6 +25,8 @@ class McpServerConfig implements McpServerConfigInterface
         protected string $command = '',
         protected array $args = [],
         protected ?array $allowedTools = null,
+        protected array $headers = [],
+        protected array $env = [],
     ) {
         $this->validate();
     }
@@ -32,6 +34,11 @@ class McpServerConfig implements McpServerConfigInterface
     public function setToken(?string $token): void
     {
         $this->token = $token;
+    }
+
+    public function setHeaders(array $headers): void
+    {
+        $this->headers = $headers;
     }
 
     public function getType(): McpType
@@ -69,6 +76,21 @@ class McpServerConfig implements McpServerConfigInterface
         return $this->allowedTools;
     }
 
+    public function getHeaders(): array
+    {
+        return $this->headers;
+    }
+
+    public function getEnv(): array
+    {
+        return $this->env;
+    }
+
+    public function setEnv(array $env): void
+    {
+        $this->env = $env;
+    }
+
     public function toArray(): array
     {
         return [
@@ -79,6 +101,8 @@ class McpServerConfig implements McpServerConfigInterface
             'command' => $this->command,
             'args' => $this->args,
             'allowedTools' => $this->allowedTools,
+            'headers' => $this->headers,
+            'env' => $this->env,
         ];
     }
 
@@ -97,10 +121,12 @@ class McpServerConfig implements McpServerConfigInterface
             McpType::Http => [
                 'base_url' => $this->url,
                 'auth' => $this->getAuthConfig(),
+                'headers' => $this->headers,
             ],
             McpType::Stdio => [
                 'command' => $this->command,
                 'args' => $this->args,
+                'env' => $this->env,
             ],
             default => throw new InvalidArgumentException('Unsupported MCP server type: ' . $this->type->value),
         };

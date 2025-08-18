@@ -22,6 +22,10 @@ class AzureOpenAIModel extends AbstractModel
 {
     protected bool $streamIncludeUsage = true;
 
+    protected array $chatCompletionRequestOptionKeyMaps = [
+        'max_tokens' => 'max_completion_tokens',
+    ];
+
     /**
      * 获取Azure OpenAI客户端实例.
      */

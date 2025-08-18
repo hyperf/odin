@@ -39,6 +39,8 @@ class ModelOptions
      */
     protected int $vectorSize = 0;
 
+    protected ?float $fixedTemperature = null;
+
     public function __construct(array $options = [])
     {
         if (isset($options['chat'])) {
@@ -59,6 +61,10 @@ class ModelOptions
 
         if (isset($options['vector_size'])) {
             $this->vectorSize = (int) $options['vector_size'];
+        }
+
+        if (isset($options['fixed_temperature'])) {
+            $this->fixedTemperature = (float) $options['fixed_temperature'];
         }
     }
 
@@ -81,6 +87,7 @@ class ModelOptions
             'multi_modal' => $this->multiModal,
             'function_call' => $this->functionCall,
             'vector_size' => $this->vectorSize,
+            'fixed_temperature' => $this->fixedTemperature,
         ];
     }
 
@@ -147,5 +154,15 @@ class ModelOptions
     public function setVectorSize(int $vectorSize): void
     {
         $this->vectorSize = $vectorSize;
+    }
+
+    public function getFixedTemperature(): ?float
+    {
+        return $this->fixedTemperature;
+    }
+
+    public function setFixedTemperature(?float $fixedTemperature): void
+    {
+        $this->fixedTemperature = $fixedTemperature;
     }
 }

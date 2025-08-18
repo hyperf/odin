@@ -16,6 +16,8 @@ use GuzzleHttp\RequestOptions;
 use Hyperf\Odin\Contract\Api\Request\RequestInterface;
 use Hyperf\Odin\Contract\Message\MessageInterface;
 use Hyperf\Odin\Exception\InvalidArgumentException;
+use Hyperf\Odin\Exception\LLMException\LLMModelException;
+use Hyperf\Odin\Message\Role;
 use Hyperf\Odin\Message\SystemMessage;
 use Hyperf\Odin\Tool\Definition\ToolDefinition;
 use Hyperf\Odin\Utils\MessageUtil;
@@ -54,6 +56,8 @@ class ChatCompletionRequest implements RequestInterface
 
     private ?array $thinking = null;
 
+    private array $optionKeyMaps = [];
+
     public function __construct(
         /** @var MessageInterface[] $messages */
         protected array $messages,
@@ -70,19 +74,27 @@ class ChatCompletionRequest implements RequestInterface
         $this->tools[$toolDefinition->getName()] = $toolDefinition;
     }
 
+    public function setOptionKeyMaps(array $optionKeyMaps): void
+    {
+        $this->optionKeyMaps = $optionKeyMaps;
+    }
+
     public function validate(): void
     {
         if (empty($this->model)) {
             throw new InvalidArgumentException('Model is required.');
         }
-        // 温度只能在 [0,1]
-        if ($this->temperature < 0 || $this->temperature > 1) {
-            throw new InvalidArgumentException('Temperature must be between 0 and 1.');
+        // 温度只能在 [0,2]
+        if ($this->temperature < 0 || $this->temperature > 2) {
+            throw new InvalidArgumentException('Temperature must be between 0 and 2.');
         }
         $this->filterMessages = MessageUtil::filter($this->messages);
         if (empty($this->filterMessages)) {
             throw new InvalidArgumentException('Messages is required.');
         }
+
+        // 验证消息序列是否符合API规范
+        $this->validateMessageSequence();
     }
 
     public function createOptions(): array
@@ -94,7 +106,11 @@ class ChatCompletionRequest implements RequestInterface
             'stream' => $this->stream,
         ];
         if ($this->maxTokens > 0) {
-            $json['max_completion_tokens'] = $this->maxTokens;
+            if (isset($this->optionKeyMaps['max_tokens'])) {
+                $json[$this->optionKeyMaps['max_tokens']] = $this->maxTokens;
+            } else {
+                $json['max_tokens'] = $this->maxTokens;
+            }
         }
         if (! empty($this->stop)) {
             $json['stop'] = $this->stop;
@@ -294,6 +310,11 @@ class ChatCompletionRequest implements RequestInterface
         return $this->systemTokenEstimate;
     }
 
+    public function setTemperature(float $temperature): void
+    {
+        $this->temperature = $temperature;
+    }
+
     /**
      * 获取工具的token估算数量.
      *
@@ -351,5 +372,181 @@ class ChatCompletionRequest implements RequestInterface
     public function removeBigObject(): void
     {
         $this->tools = ToolUtil::filter($this->tools);
+    }
+
+    /**
+     * 验证消息序列是否符合API规范.
+     *
+     * @throws LLMModelException 当消息序列不符合规范时抛出异常
+     */
+    private function validateMessageSequence(): void
+    {
+        $messages = $this->messages;
+        if (empty($messages)) {
+            return;
+        }
+
+        $previousMessage = null;
+        $expectingToolResult = false;
+        $pendingToolCallIds = [];
+
+        foreach ($messages as $index => $message) {
+            $role = $message->getRole();
+
+            // 检查带有工具调用的assistant消息后是否跟随了tool消息
+            if ($previousMessage && $previousMessage->getRole() === Role::Assistant && $role === Role::Assistant) {
+                // 检查前一个assistant消息是否包含tool calls
+                $hasToolCalls = false;
+                $toolCalls = [];
+                if (method_exists($previousMessage, 'getToolCalls')) {
+                    $toolCalls = $previousMessage->getToolCalls();
+                    $hasToolCalls = ! empty($toolCalls);
+                }
+
+                // 只有当前一个assistant消息包含tool calls时才报错
+                if ($hasToolCalls) {
+                    $previousContent = $this->truncateContent($previousMessage->getContent());
+                    $currentContent = $this->truncateContent($message->getContent());
+
+                    $errorMsg = 'Invalid message sequence: Assistant message with tool calls at position '
+                        . ($index - 1) . " must be followed by tool result messages, not another assistant message.\n\n";
+
+                    // 显示前一个assistant消息的详情
+                    $errorMsg .= 'Message at position ' . ($index - 1) . " (assistant with tool calls):\n";
+                    $errorMsg .= "Content: \"{$previousContent}\"\n";
+                    $errorMsg .= 'Tool calls: ';
+                    $toolInfo = array_map(function ($toolCall) {
+                        $name = method_exists($toolCall, 'getName') ? $toolCall->getName() : 'unknown';
+                        $id = method_exists($toolCall, 'getId') ? $toolCall->getId() : '';
+                        return "{$name}(id:{$id})";
+                    }, $toolCalls);
+                    $errorMsg .= implode(', ', $toolInfo) . "\n";
+
+                    // 显示当前assistant消息的详情
+                    $errorMsg .= "\nMessage at position {$index} (assistant):\n";
+                    $errorMsg .= "Content: \"{$currentContent}\"\n\n";
+
+                    $errorMsg .= 'Solution: After an assistant message with tool_calls, you must provide tool result messages before the next assistant message.';
+
+                    throw new LLMModelException($errorMsg);
+                }
+            }
+
+            // 检查工具调用序列
+            if ($role === Role::Assistant) {
+                // 如果前一个assistant消息有tool_calls，现在应该处理工具结果
+                if ($expectingToolResult && ! empty($pendingToolCallIds)) {
+                    $currentContent = $this->truncateContent($message->getContent());
+
+                    $errorMsg = 'Invalid message sequence: Expected tool result messages for pending tool_calls, '
+                        . "but found another assistant message at position {$index}.\n\n";
+
+                    $errorMsg .= 'Pending tool_call IDs: ' . implode(', ', $pendingToolCallIds) . "\n\n";
+
+                    $errorMsg .= "Current assistant message at position {$index}:\n";
+                    $errorMsg .= "Content: \"{$currentContent}\"\n\n";
+
+                    $errorMsg .= 'Solution: You must provide tool result messages for each pending tool_call before adding another assistant message.';
+
+                    throw new LLMModelException($errorMsg);
+                }
+
+                // 检查当前assistant消息是否有工具调用
+                $toolCalls = method_exists($message, 'getToolCalls') ? $message->getToolCalls() : [];
+                if (! empty($toolCalls)) {
+                    $expectingToolResult = true;
+                    $pendingToolCallIds = array_map(function ($toolCall) {
+                        return $toolCall->getId();
+                    }, $toolCalls);
+                } else {
+                    $expectingToolResult = false;
+                    $pendingToolCallIds = [];
+                }
+            } elseif ($role === Role::Tool) {
+                // 工具消息应该对应之前的工具调用
+                if (! $expectingToolResult) {
+                    $toolContent = $this->truncateContent($message->getContent());
+                    $toolName = method_exists($message, 'getName') ? $message->getName() : 'unknown';
+                    $toolCallId = method_exists($message, 'getToolCallId') ? $message->getToolCallId() : 'unknown';
+
+                    $errorMsg = "Invalid message sequence: Found unexpected tool message at position {$index}.\n\n";
+
+                    $errorMsg .= "Tool message details:\n";
+                    $errorMsg .= "Tool name: {$toolName}\n";
+                    $errorMsg .= "Tool call ID: {$toolCallId}\n";
+                    $errorMsg .= "Content: \"{$toolContent}\"\n\n";
+
+                    $errorMsg .= "Problem: This tool message appears without a preceding assistant message with tool_calls.\n";
+                    $errorMsg .= 'Solution: Tool messages must be preceded by an assistant message that contains tool_calls.';
+
+                    throw new LLMModelException($errorMsg);
+                }
+
+                // 检查工具调用ID是否匹配
+                $toolCallId = method_exists($message, 'getToolCallId') ? $message->getToolCallId() : null;
+                if ($toolCallId && in_array($toolCallId, $pendingToolCallIds)) {
+                    // 移除已处理的工具调用ID
+                    $pendingToolCallIds = array_diff($pendingToolCallIds, [$toolCallId]);
+                } elseif ($toolCallId && ! in_array($toolCallId, $pendingToolCallIds)) {
+                    // 工具调用ID不匹配的情况
+                    $toolContent = $this->truncateContent($message->getContent());
+                    $toolName = method_exists($message, 'getName') ? $message->getName() : 'unknown';
+
+                    $errorMsg = "Invalid message sequence: Tool message ID mismatch at position {$index}.\n\n";
+
+                    $errorMsg .= "Tool message details:\n";
+                    $errorMsg .= "Tool name: {$toolName}\n";
+                    $errorMsg .= "Tool call ID: {$toolCallId}\n";
+                    $errorMsg .= "Content: \"{$toolContent}\"\n\n";
+
+                    $errorMsg .= 'Expected tool_call IDs: ' . implode(', ', $pendingToolCallIds) . "\n";
+                    $errorMsg .= "Found tool_call ID: {$toolCallId}\n\n";
+
+                    $errorMsg .= 'Solution: Ensure tool message IDs match the tool_call IDs from the preceding assistant message.';
+
+                    throw new LLMModelException($errorMsg);
+                }
+
+                // 如果所有工具调用都已处理，重置状态
+                if (empty($pendingToolCallIds)) {
+                    $expectingToolResult = false;
+                }
+            }
+
+            $previousMessage = $message;
+        }
+
+        // 最后检查是否还有未处理的工具调用
+        if ($expectingToolResult && ! empty($pendingToolCallIds)) {
+            $errorMsg = "Invalid message sequence: Missing tool result messages for pending tool_calls.\n\n";
+
+            $errorMsg .= 'Pending tool_call IDs: ' . implode(', ', $pendingToolCallIds) . "\n\n";
+
+            $errorMsg .= "Problem: The conversation ends with unresolved tool_calls.\n";
+            $errorMsg .= "Solution: Each tool_call must be followed by a corresponding tool message with matching ID.\n\n";
+
+            $errorMsg .= "Expected sequence:\n";
+            $errorMsg .= "1. Assistant message (with tool_calls)\n";
+            $errorMsg .= "2. Tool message(s) (one for each tool_call ID)\n";
+            $errorMsg .= '3. Assistant message (response based on tool results)';
+
+            throw new LLMModelException($errorMsg);
+        }
+    }
+
+    /**
+     * 截断内容用于错误显示，避免日志过长.
+     *
+     * @param string $content 原始内容
+     * @param int $maxLength 最大长度
+     * @return string 截断后的内容
+     */
+    private function truncateContent(string $content, int $maxLength = 100): string
+    {
+        if (mb_strlen($content) <= $maxLength) {
+            return $content;
+        }
+
+        return mb_substr($content, 0, $maxLength - 3) . '...';
     }
 }

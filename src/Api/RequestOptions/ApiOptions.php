@@ -42,6 +42,21 @@ class ApiOptions
     protected ?string $proxy = null;
 
     /**
+     * @var string HTTP 处理器类型
+     */
+    protected string $httpHandler = 'auto';
+
+    /**
+     * @var array 日志配置
+     */
+    protected array $logging = [
+        'enable_whitelist' => false,
+        'whitelist_fields' => [],
+    ];
+
+    protected int $networkRetryCount = 0;
+
+    /**
      * 构造函数.
      *
      * @param array $options 配置选项
@@ -58,6 +73,18 @@ class ApiOptions
 
         if (isset($options['proxy'])) {
             $this->proxy = $options['proxy'];
+        }
+
+        if (isset($options['http_handler'])) {
+            $this->httpHandler = $options['http_handler'];
+        }
+
+        if (isset($options['logging']) && is_array($options['logging'])) {
+            $this->logging = array_merge($this->logging, $options['logging']);
+        }
+
+        if (isset($options['network_retry_count']) && is_int($options['network_retry_count'])) {
+            $this->networkRetryCount = $options['network_retry_count'];
         }
     }
 
@@ -78,6 +105,9 @@ class ApiOptions
             'timeout' => $this->timeout,
             'custom_error_mapping_rules' => $this->customErrorMappingRules,
             'proxy' => $this->proxy,
+            'http_handler' => $this->httpHandler,
+            'logging' => $this->logging,
+            'network_retry_count' => $this->networkRetryCount,
         ];
     }
 
@@ -167,5 +197,54 @@ class ApiOptions
     public function hasProxy(): bool
     {
         return $this->proxy !== null;
+    }
+
+    /**
+     * 获取 HTTP 处理器类型.
+     */
+    public function getHttpHandler(): string
+    {
+        return $this->httpHandler;
+    }
+
+    /**
+     * 设置 HTTP 处理器类型.
+     */
+    public function setHttpHandler(string $httpHandler): self
+    {
+        $this->httpHandler = $httpHandler;
+        return $this;
+    }
+
+    /**
+     * 获取日志配置.
+     */
+    public function getLogging(): array
+    {
+        return $this->logging;
+    }
+
+    /**
+     * 获取日志白名单字段列表.
+     */
+    public function getLoggingWhitelistFields(): array
+    {
+        return $this->logging['whitelist_fields'] ?? [];
+    }
+
+    /**
+     * 检查是否启用日志白名单过滤.
+     */
+    public function isLoggingWhitelistEnabled(): bool
+    {
+        return (bool) ($this->logging['enable_whitelist'] ?? false);
+    }
+
+    /**
+     * 获取网络重试次数.
+     */
+    public function getNetworkRetryCount(): int
+    {
+        return (int) max($this->networkRetryCount, 0);
     }
 }

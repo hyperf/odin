@@ -29,27 +29,12 @@ class LLMApiException extends LLMException
     private const ERROR_CODE_BASE = 3000;
 
     /**
-     * API状态码.
-     */
-    protected ?int $statusCode = null;
-
-    /**
      * 创建一个新的API异常实例.
      */
-    public function __construct(string $message = '', int $code = 0, ?Throwable $previous = null, int $errorCode = 0, ?int $statusCode = null)
+    public function __construct(string $message = '', int $code = 0, ?Throwable $previous = null, int $errorCode = 0, int $statusCode = 500)
     {
         // 如果没有提供错误码，则使用默认基数
         $errorCode = $errorCode ?: (self::ERROR_CODE_BASE + $code);
-        parent::__construct($message, $code, $previous, $errorCode);
-
-        $this->statusCode = $statusCode;
-    }
-
-    /**
-     * 获取API状态码.
-     */
-    public function getStatusCode(): ?int
-    {
-        return $this->statusCode;
+        parent::__construct($message, $code, $previous, $errorCode, $statusCode);
     }
 }

@@ -33,6 +33,8 @@ use Hyperf\Odin\Exception\LLMException\ErrorHandlerInterface;
 use Hyperf\Odin\Exception\LLMException\ErrorMappingManager;
 use Hyperf\Odin\Exception\LLMException\LLMErrorHandler;
 use Hyperf\Odin\Utils\EventUtil;
+use Hyperf\Odin\Utils\LoggingConfigHelper;
+use Hyperf\Odin\Utils\LogUtil;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -72,34 +74,27 @@ abstract class AbstractClient implements ClientInterface
     {
         $chatRequest->validate();
         $options = $chatRequest->createOptions();
-
+        $requestId = $this->addRequestIdToOptions($options);
         $url = $this->buildChatCompletionsUrl();
 
-        $this->logger?->debug('ChatCompletionsRequest', ['url' => $url, 'options' => $options]);
+        $this->logRequest('ChatCompletionsRequest', $url, $options, $requestId);
 
         $startTime = microtime(true);
         try {
             $response = $this->client->post($url, $options);
-            $endTime = microtime(true);
-            $duration = round(($endTime - $startTime) * 1000); // 毫秒
-
+            $duration = $this->calculateDuration($startTime);
             $chatCompletionResponse = new ChatCompletionResponse($response, $this->logger);
 
-            $this->logger?->debug('ChatCompletionsResponse', [
-                'duration_ms' => $duration,
+            $this->logResponse('ChatCompletionsResponse', $requestId, $duration, [
                 'content' => $chatCompletionResponse->getContent(),
+                'response_headers' => $response->getHeaders(),
             ]);
 
             EventUtil::dispatch(new AfterChatCompletionsEvent($chatRequest, $chatCompletionResponse, $duration));
 
             return $chatCompletionResponse;
         } catch (Throwable $e) {
-            throw $this->convertException($e, [
-                'url' => $url,
-                'options' => $options,
-                'mode' => 'completions',
-                'api_options' => $this->requestOptions->toArray(),
-            ]);
+            throw $this->convertException($e, $this->createExceptionContext($url, $options, 'completions'));
         }
     }
 
@@ -108,18 +103,16 @@ abstract class AbstractClient implements ClientInterface
         $chatRequest->setStream(true);
         $chatRequest->validate();
         $options = $chatRequest->createOptions();
-
+        $requestId = $this->addRequestIdToOptions($options);
         $url = $this->buildChatCompletionsUrl();
 
-        $this->logger?->debug('ChatCompletionsStreamRequest', ['url' => $url, 'options' => $options]);
+        $this->logRequest('ChatCompletionsStreamRequest', $url, $options, $requestId);
 
         $startTime = microtime(true);
         try {
             $options[RequestOptions::STREAM] = true;
             $response = $this->client->post($url, $options);
-
-            $firstResponseTime = microtime(true);
-            $firstResponseDuration = round(($firstResponseTime - $startTime) * 1000); // 毫秒
+            $firstResponseDuration = $this->calculateDuration($startTime);
 
             $stream = $response->getBody()->detach();
             $sseClient = new SSEClient(
@@ -133,18 +126,14 @@ abstract class AbstractClient implements ClientInterface
             $chatCompletionStreamResponse = new ChatCompletionStreamResponse($response, $this->logger, $sseClient);
             $chatCompletionStreamResponse->setAfterChatCompletionsStreamEvent(new AfterChatCompletionsStreamEvent($chatRequest, $firstResponseDuration));
 
-            $this->logger?->debug('ChatCompletionsStreamResponse', [
+            $this->logResponse('ChatCompletionsStreamResponse', $requestId, $firstResponseDuration, [
                 'first_response_ms' => $firstResponseDuration,
+                'response_headers' => $response->getHeaders(),
             ]);
 
             return $chatCompletionStreamResponse;
         } catch (Throwable $e) {
-            throw $this->convertException($e, [
-                'url' => $url,
-                'options' => $options,
-                'mode' => 'stream',
-                'api_options' => $this->requestOptions->toArray(),
-            ]);
+            throw $this->convertException($e, $this->createExceptionContext($url, $options, 'stream'));
         }
     }
 
@@ -152,35 +141,27 @@ abstract class AbstractClient implements ClientInterface
     {
         $embeddingRequest->validate();
         $options = $embeddingRequest->createOptions();
-
+        $requestId = $this->addRequestIdToOptions($options);
         $url = $this->buildEmbeddingsUrl();
 
-        $this->logger?->info('EmbeddingsRequestRequest', ['url' => $url, 'options' => $options]);
+        $this->logRequest('EmbeddingsRequest', $url, $options, $requestId);
 
         $startTime = microtime(true);
-
         try {
             $response = $this->client->post($url, $options);
-            $endTime = microtime(true);
-            $duration = round(($endTime - $startTime) * 1000); // 毫秒
-
+            $duration = $this->calculateDuration($startTime);
             $embeddingResponse = new EmbeddingResponse($response, $this->logger);
 
-            $this->logger?->info('EmbeddingsResponse', [
-                'duration_ms' => $duration,
+            $this->logResponse('EmbeddingsResponse', $requestId, $duration, [
                 'data' => $embeddingResponse->toArray(),
+                'response_headers' => $response->getHeaders(),
             ]);
 
             EventUtil::dispatch(new AfterEmbeddingsEvent($embeddingRequest, $embeddingResponse, $duration));
 
             return $embeddingResponse;
         } catch (Throwable $e) {
-            throw $this->convertException($e, [
-                'url' => $url,
-                'options' => $options,
-                'mode' => 'embeddings',
-                'api_options' => $this->requestOptions->toArray(),
-            ]);
+            throw $this->convertException($e, $this->createExceptionContext($url, $options, 'embeddings'));
         }
     }
 
@@ -188,31 +169,24 @@ abstract class AbstractClient implements ClientInterface
     {
         $completionRequest->validate();
         $options = $completionRequest->createOptions();
+        $requestId = $this->addRequestIdToOptions($options);
         $url = $this->buildCompletionsUrl();
 
-        $this->logger?->info('CompletionsRequest', ['url' => $url, 'options' => $options]);
+        $this->logRequest('CompletionsRequest', $url, $options, $requestId);
 
         $startTime = microtime(true);
         try {
             $response = $this->client->post($url, $options);
-            $endTime = microtime(true);
-            $duration = round(($endTime - $startTime) * 1000); // 毫秒
-
+            $duration = $this->calculateDuration($startTime);
             $completionResponse = new TextCompletionResponse($response, $this->logger);
 
-            $this->logger?->info('CompletionsResponse', [
-                'duration_ms' => $duration,
+            $this->logResponse('CompletionsResponse', $requestId, $duration, [
                 'choices' => $completionResponse->getContent(),
             ]);
 
             return $completionResponse;
         } catch (Throwable $e) {
-            throw $this->convertException($e, [
-                'url' => $url,
-                'options' => $options,
-                'mode' => 'completions',
-                'api_options' => $this->requestOptions->toArray(),
-            ]);
+            throw $this->convertException($e, $this->createExceptionContext($url, $options, 'completions'));
         }
     }
 
@@ -304,12 +278,83 @@ abstract class AbstractClient implements ClientInterface
             $options['proxy'] = $this->requestOptions->getProxy();
         }
 
-        // Guzzle 实际没有 WRITE_TIMEOUT 和 READ_TIMEOUT 常量，但可以通过自定义选项设置
-        // if (method_exists(RequestOptions::class, 'READ_TIMEOUT')) {
-        // $options[RequestOptions::READ_TIMEOUT] = $this->requestOptions->getReadTimeout();
-        // }
+        // 从 requestOptions 获取 HTTP 处理器配置
+        $handlerType = $this->requestOptions->getHttpHandler();
 
-        $this->client = new GuzzleClient($options);
+        // 使用配置的 HTTP 处理器创建客户端
+        $this->client = HttpHandlerFactory::createGuzzleClient($options, $handlerType);
+    }
+
+    /**
+     * 生成唯一的请求ID.
+     */
+    protected function generateRequestId(): string
+    {
+        return 'req_' . date('YmdHis') . '_' . uniqid() . '_' . bin2hex(random_bytes(4));
+    }
+
+    /**
+     * 为请求选项添加请求ID.
+     */
+    protected function addRequestIdToOptions(array &$options): string
+    {
+        $requestId = $this->generateRequestId();
+        if (! isset($options[RequestOptions::HEADERS])) {
+            $options[RequestOptions::HEADERS] = [];
+        }
+        $options[RequestOptions::HEADERS]['x-request-id'] = $requestId;
+        return $requestId;
+    }
+
+    /**
+     * 记录请求日志.
+     */
+    protected function logRequest(string $logType, string $url, array $options, string $requestId): void
+    {
+        $logData = [
+            'url' => $url,
+            'options' => $options,
+            'request_id' => $requestId,
+        ];
+
+        $this->logger?->info($logType, LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
+    }
+
+    /**
+     * 记录响应日志.
+     */
+    protected function logResponse(string $logType, string $requestId, float $duration, array $additionalData = []): void
+    {
+        $performanceFlag = LogUtil::getPerformanceFlag($duration);
+
+        $logData = array_merge([
+            'request_id' => $requestId,
+            'duration_ms' => $duration,
+            'performance_flag' => $performanceFlag,
+        ], $additionalData);
+
+        $this->logger?->info($logType, LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
+    }
+
+    /**
+     * 创建异常处理上下文.
+     */
+    protected function createExceptionContext(string $url, array $options, string $mode): array
+    {
+        return [
+            'url' => $url,
+            'options' => $options,
+            'mode' => $mode,
+            'api_options' => $this->requestOptions->toArray(),
+        ];
+    }
+
+    /**
+     * 计算请求持续时间（毫秒）.
+     */
+    protected function calculateDuration(float $startTime): float
+    {
+        return round((microtime(true) - $startTime) * 1000);
     }
 
     /**

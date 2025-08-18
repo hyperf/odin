@@ -37,7 +37,7 @@ class LLMEmbeddingNotSupportedException extends LLMException
         ?Throwable $previous = null,
         protected string $model = ''
     ) {
-        parent::__construct($message, self::ERROR_CODE, $previous);
+        parent::__construct($message, self::ERROR_CODE, $previous, self::ERROR_CODE, 400);
     }
 
     /**

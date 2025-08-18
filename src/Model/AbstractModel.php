@@ -25,28 +25,22 @@ use Hyperf\Odin\Contract\Mcp\McpServerManagerInterface;
 use Hyperf\Odin\Contract\Message\MessageInterface;
 use Hyperf\Odin\Contract\Model\EmbeddingInterface;
 use Hyperf\Odin\Contract\Model\ModelInterface;
-use Hyperf\Odin\Exception\LLMException;
-use Hyperf\Odin\Exception\LLMException\ErrorHandlerInterface;
-use Hyperf\Odin\Exception\LLMException\LLMErrorHandler;
+use Hyperf\Odin\Exception\LLMException\LLMModelException;
+use Hyperf\Odin\Exception\LLMException\LLMNetworkException;
 use Hyperf\Odin\Exception\LLMException\Model\LLMEmbeddingNotSupportedException;
 use Hyperf\Odin\Exception\LLMException\Model\LLMFunctionCallNotSupportedException;
 use Hyperf\Odin\Exception\LLMException\Model\LLMModalityNotSupportedException;
+use Hyperf\Odin\Message\AssistantMessage;
 use Hyperf\Odin\Message\UserMessage;
-use Hyperf\Odin\Utils\MessageUtil;
-use Hyperf\Odin\Utils\ToolUtil;
+use Hyperf\Retry\Retry;
+use Hyperf\Retry\RetryContext;
 use Psr\Log\LoggerInterface;
-use Throwable;
 
 /**
  * 模型抽象基类，实现模型的通用行为.
  */
 abstract class AbstractModel implements ModelInterface, EmbeddingInterface
 {
-    /**
-     * 错误处理器.
-     */
-    protected ?ErrorHandlerInterface $errorHandler = null;
-
     /**
      * API请求选项.
      */
@@ -62,6 +56,8 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
     protected bool $includeBusinessParams = false;
 
     protected ?McpServerManagerInterface $mcpServerManager = null;
+
+    protected array $chatCompletionRequestOptionKeyMaps = [];
 
     /**
      * 构造函数.
@@ -88,39 +84,48 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
 
     public function chatWithRequest(ChatCompletionRequest $request): ChatCompletionResponse
     {
-        try {
+        return $this->callWithNetworkRetry(function () use ($request) {
+            $request->setOptionKeyMaps($this->chatCompletionRequestOptionKeyMaps);
             $this->registerMcp($request);
             $request->setModel($this->model);
             $this->checkFunctionCallSupport($request->getTools());
             $this->checkMultiModalSupport($request->getMessages());
+            $this->checkFixedTemperature($request);
+
+            // 验证请求参数（包括消息序列）
+            $request->validate();
 
             $request->setStream(false);
 
             $client = $this->getClient();
-            return $client->chatCompletions($request);
-        } catch (Throwable $e) {
-            $context = $this->createErrorContext($request->toArray());
-            throw $this->handleException($e, $context);
-        }
+            $response = $client->chatCompletions($request);
+
+            // 统一检查响应内容是否为空
+            $this->validateResponseContent($response);
+
+            return $response;
+        });
     }
 
     public function chatStreamWithRequest(ChatCompletionRequest $request): ChatCompletionStreamResponse
     {
-        try {
+        return $this->callWithNetworkRetry(function () use ($request) {
+            $request->setOptionKeyMaps($this->chatCompletionRequestOptionKeyMaps);
             $this->registerMcp($request);
             $request->setModel($this->model);
             $this->checkFunctionCallSupport($request->getTools());
             $this->checkMultiModalSupport($request->getMessages());
+            $this->checkFixedTemperature($request);
+
+            // 验证请求参数（包括消息序列）
+            $request->validate();
 
             $request->setStream(true);
             $request->setStreamIncludeUsage($this->streamIncludeUsage);
 
             $client = $this->getClient();
             return $client->chatCompletionsStream($request);
-        } catch (Throwable $e) {
-            $context = $this->createErrorContext($request->toArray());
-            throw $this->handleException($e, $context);
-        }
+        });
     }
 
     /**
@@ -136,34 +141,13 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
         float $presencePenalty = 0.0,
         array $businessParams = [],
     ): ChatCompletionResponse {
-        try {
-            // 首先进行模型能力检测
-            $this->checkFunctionCallSupport($tools);
-            $this->checkMultiModalSupport($messages);
-
-            $client = $this->getClient();
-            $chatRequest = new ChatCompletionRequest($messages, $this->model, $temperature, $maxTokens, $stop, $tools, false);
-
-            $chatRequest->setFrequencyPenalty($frequencyPenalty);
-            $chatRequest->setPresencePenalty($presencePenalty);
-            $chatRequest->setBusinessParams($businessParams);
-            $chatRequest->setIncludeBusinessParams($this->includeBusinessParams);
-            $this->registerMcp($chatRequest);
-            return $client->chatCompletions($chatRequest);
-        } catch (Throwable $e) {
-            $context = $this->createErrorContext([
-                'messages' => $messages,
-                'temperature' => $temperature,
-                'max_tokens' => $maxTokens,
-                'stop' => $stop,
-                'tools' => $tools,
-                'is_stream' => false,
-                'frequency_penalty' => $frequencyPenalty,
-                'presence_penalty' => $presencePenalty,
-                'business_params' => $businessParams,
-            ]);
-            throw $this->handleException($e, $context);
-        }
+        $chatRequest = new ChatCompletionRequest($messages, $this->model, $temperature, $maxTokens, $stop, $tools, false);
+        $chatRequest->setOptionKeyMaps($this->chatCompletionRequestOptionKeyMaps);
+        $chatRequest->setFrequencyPenalty($frequencyPenalty);
+        $chatRequest->setPresencePenalty($presencePenalty);
+        $chatRequest->setBusinessParams($businessParams);
+        $chatRequest->setIncludeBusinessParams($this->includeBusinessParams);
+        return $this->chatWithRequest($chatRequest);
     }
 
     /**
@@ -179,34 +163,14 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
         float $presencePenalty = 0.0,
         array $businessParams = [],
     ): ChatCompletionStreamResponse {
-        try {
-            // 首先进行模型能力检测
-            $this->checkFunctionCallSupport($tools);
-            $this->checkMultiModalSupport($messages);
-
-            $client = $this->getClient();
-            $chatRequest = new ChatCompletionRequest($messages, $this->model, $temperature, $maxTokens, $stop, $tools, true);
-            $chatRequest->setFrequencyPenalty($frequencyPenalty);
-            $chatRequest->setPresencePenalty($presencePenalty);
-            $chatRequest->setBusinessParams($businessParams);
-            $chatRequest->setStreamIncludeUsage($this->streamIncludeUsage);
-            $chatRequest->setIncludeBusinessParams($this->includeBusinessParams);
-            $this->registerMcp($chatRequest);
-            return $client->chatCompletionsStream($chatRequest);
-        } catch (Throwable $e) {
-            $context = $this->createErrorContext([
-                'messages' => $messages,
-                'temperature' => $temperature,
-                'max_tokens' => $maxTokens,
-                'stop' => $stop,
-                'tools' => $tools,
-                'is_stream' => true,
-                'frequency_penalty' => $frequencyPenalty,
-                'presence_penalty' => $presencePenalty,
-                'business_params' => $businessParams,
-            ]);
-            throw $this->handleException($e, $context);
-        }
+        $chatRequest = new ChatCompletionRequest($messages, $this->model, $temperature, $maxTokens, $stop, $tools, true);
+        $chatRequest->setOptionKeyMaps($this->chatCompletionRequestOptionKeyMaps);
+        $chatRequest->setFrequencyPenalty($frequencyPenalty);
+        $chatRequest->setPresencePenalty($presencePenalty);
+        $chatRequest->setBusinessParams($businessParams);
+        $chatRequest->setStreamIncludeUsage($this->streamIncludeUsage);
+        $chatRequest->setIncludeBusinessParams($this->includeBusinessParams);
+        return $this->chatStreamWithRequest($chatRequest);
     }
 
     /**
@@ -253,26 +217,18 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
 
     public function embeddings(array|string $input, ?string $encoding_format = 'float', ?string $user = null, array $businessParams = []): EmbeddingResponse
     {
-        try {
-            // 检查模型是否支持嵌入功能
-            $this->checkEmbeddingSupport();
+        // 检查模型是否支持嵌入功能
+        $this->checkEmbeddingSupport();
 
-            $client = $this->getClient();
-            $embeddingRequest = new EmbeddingRequest(
-                input: $input,
-                model: $this->model
-            );
-            $embeddingRequest->setBusinessParams($businessParams);
-            $embeddingRequest->setIncludeBusinessParams($this->includeBusinessParams);
+        $client = $this->getClient();
+        $embeddingRequest = new EmbeddingRequest(
+            input: $input,
+            model: $this->model
+        );
+        $embeddingRequest->setBusinessParams($businessParams);
+        $embeddingRequest->setIncludeBusinessParams($this->includeBusinessParams);
 
-            return $client->embeddings($embeddingRequest);
-        } catch (Throwable $e) {
-            $context = [
-                'model' => $this->model,
-                'input' => $input,
-            ];
-            throw $this->handleException($e, $context);
-        }
+        return $client->embeddings($embeddingRequest);
     }
 
     /**
@@ -351,42 +307,6 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
     }
 
     /**
-     * 创建错误上下文.
-     *
-     * @param array $params 请求参数
-     * @return array 错误上下文
-     */
-    protected function createErrorContext(array $params): array
-    {
-        // 处理消息过滤
-        if (isset($params['messages'])) {
-            $params['messages'] = MessageUtil::filter($params['messages']);
-        }
-
-        // 处理工具过滤
-        if (isset($params['tools'])) {
-            $params['tools'] = ToolUtil::filter($params['tools']);
-        }
-
-        // 添加模型和配置信息
-        $params['model'] = $this->model;
-        $params['config'] = $this->config;
-
-        return $params;
-    }
-
-    /**
-     * 获取错误处理器.
-     */
-    protected function getErrorHandler(): ErrorHandlerInterface
-    {
-        if ($this->errorHandler === null) {
-            $this->errorHandler = new LLMErrorHandler($this->logger);
-        }
-        return $this->errorHandler;
-    }
-
-    /**
      * 检查模型是否支持函数调用.
      */
     protected function checkFunctionCallSupport(array $tools): void
@@ -430,14 +350,6 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
             }
         }
         return false;
-    }
-
-    /**
-     * 处理异常，转换为标准的LLM异常.
-     */
-    protected function handleException(Throwable $exception, array $context = []): LLMException
-    {
-        return $this->getErrorHandler()->handle($exception, $context);
     }
 
     /**
@@ -502,6 +414,50 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
                 null,
                 $this->model
             );
+        }
+    }
+
+    private function callWithNetworkRetry(callable $callable): mixed
+    {
+        return Retry::max($this->apiRequestOptions->getNetworkRetryCount() + 1)
+            ->backoff(1000)
+            ->when(function (RetryContext $context) {
+                // 第一次执行时允许尝试
+                if ($context->isFirstTry()) {
+                    return true;
+                }
+
+                $throwable = $context->lastThrowable;
+                // 只有网络异常才重试
+                return $throwable instanceof LLMNetworkException
+                    || ($throwable && $throwable->getPrevious() instanceof LLMNetworkException);
+            })
+            ->call($callable);
+    }
+
+    private function checkFixedTemperature(ChatCompletionRequest $request): void
+    {
+        if ($this->getModelOptions()->getFixedTemperature()) {
+            $request->setTemperature($this->getModelOptions()->getFixedTemperature());
+        }
+    }
+
+    /**
+     * 验证非流式响应内容是否为空.
+     */
+    private function validateResponseContent(ChatCompletionResponse $response): void
+    {
+        /** @var AssistantMessage $message */
+        $message = $response->getFirstChoice()?->getMessage();
+        if (! $message instanceof AssistantMessage) {
+            throw new LLMModelException('Model returned empty content response');
+        }
+        if ($message->hasToolCalls()) {
+            return;
+        }
+        $content = $message->getContent();
+        if ($content === '' || trim($content) === '') {
+            throw new LLMModelException('Model returned empty content response');
         }
     }
 }

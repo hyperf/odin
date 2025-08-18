@@ -101,6 +101,11 @@ class LLMErrorHandler implements ErrorHandlerInterface
             ],
         ];
 
+        // 添加HTTP状态码（如果有的话）
+        if ($exception->getStatusCode()) {
+            $report['error']['http_status_code'] = $exception->getStatusCode();
+        }
+
         // 添加错误描述和建议（如果有）
         if (method_exists($exception, 'getDescription')) {
             try {
@@ -164,6 +169,11 @@ class LLMErrorHandler implements ErrorHandlerInterface
             'error_type' => get_class($exception),
             'error_code' => $exception->getErrorCode(),
         ];
+
+        // 添加HTTP状态码信息（如果有的话）
+        if ($exception->getStatusCode()) {
+            $logContext['http_status_code'] = $exception->getStatusCode();
+        }
 
         // 添加异常追踪信息
         if ($exception->getPrevious()) {

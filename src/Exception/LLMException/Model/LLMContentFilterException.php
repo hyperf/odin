@@ -37,7 +37,8 @@ class LLMContentFilterException extends LLMModelException
         string $message = '内容被系统安全过滤',
         ?Throwable $previous = null,
         ?string $model = null,
-        ?array $contentLabels = null
+        ?array $contentLabels = null,
+        int $statusCode = 400
     ) {
         $this->contentLabels = $contentLabels;
 
@@ -46,7 +47,7 @@ class LLMContentFilterException extends LLMModelException
             $message = sprintf('%s，过滤原因: %s', $message, $labelsStr);
         }
 
-        parent::__construct($message, self::ERROR_CODE, $previous, 0, $model);
+        parent::__construct($message, self::ERROR_CODE, $previous, 0, $model, $statusCode);
     }
 
     /**

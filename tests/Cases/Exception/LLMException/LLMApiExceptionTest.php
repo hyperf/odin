@@ -54,7 +54,7 @@ class LLMApiExceptionTest extends AbstractTestCase
         $this->assertEquals(0, $exception->getCode());
         $this->assertNull($exception->getPrevious());
         $this->assertEquals(ErrorCode::API_ERROR_BASE, $exception->getErrorCode());
-        $this->assertNull($exception->getStatusCode());
+        $this->assertEquals(500, $exception->getStatusCode()); // API异常默认500
     }
 
     /**

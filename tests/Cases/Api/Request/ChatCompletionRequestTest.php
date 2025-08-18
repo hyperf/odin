@@ -14,9 +14,13 @@ namespace HyperfTest\Odin\Cases\Api\Request;
 
 use GuzzleHttp\RequestOptions;
 use Hyperf\Odin\Api\Request\ChatCompletionRequest;
+use Hyperf\Odin\Api\Response\ToolCall;
 use Hyperf\Odin\Contract\Tool\ToolInterface;
 use Hyperf\Odin\Exception\InvalidArgumentException;
+use Hyperf\Odin\Exception\LLMException\LLMModelException;
+use Hyperf\Odin\Message\AssistantMessage;
 use Hyperf\Odin\Message\SystemMessage;
+use Hyperf\Odin\Message\ToolMessage;
 use Hyperf\Odin\Message\UserMessage;
 use Hyperf\Odin\Tool\Definition\ToolDefinition;
 use Hyperf\Odin\Tool\Definition\ToolParameter;
@@ -117,12 +121,12 @@ class ChatCompletionRequestTest extends AbstractTestCase
         $request = new ChatCompletionRequest(
             messages: $messages,
             model: 'gpt-3.5-turbo',
-            temperature: 1.5 // 超出0-1范围
+            temperature: 2.5 // 超出0-2范围
         );
 
         // 应该抛出异常
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Temperature must be between 0 and 1.');
+        $this->expectExceptionMessage('Temperature must be between 0 and 2.');
         $request->validate();
     }
 
@@ -162,6 +166,9 @@ class ChatCompletionRequestTest extends AbstractTestCase
             tools: [],
             stream: false
         );
+
+        // 设置选项键映射
+        $request->setOptionKeyMaps(['max_tokens' => 'max_completion_tokens']);
 
         // 先调用validate确保filterMessages被设置
         $request->validate();
@@ -410,5 +417,317 @@ class ChatCompletionRequestTest extends AbstractTestCase
             $systemMessage->getTokenEstimate() + $userMessage->getTokenEstimate(),
             $request->getTotalTokenEstimate()
         );
+    }
+
+    // ==================== 消息序列验证测试 ====================
+
+    /**
+     * 测试正常的消息序列 - 简单对话.
+     */
+    public function testValidateMessageSequenceNormalConversation()
+    {
+        $messages = [
+            new UserMessage('你好'),
+            new AssistantMessage('你好！有什么我可以帮助你的吗？'),
+            new UserMessage('今天天气怎么样？'),
+            new AssistantMessage('我无法获取实时天气信息，建议你查看天气应用或网站。'),
+        ];
+
+        $request = new ChatCompletionRequest(
+            messages: $messages,
+            model: 'gpt-3.5-turbo'
+        );
+
+        // 不应该抛出异常
+        $this->assertNotThrows(function () use ($request) {
+            $request->validate();
+        });
+    }
+
+    /**
+     * 测试正常的消息序列 - 完整工具调用流程.
+     */
+    public function testValidateMessageSequenceCompleteToolCallFlow()
+    {
+        $toolCall = new ToolCall('weather_tool', ['location' => 'Beijing'], 'tool-123');
+
+        $messages = [
+            new UserMessage('北京天气怎么样？'),
+            new AssistantMessage('让我查询北京的天气信息。', [$toolCall]),
+            new ToolMessage('北京今天晴，温度25°C', 'tool-123'),
+            new AssistantMessage('根据查询结果，北京今天晴，温度25°C。'),
+        ];
+
+        $request = new ChatCompletionRequest(
+            messages: $messages,
+            model: 'gpt-3.5-turbo'
+        );
+
+        $this->assertNotThrows(function () use ($request) {
+            $request->validate();
+        });
+    }
+
+    /**
+     * 测试正常的消息序列 - 多个工具调用.
+     */
+    public function testValidateMessageSequenceMultipleToolCalls()
+    {
+        $toolCall1 = new ToolCall('weather_tool', ['location' => 'Beijing'], 'tool-123');
+        $toolCall2 = new ToolCall('translate_tool', ['text' => 'hello'], 'tool-456');
+
+        $messages = [
+            new UserMessage('查询北京天气并翻译hello'),
+            new AssistantMessage('我将为你查询北京天气并翻译hello。', [$toolCall1, $toolCall2]),
+            new ToolMessage('北京今天晴，温度25°C', 'tool-123'),
+            new ToolMessage('你好', 'tool-456'),
+            new AssistantMessage('北京今天晴，温度25°C。hello的中文翻译是：你好。'),
+        ];
+
+        $request = new ChatCompletionRequest(
+            messages: $messages,
+            model: 'gpt-3.5-turbo'
+        );
+
+        $this->assertNotThrows(function () use ($request) {
+            $request->validate();
+        });
+    }
+
+    /**
+     * 测试错误场景 - 连续的assistant消息.
+     */
+    public function testValidateMessageSequenceConsecutiveAssistantMessages()
+    {
+        $toolCall = new ToolCall('weather_tool', ['location' => 'Beijing'], 'tool-123');
+
+        $messages = [
+            new UserMessage('查询天气'),
+            new AssistantMessage('让我查询天气信息。', [$toolCall]),
+            new AssistantMessage('抱歉，查询被中断了。'), // 错误：连续的assistant消息
+        ];
+
+        $request = new ChatCompletionRequest(
+            messages: $messages,
+            model: 'gpt-3.5-turbo'
+        );
+
+        $this->expectException(LLMModelException::class);
+        $this->expectExceptionMessageMatches('/Invalid message sequence: Assistant message with tool calls at position 1 must be followed by tool result messages/');
+        $this->expectExceptionMessageMatches('/Tool calls: weather_tool\(id:tool-123\)/');
+        $this->expectExceptionMessageMatches('/Solution: After an assistant message with tool_calls/');
+
+        $request->validate();
+    }
+
+    /**
+     * 测试正常场景 - 连续的assistant消息（没有tool calls）应该是允许的.
+     */
+    public function testValidateMessageSequenceConsecutiveAssistantMessagesWithoutToolCalls()
+    {
+        $messages = [
+            new UserMessage('Hello'),
+            new AssistantMessage('Hi there'),
+            new AssistantMessage('How can I help?'), // 连续的assistant消息，但前一个没有tool calls
+        ];
+
+        $request = new ChatCompletionRequest(
+            messages: $messages,
+            model: 'gpt-3.5-turbo'
+        );
+
+        // 应该不抛出异常
+        $this->assertNotThrows(function () use ($request) {
+            $request->validate();
+        });
+    }
+
+    /**
+     * 测试错误场景 - 有工具调用但缺少工具结果消息.
+     */
+    public function testValidateMessageSequenceMissingToolResults()
+    {
+        $toolCall = new ToolCall('weather_tool', ['location' => 'Beijing'], 'tool-123');
+
+        $messages = [
+            new UserMessage('查询天气'),
+            new AssistantMessage('让我查询天气信息。', [$toolCall]),
+            // 缺少ToolMessage
+        ];
+
+        $request = new ChatCompletionRequest(
+            messages: $messages,
+            model: 'gpt-3.5-turbo'
+        );
+
+        $this->expectException(LLMModelException::class);
+        $this->expectExceptionMessageMatches('/Invalid message sequence: Missing tool result messages for pending tool_calls/');
+        $this->expectExceptionMessageMatches('/Pending tool_call IDs: tool-123/');
+        $this->expectExceptionMessageMatches('/Expected sequence:/');
+
+        $request->validate();
+    }
+
+    /**
+     * 测试错误场景 - 工具消息没有对应的工具调用.
+     */
+    public function testValidateMessageSequenceUnexpectedToolMessage()
+    {
+        $messages = [
+            new UserMessage('你好'),
+            new AssistantMessage('你好！'),
+            new ToolMessage('天气查询结果', 'tool-123'), // 错误：没有对应的工具调用
+        ];
+
+        $request = new ChatCompletionRequest(
+            messages: $messages,
+            model: 'gpt-3.5-turbo'
+        );
+
+        $this->expectException(LLMModelException::class);
+        $this->expectExceptionMessageMatches('/Invalid message sequence: Found unexpected tool message at position 2/');
+        $this->expectExceptionMessageMatches('/Tool call ID: tool-123/');
+        $this->expectExceptionMessageMatches('/Problem: This tool message appears without a preceding assistant message/');
+
+        $request->validate();
+    }
+
+    /**
+     * 测试错误场景 - 工具消息ID不匹配.
+     */
+    public function testValidateMessageSequenceMismatchedToolCallId()
+    {
+        $toolCall = new ToolCall('weather_tool', ['location' => 'Beijing'], 'tool-123');
+
+        $messages = [
+            new UserMessage('查询天气'),
+            new AssistantMessage('让我查询天气信息。', [$toolCall]),
+            new ToolMessage('天气查询结果', 'tool-456'), // 错误：ID不匹配
+        ];
+
+        $request = new ChatCompletionRequest(
+            messages: $messages,
+            model: 'gpt-3.5-turbo'
+        );
+
+        $this->expectException(LLMModelException::class);
+        $this->expectExceptionMessageMatches('/Invalid message sequence: Tool message ID mismatch at position 2/');
+        $this->expectExceptionMessageMatches('/Expected tool_call IDs: tool-123/');
+        $this->expectExceptionMessageMatches('/Found tool_call ID: tool-456/');
+
+        $request->validate();
+    }
+
+    /**
+     * 测试错误场景 - 部分工具调用缺少结果.
+     */
+    public function testValidateMessageSequencePartialToolResults()
+    {
+        $toolCall1 = new ToolCall('weather_tool', ['location' => 'Beijing'], 'tool-123');
+        $toolCall2 = new ToolCall('translate_tool', ['text' => 'hello'], 'tool-456');
+
+        $messages = [
+            new UserMessage('查询天气并翻译'),
+            new AssistantMessage('我将为你查询天气并翻译。', [$toolCall1, $toolCall2]),
+            new ToolMessage('北京今天晴', 'tool-123'),
+            // 缺少tool-456的结果消息
+        ];
+
+        $request = new ChatCompletionRequest(
+            messages: $messages,
+            model: 'gpt-3.5-turbo'
+        );
+
+        $this->expectException(LLMModelException::class);
+        $this->expectExceptionMessageMatches('/Invalid message sequence: Missing tool result messages for pending tool_calls/');
+        $this->expectExceptionMessageMatches('/Pending tool_call IDs: tool-456/');
+
+        $request->validate();
+    }
+
+    /**
+     * 测试错误场景 - 有待处理工具调用时遇到新的assistant消息.
+     */
+    public function testValidateMessageSequenceAssistantMessageWithPendingToolCalls()
+    {
+        $toolCall1 = new ToolCall('weather_tool', ['location' => 'Beijing'], 'tool-123');
+        $toolCall2 = new ToolCall('translate_tool', ['text' => 'hello'], 'tool-456');
+
+        $messages = [
+            new UserMessage('查询天气并翻译'),
+            new AssistantMessage('我将为你查询天气并翻译。', [$toolCall1, $toolCall2]),
+            new ToolMessage('北京今天晴', 'tool-123'),
+            new AssistantMessage('让我继续处理翻译。'), // 错误：还有未处理的tool-456
+        ];
+
+        $request = new ChatCompletionRequest(
+            messages: $messages,
+            model: 'gpt-3.5-turbo'
+        );
+
+        $this->expectException(LLMModelException::class);
+        $this->expectExceptionMessageMatches('/Invalid message sequence: Expected tool result messages for pending tool_calls/');
+        $this->expectExceptionMessageMatches('/Pending tool_call IDs: tool-456/');
+        $this->expectExceptionMessageMatches('/Current assistant message at position 3/');
+
+        $request->validate();
+    }
+
+    /**
+     * 测试边界场景 - 空消息数组（应该通过验证）.
+     */
+    public function testValidateMessageSequenceEmptyMessages()
+    {
+        $messages = [];
+
+        $request = new ChatCompletionRequest(
+            messages: $messages,
+            model: 'gpt-3.5-turbo'
+        );
+
+        // 消息序列验证应该通过，但会在其他验证中失败（因为消息为空）
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Messages is required.');
+
+        $request->validate();
+    }
+
+    /**
+     * 测试内容截断功能.
+     */
+    public function testValidateMessageSequenceContentTruncation()
+    {
+        $longContent = str_repeat('这是一个很长的消息内容，用来测试内容截断功能。', 10); // 超过100字符
+        $toolCall = new ToolCall('weather_tool', ['location' => 'Beijing'], 'tool-123');
+
+        $messages = [
+            new UserMessage('查询天气'),
+            new AssistantMessage($longContent, [$toolCall]), // 包含tool calls
+            new AssistantMessage('另一条消息'), // 错误：应该是tool消息
+        ];
+
+        $request = new ChatCompletionRequest(
+            messages: $messages,
+            model: 'gpt-3.5-turbo'
+        );
+
+        $this->expectException(LLMModelException::class);
+        // 验证长内容被截断
+        $this->expectExceptionMessageMatches('/Content: ".*\.\.\."/');
+
+        $request->validate();
+    }
+
+    /**
+     * 辅助方法：验证不抛出异常.
+     */
+    private function assertNotThrows(callable $callback, string $message = '')
+    {
+        try {
+            $callback();
+            $this->assertTrue(true, $message ?: '不应抛出异常');
+        } catch (Throwable $e) {
+            $this->fail(($message ?: '不应抛出异常') . '，但抛出了：' . $e->getMessage());
+        }
     }
 }

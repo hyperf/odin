@@ -56,7 +56,7 @@ class ChatCompletionChoice
 
     public function getFinishReason(): ?string
     {
-        return $this->finishReason;
+        return $this->normalizeFinishReason($this->finishReason);
     }
 
     public function isFinishedByToolCall(): bool
@@ -86,5 +86,22 @@ class ChatCompletionChoice
     {
         $this->finishReason = $finishReason;
         return $this;
+    }
+
+    /**
+     * 将不同LLM提供商的finish_reason值映射为OpenAI标准值
+     */
+    private function normalizeFinishReason(?string $finishReason): ?string
+    {
+        if ($finishReason === null) {
+            return null;
+        }
+
+        return match ($finishReason) {
+            'tool_use' => 'tool_calls',      // Claude: 工具调用
+            'end_turn', 'stop_sequence' => 'stop',            // Claude: 正常结束// 停止序列
+            'max_tokens' => 'length',        // 长度限制
+            default => $finishReason,        // 保持其他值不变
+        };
     }
 }

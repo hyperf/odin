@@ -16,6 +16,7 @@ use Aws\BedrockRuntime\BedrockRuntimeClient;
 use Aws\Exception\AwsException;
 use Hyperf\Odin\Api\Providers\AbstractClient;
 use Hyperf\Odin\Api\Providers\AwsBedrock\Cache\AutoCacheConfig;
+use Hyperf\Odin\Api\Providers\HttpHandlerFactory;
 use Hyperf\Odin\Api\Request\ChatCompletionRequest;
 use Hyperf\Odin\Api\Request\EmbeddingRequest;
 use Hyperf\Odin\Api\RequestOptions\ApiOptions;
@@ -23,6 +24,8 @@ use Hyperf\Odin\Api\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\Response\ChatCompletionStreamResponse;
 use Hyperf\Odin\Api\Response\EmbeddingResponse;
 use Hyperf\Odin\Contract\Message\MessageInterface;
+use Hyperf\Odin\Event\AfterChatCompletionsEvent;
+use Hyperf\Odin\Event\AfterChatCompletionsStreamEvent;
 use Hyperf\Odin\Exception\LLMException;
 use Hyperf\Odin\Exception\LLMException\Api\LLMInvalidRequestException;
 use Hyperf\Odin\Exception\LLMException\Api\LLMRateLimitException;
@@ -32,6 +35,8 @@ use Hyperf\Odin\Message\AssistantMessage;
 use Hyperf\Odin\Message\SystemMessage;
 use Hyperf\Odin\Message\ToolMessage;
 use Hyperf\Odin\Message\UserMessage;
+use Hyperf\Odin\Utils\EventUtil;
+use Hyperf\Odin\Utils\LoggingConfigHelper;
 use Hyperf\Odin\Utils\LogUtil;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
@@ -67,6 +72,9 @@ class Client extends AbstractClient
             $modelId = $chatRequest->getModel();
             $requestBody = $this->prepareRequestBody($chatRequest);
 
+            // 生成请求ID
+            $requestId = $this->generateRequestId();
+
             $args = [
                 'body' => json_encode($requestBody, JSON_UNESCAPED_UNICODE),
                 'modelId' => $modelId,
@@ -79,10 +87,11 @@ class Client extends AbstractClient
             ];
 
             // 记录请求前日志
-            $this->logger?->debug('AwsBedrockChatRequest', [
+            $this->logger?->info('AwsBedrockChatRequest', LoggingConfigHelper::filterAndFormatLogData([
+                'request_id' => $requestId,
                 'model_id' => $modelId,
-                'args' => LogUtil::formatLongText($args),
-            ]);
+                'args' => $args,
+            ], $this->requestOptions));
 
             // 调用模型
             $result = $this->bedrockClient->invokeModel($args);
@@ -96,11 +105,20 @@ class Client extends AbstractClient
             $psrResponse = ResponseHandler::convertToPsrResponse($responseBody, $chatRequest->getModel());
             $chatCompletionResponse = new ChatCompletionResponse($psrResponse, $this->logger);
 
-            $this->logger?->debug('AwsBedrockChatResponse', [
+            $performanceFlag = LogUtil::getPerformanceFlag($duration);
+            $logData = [
+                'request_id' => $requestId,
                 'model_id' => $modelId,
                 'duration_ms' => $duration,
                 'content' => $chatCompletionResponse->getContent(),
-            ]);
+                'usage' => $responseBody['usage'] ?? [],
+                'response_headers' => $result['@metadata']['headers'] ?? [],
+                'performance_flag' => $performanceFlag,
+            ];
+
+            $this->logger?->info('AwsBedrockChatResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
+
+            EventUtil::dispatch(new AfterChatCompletionsEvent($chatRequest, $chatCompletionResponse, $duration));
 
             return $chatCompletionResponse;
         } catch (AwsException $e) {
@@ -122,6 +140,9 @@ class Client extends AbstractClient
             $modelId = $chatRequest->getModel();
             $requestBody = $this->prepareRequestBody($chatRequest);
 
+            // 生成请求ID
+            $requestId = $this->generateRequestId();
+
             $args = [
                 'body' => json_encode($requestBody, JSON_UNESCAPED_UNICODE),
                 'modelId' => $modelId,
@@ -131,10 +152,11 @@ class Client extends AbstractClient
             ];
 
             // 记录请求前日志
-            $this->logger?->debug('AwsBedrockStreamRequest', [
+            $this->logger?->info('AwsBedrockStreamRequest', LoggingConfigHelper::filterAndFormatLogData([
+                'request_id' => $requestId,
                 'model_id' => $modelId,
                 'args' => $args,
-            ]);
+            ], $this->requestOptions));
 
             // 使用流式响应调用模型
             $result = $this->bedrockClient->invokeModelWithResponseStream($args);
@@ -143,16 +165,24 @@ class Client extends AbstractClient
             $firstResponseDuration = round(($firstResponseTime - $startTime) * 1000); // 毫秒
 
             // 记录首次响应日志
-            $this->logger?->debug('AwsBedrockStreamFirstResponse', [
+            $performanceFlag = LogUtil::getPerformanceFlag($firstResponseDuration);
+            $logData = [
+                'request_id' => $requestId,
                 'model_id' => $modelId,
                 'first_response_ms' => $firstResponseDuration,
-            ]);
+                'response_headers' => $result['@metadata']['headers'] ?? [],
+                'performance_flag' => $performanceFlag,
+            ];
+
+            $this->logger?->info('AwsBedrockStreamFirstResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
 
             // 创建 AWS Bedrock 格式转换器，负责将 AWS Bedrock 格式转换为 OpenAI 格式
             $bedrockConverter = new AwsBedrockFormatConverter($result, $this->logger);
 
-            // 创建流式响应对象并返回
-            return new ChatCompletionStreamResponse(logger: $this->logger, streamIterator: $bedrockConverter);
+            $chatCompletionStreamResponse = new ChatCompletionStreamResponse(logger: $this->logger, streamIterator: $bedrockConverter);
+            $chatCompletionStreamResponse->setAfterChatCompletionsStreamEvent(new AfterChatCompletionsStreamEvent($chatRequest, $firstResponseDuration));
+
+            return $chatCompletionStreamResponse;
         } catch (AwsException $e) {
             throw $this->convertAwsException($e);
         } catch (Throwable $e) {
@@ -183,15 +213,25 @@ class Client extends AbstractClient
         /** @var AwsBedrockConfig $config */
         $config = $this->config;
 
-        // 初始化 AWS Bedrock 客户端
-        $this->bedrockClient = new BedrockRuntimeClient([
+        // 准备客户端配置
+        $clientConfig = [
             'version' => 'latest',
             'region' => $config->region,
             'credentials' => [
                 'key' => $config->accessKey,
                 'secret' => $config->secretKey,
             ],
-        ]);
+        ];
+
+        // 从 requestOptions 获取 HTTP 处理器配置
+        $handlerType = $this->requestOptions->getHttpHandler();
+        if ($handlerType !== 'auto') {
+            // 使用 http_handler 而不是 handler，因为我们要处理 PSR-7 HTTP 请求
+            $clientConfig['http_handler'] = HttpHandlerFactory::create($handlerType);
+        }
+
+        // 初始化 AWS Bedrock 客户端
+        $this->bedrockClient = new BedrockRuntimeClient($clientConfig);
     }
 
     protected function buildChatCompletionsUrl(): string

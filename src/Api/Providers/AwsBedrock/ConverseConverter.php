@@ -20,11 +20,16 @@ use Hyperf\Odin\Message\SystemMessage;
 use Hyperf\Odin\Message\ToolMessage;
 use Hyperf\Odin\Message\UserMessage;
 use Hyperf\Odin\Tool\Definition\ToolDefinition;
+use stdClass;
 
 class ConverseConverter implements ConverterInterface
 {
     public function convertSystemMessage(SystemMessage $message): array|string
     {
+        if (empty($message->getContent())) {
+            return [];
+        }
+
         $data = [
             [
                 'text' => $message->getContent(),
@@ -42,31 +47,71 @@ class ConverseConverter implements ConverterInterface
 
     public function convertToolMessage(ToolMessage $message): array
     {
-        $result = json_decode($message->getContent(), true);
-        if (! $result) {
-            $result = [
-                'result' => $message->getContent(),
-            ];
+        $contentBlocks = [];
+        $hasCachePoint = false;
+
+        // Determine which tool messages to process
+        if ($message instanceof MergedToolMessage) {
+            // Handle merged tool message (multiple tool results)
+            $toolMessages = $message->getToolMessages();
+        } else {
+            // Handle single tool message
+            $toolMessages = [$message];
         }
-        $contentBlocks = [
-            [
+
+        // Process each tool message
+        foreach ($toolMessages as $toolMessage) {
+            // Check if this tool message has a cache point
+            if ($toolMessage->getCachePoint()) {
+                $hasCachePoint = true;
+            }
+
+            $content = $toolMessage->getContent();
+            $result = json_decode($content, true);
+
+            if (! $result) {
+                $result = [
+                    'result' => $content,
+                ];
+            } else {
+                // Check if the original JSON was an empty array [] vs empty object {}
+                if (trim($content) === '[]') {
+                    // Original was empty array [], wrap it in result
+                    $result = [
+                        'result' => $result,
+                    ];
+                } elseif (is_array($result) && array_is_list($result)) {
+                    // It's an indexed array (not associative), wrap it in result
+                    $result = [
+                        'list' => $result,
+                    ];
+                } elseif ($result === []) {
+                    // It was empty object {}, convert to empty object
+                    $result = new stdClass();
+                }
+            }
+
+            $contentBlocks[] = [
                 'toolResult' => [
-                    'toolUseId' => $message->getToolCallId(),
+                    'toolUseId' => $toolMessage->getToolCallId(),
                     'content' => [
                         [
                             'json' => $result,
                         ],
                     ],
                 ],
-            ],
-        ];
-        if ($message->getCachePoint()) {
+            ];
+        }
+
+        // Add cache point if any of the original tool messages has one
+        if ($hasCachePoint) {
             $contentBlocks[] = [
                 'cachePoint' => [
                     'type' => 'default',
                 ],
             ];
         }
+
         return [
             'role' => Role::User->value,
             'content' => $contentBlocks,
@@ -92,11 +137,15 @@ class ConverseConverter implements ConverterInterface
 
             // 2. 添加工具调用内容
             foreach ($message->getToolCalls() as $toolCall) {
+                $arguments = $toolCall->getArguments();
+                if (empty($arguments)) {
+                    $arguments = new stdClass();
+                }
                 $contentBlocks[] = [
                     'toolUse' => [
                         'toolUseId' => $toolCall->getId(),
                         'name' => $toolCall->getName(),
-                        'input' => $toolCall->getArguments(),
+                        'input' => $arguments,
                     ],
                 ];
             }
@@ -167,7 +216,7 @@ class ConverseConverter implements ConverterInterface
                 $convertedTool['inputSchema'] = [
                     'json' => [
                         'type' => 'object',
-                        'properties' => [],
+                        'properties' => new stdClass(),
                     ],
                 ];
             }

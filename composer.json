@@ -10,7 +10,13 @@
     "autoload": {
         "psr-4": {
             "Hyperf\\Odin\\": "src/"
-        }
+        },
+        "classmap": [
+            "src/Api/Providers/AwsBedrock/ClassMap/"
+        ],
+        "exclude-from-classmap": [
+            "vendor/aws/aws-sdk-php/src/Api/Validator.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
@@ -28,6 +34,7 @@
         "hyperf/config": "~2.2.0 || 3.0.* || 3.1.*",
         "hyperf/di": "~2.2.0 || 3.0.* || 3.1.*",
         "hyperf/logger": "~2.2.0 || 3.0.* || 3.1.*",
+        "hyperf/retry": "~2.2.0 || 3.0.* || 3.1.*",
         "hyperf/qdrant-client": "*",
         "justinrainbow/json-schema": "^6.3",
         "yethee/tiktoken": "^0.1.2"
