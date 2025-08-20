@@ -31,15 +31,15 @@ use Throwable;
 
 class ConverseClient extends Client
 {
-    public function chatCompletions(ChatCompletionRequest $chatRequest): ChatCompletionResponse
+    public function chatCompletions(ChatCompletionRequest $chatChatRequest): ChatCompletionResponse
     {
-        $chatRequest->validate();
+        $chatChatRequest->validate();
         $startTime = microtime(true);
 
         try {
             // 获取模型ID和转换请求参数
-            $modelId = $chatRequest->getModel();
-            $requestBody = $this->prepareConverseRequestBody($chatRequest);
+            $modelId = $chatChatRequest->getModel();
+            $requestBody = $this->prepareConverseRequestBody($chatChatRequest);
 
             // 生成请求ID
             $requestId = $this->generateRequestId();
@@ -58,7 +58,7 @@ class ConverseClient extends Client
                 'request_id' => $requestId,
                 'model_id' => $modelId,
                 'args' => $args,
-                'token_estimate' => $chatRequest->getTokenEstimateDetail(),
+                'token_estimate' => $chatChatRequest->getTokenEstimateDetail(),
             ], $this->requestOptions));
 
             // 调用模型
@@ -68,7 +68,7 @@ class ConverseClient extends Client
             $duration = round(($endTime - $startTime) * 1000); // 毫秒
 
             // 转换为符合PSR-7标准的Response对象
-            $psrResponse = ResponseHandler::convertConverseToPsrResponse($result['output'] ?? [], $result['usage'] ?? [], $chatRequest->getModel());
+            $psrResponse = ResponseHandler::convertConverseToPsrResponse($result['output'] ?? [], $result['usage'] ?? [], $chatChatRequest->getModel());
             $chatCompletionResponse = new ChatCompletionResponse($psrResponse, $this->logger);
 
             $performanceFlag = LogUtil::getPerformanceFlag($duration);
@@ -84,7 +84,7 @@ class ConverseClient extends Client
 
             $this->logger?->info('AwsBedrockConverseResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
 
-            EventUtil::dispatch(new AfterChatCompletionsEvent($chatRequest, $chatCompletionResponse, $duration));
+            EventUtil::dispatch(new AfterChatCompletionsEvent($chatChatRequest, $chatCompletionResponse, $duration));
 
             return $chatCompletionResponse;
         } catch (AwsException $e) {

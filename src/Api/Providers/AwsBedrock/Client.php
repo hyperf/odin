@@ -63,14 +63,14 @@ class Client extends AbstractClient
         parent::__construct($config, $requestOptions, $logger);
     }
 
-    public function chatCompletions(ChatCompletionRequest $chatRequest): ChatCompletionResponse
+    public function chatCompletions(ChatCompletionRequest $chatChatRequest): ChatCompletionResponse
     {
-        $chatRequest->validate();
+        $chatChatRequest->validate();
         $startTime = microtime(true);
 
         try {
-            $modelId = $chatRequest->getModel();
-            $requestBody = $this->prepareRequestBody($chatRequest);
+            $modelId = $chatChatRequest->getModel();
+            $requestBody = $this->prepareRequestBody($chatChatRequest);
 
             // 生成请求ID
             $requestId = $this->generateRequestId();
@@ -102,7 +102,7 @@ class Client extends AbstractClient
             $responseBody = json_decode($result['body']->getContents(), true);
 
             // 转换为符合PSR-7标准的Response对象
-            $psrResponse = ResponseHandler::convertToPsrResponse($responseBody, $chatRequest->getModel());
+            $psrResponse = ResponseHandler::convertToPsrResponse($responseBody, $chatChatRequest->getModel());
             $chatCompletionResponse = new ChatCompletionResponse($psrResponse, $this->logger);
 
             $performanceFlag = LogUtil::getPerformanceFlag($duration);
@@ -118,7 +118,7 @@ class Client extends AbstractClient
 
             $this->logger?->info('AwsBedrockChatResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
 
-            EventUtil::dispatch(new AfterChatCompletionsEvent($chatRequest, $chatCompletionResponse, $duration));
+            EventUtil::dispatch(new AfterChatCompletionsEvent($chatChatRequest, $chatCompletionResponse, $duration));
 
             return $chatCompletionResponse;
         } catch (AwsException $e) {

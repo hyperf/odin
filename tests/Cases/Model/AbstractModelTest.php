@@ -13,9 +13,13 @@ declare(strict_types=1);
 namespace HyperfTest\Odin\Cases\Model;
 
 use Hyperf\Odin\Api\Request\ChatCompletionRequest;
+use Hyperf\Odin\Api\Request\CompletionRequest;
+use Hyperf\Odin\Api\Request\EmbeddingRequest;
 use Hyperf\Odin\Api\RequestOptions\ApiOptions;
 use Hyperf\Odin\Api\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\Response\ChatCompletionStreamResponse;
+use Hyperf\Odin\Api\Response\EmbeddingResponse;
+use Hyperf\Odin\Api\Response\TextCompletionResponse;
 use Hyperf\Odin\Contract\Api\ClientInterface;
 use Hyperf\Odin\Exception\LLMException\Model\LLMFunctionCallNotSupportedException;
 use Hyperf\Odin\Model\AbstractModel;
@@ -59,6 +63,16 @@ class TestModel extends AbstractModel
                 $response->shouldReceive('getBody')->andReturn($stream);
 
                 return new ChatCompletionStreamResponse($response);
+            }
+
+            public function embeddings(EmbeddingRequest $embeddingRequest): EmbeddingResponse
+            {
+                // TODO: Implement embeddings() method.
+            }
+
+            public function completions(CompletionRequest $completionRequest): TextCompletionResponse
+            {
+                // TODO: Implement completions() method.
             }
         };
     }
