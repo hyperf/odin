@@ -18,6 +18,9 @@ use Hyperf\Odin\Api\Providers\AwsBedrock\AwsType;
 use Hyperf\Odin\Api\Providers\AwsBedrock\Cache\AutoCacheConfig;
 use Hyperf\Odin\Api\Providers\AzureOpenAI\AzureOpenAI;
 use Hyperf\Odin\Api\Providers\AzureOpenAI\AzureOpenAIConfig;
+use Hyperf\Odin\Api\Providers\DashScope\Cache\DashScopeAutoCacheConfig;
+use Hyperf\Odin\Api\Providers\DashScope\DashScope;
+use Hyperf\Odin\Api\Providers\DashScope\DashScopeConfig;
 use Hyperf\Odin\Api\Providers\OpenAI\OpenAI;
 use Hyperf\Odin\Api\Providers\OpenAI\OpenAIConfig;
 use Hyperf\Odin\Api\RequestOptions\ApiOptions;
@@ -136,9 +139,53 @@ class ClientFactory
     }
 
     /**
+     * 创建DashScope客户端.
+     *
+     * @param array $config 配置参数
+     * @param null|ApiOptions $apiOptions API请求选项
+     * @param null|LoggerInterface $logger 日志记录器
+     */
+    public static function createDashScopeClient(array $config, ?ApiOptions $apiOptions = null, ?LoggerInterface $logger = null): ClientInterface
+    {
+        // 验证必要的配置参数
+        $apiKey = $config['api_key'] ?? '';
+        $baseUrl = $config['base_url'] ?? 'https://dashscope.aliyuncs.com';
+        $skipApiKeyValidation = (bool) ($config['skip_api_key_validation'] ?? false);
+
+        // 处理自动缓存配置
+        $autoCacheConfig = null;
+        if (isset($config['auto_cache_config'])) {
+            $autoCacheConfig = new DashScopeAutoCacheConfig(
+                minCacheTokens: $config['auto_cache_config']['min_cache_tokens'] ?? 1024,
+                supportedModels: $config['auto_cache_config']['supported_models'] ?? ['qwen3-coder-plus', 'qwen-max', 'qwen-plus', 'qwen-turbo'],
+                autoEnabled: (bool) ($config['auto_cache_config']['auto_enabled'] ?? false)
+            );
+        }
+
+        // 创建配置对象
+        $clientConfig = new DashScopeConfig(
+            apiKey: $apiKey,
+            baseUrl: $baseUrl,
+            skipApiKeyValidation: $skipApiKeyValidation,
+            autoCacheConfig: $autoCacheConfig
+        );
+
+        // 如果未提供API选项，则创建一个默认的选项
+        if ($apiOptions === null) {
+            $apiOptions = new ApiOptions();
+        }
+
+        // 创建API实例
+        $dashScope = new DashScope();
+
+        // 创建客户端
+        return $dashScope->getClient($clientConfig, $apiOptions, $logger);
+    }
+
+    /**
      * 根据提供商类型创建客户端.
      *
-     * @param string $provider 提供商类型 (openai, azure_openai, aws_bedrock)
+     * @param string $provider 提供商类型 (openai, azure_openai, aws_bedrock, dashscope)
      * @param array $config 配置参数
      * @param null|ApiOptions $apiOptions API请求选项
      * @param null|LoggerInterface $logger 日志记录器
@@ -149,6 +196,7 @@ class ClientFactory
             'openai' => self::createOpenAIClient($config, $apiOptions, $logger),
             'azure_openai' => self::createAzureOpenAIClient($config, $apiOptions, $logger),
             'aws_bedrock' => self::createAwsBedrockClient($config, $apiOptions, $logger),
+            'dashscope' => self::createDashScopeClient($config, $apiOptions, $logger),
             default => throw new InvalidArgumentException(sprintf('Unsupported provider: %s', $provider)),
         };
     }
