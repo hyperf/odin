@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Api\Providers\DashScope;
 
+use GuzzleHttp\RequestOptions;
 use Hyperf\Odin\Api\Providers\AbstractClient;
 use Hyperf\Odin\Api\Providers\DashScope\Cache\DashScopeCachePointManager;
 use Hyperf\Odin\Api\Request\ChatCompletionRequest;
@@ -72,14 +73,14 @@ class Client extends AbstractClient
             $this->logResponse('DashScopeChatResponse', $requestId, $duration, [
                 'content' => $chatResponse->getContent(),
                 'usage' => $chatResponse->getUsage(),
+                'response_headers' => $response->getHeaders(),
             ]);
 
             EventUtil::dispatch(new AfterChatCompletionsEvent($chatRequest, $chatResponse, $duration));
 
             return $chatResponse;
         } catch (Throwable $e) {
-            $duration = $this->calculateDuration($startTime);
-            $context = $this->createExceptionContext($url ?? '', $options ?? [], 'chat_completions');
+            $context = $this->createExceptionContext($url ?? '', $options ?? [], 'completions');
 
             throw $this->convertException($e, $context);
         }
@@ -108,7 +109,7 @@ class Client extends AbstractClient
         $startTime = microtime(true);
 
         try {
-            $options['stream'] = true;
+            $options[RequestOptions::STREAM] = true;
             $response = $this->client->post($url, $options);
             $firstResponseDuration = $this->calculateDuration($startTime);
 
@@ -133,10 +134,7 @@ class Client extends AbstractClient
 
             return $chatCompletionStreamResponse;
         } catch (Throwable $e) {
-            $duration = $this->calculateDuration($startTime);
-            $context = $this->createExceptionContext($url, $options, 'chat_completions_stream');
-
-            throw $this->convertException($e, $context);
+            throw $this->convertException($e, $this->createExceptionContext($url, $options, 'stream'));
         }
     }
 
