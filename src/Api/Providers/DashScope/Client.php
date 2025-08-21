@@ -15,6 +15,7 @@ namespace Hyperf\Odin\Api\Providers\DashScope;
 use GuzzleHttp\RequestOptions;
 use Hyperf\Odin\Api\Providers\AbstractClient;
 use Hyperf\Odin\Api\Providers\DashScope\Cache\DashScopeCachePointManager;
+use Hyperf\Odin\Api\Providers\DashScope\ResponseHandler;
 use Hyperf\Odin\Api\Request\ChatCompletionRequest;
 use Hyperf\Odin\Api\RequestOptions\ApiOptions;
 use Hyperf\Odin\Api\Response\ChatCompletionResponse;
@@ -68,7 +69,9 @@ class Client extends AbstractClient
             $response = $this->client->post($url, $options);
             $duration = $this->calculateDuration($startTime);
 
-            $chatResponse = new ChatCompletionResponse($response, $this->logger);
+            // 转换DashScope响应格式为标准格式
+            $standardResponse = ResponseHandler::convertResponse($response);
+            $chatResponse = new ChatCompletionResponse($standardResponse, $this->logger);
 
             $this->logResponse('DashScopeChatResponse', $requestId, $duration, [
                 'content' => $chatResponse->getContent(),
@@ -122,6 +125,7 @@ class Client extends AbstractClient
                 $this->logger
             );
 
+            // 对于流式响应，ResponseHandler的转换会在SSE事件中处理
             $chatCompletionStreamResponse = new ChatCompletionStreamResponse($response, $this->logger, $sseClient);
             $chatCompletionStreamResponse->setAfterChatCompletionsStreamEvent(
                 new AfterChatCompletionsStreamEvent($chatRequest, $firstResponseDuration)

@@ -14,6 +14,16 @@ namespace Hyperf\Odin\Api\Response;
 
 class Usage
 {
+    /**
+     * @param int $promptTokens 提示词的令牌数量
+     * @param int $completionTokens 完成内容的令牌数量
+     * @param int $totalTokens 使用的总令牌数量
+     * @param array $completionTokensDetails 完成令牌的详细信息
+     * @param array $promptTokensDetails 提示令牌的详细信息，可能包含：
+     *                                   - cache_write_input_tokens: 写入缓存的令牌数量
+     *                                   - cache_read_input_tokens: 从缓存读取的令牌数量（命中的缓存）
+     *                                   - cached_tokens: 从缓存读取的令牌数量（命中的缓存）
+     */
     public function __construct(
         public int $promptTokens,
         public int $completionTokens,
@@ -56,6 +66,38 @@ class Usage
     public function getPromptTokensDetails(): array
     {
         return $this->promptTokensDetails;
+    }
+
+    /**
+     * 获取写入缓存的令牌数量
+     */
+    public function getCacheWriteInputTokens(): int
+    {
+        return (int) ($this->promptTokensDetails['cache_write_input_tokens'] ?? 0);
+    }
+
+    /**
+     * 获取从缓存读取的令牌数量（命中的缓存）
+     */
+    public function getCacheReadInputTokens(): int
+    {
+        return (int) ($this->promptTokensDetails['cache_read_input_tokens'] ?? 0);
+    }
+
+    /**
+     * 获取缓存令牌数量（命中的缓存）
+     */
+    public function getCachedTokens(): int
+    {
+        return (int) ($this->promptTokensDetails['cached_tokens'] ?? 0);
+    }
+
+    /**
+     * 检查是否有缓存命中
+     */
+    public function hasCacheHit(): bool
+    {
+        return $this->getCacheReadInputTokens() > 0 || $this->getCachedTokens() > 0;
     }
 
     public function toArray(): array
