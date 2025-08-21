@@ -81,7 +81,7 @@ class ResponseHandler
         // 创建使用量对象（如果有）
         if (isset($responseBody['usage'])) {
             $usage = Usage::fromArray([
-                'prompt_tokens' => $responseBody['usage']['input_tokens'] ?? 0,
+                'prompt_tokens' => $responseBody['usage']['prompt_tokens'] ?? $responseBody['usage']['input_tokens'] ?? 0,
                 'completion_tokens' => $responseBody['usage']['output_tokens'] ?? 0,
                 'total_tokens' => $responseBody['usage']['total_tokens'] ?? 0,
                 'prompt_tokens_details' => $responseBody['usage']['prompt_tokens_details'] ?? [],
@@ -115,17 +115,28 @@ class ResponseHandler
 
     public static function convertConverseToPsrResponse(array $output, array $usage, string $model): ResponseInterface
     {
+        // 转换Claude的token统计方式为Qwen格式
+        // Claude: inputTokens=新输入, cacheReadInputTokens=缓存命中
+        // OpenAI: promptTokens=总输入(包括缓存), cachedTokens=缓存命中
+        $inputTokens = $usage['inputTokens'] ?? 0;
+        $cacheReadTokens = $usage['cacheReadInputTokens'] ?? 0;
+        $cacheWriteTokens = $usage['cacheWriteInputTokens'] ?? 0;
+
+        // 按照 OpenAI 的方式：promptTokens = 总处理的提示tokens（包括缓存）
+        $promptTokens = $inputTokens + $cacheReadTokens;
+
         $responseBody = [
             'usage' => [
-                'input_tokens' => $usage['inputTokens'] ?? 0,
+                'prompt_tokens' => $promptTokens,
+                'input_tokens' => $inputTokens,
                 'output_tokens' => $usage['outputTokens'] ?? 0,
                 'total_tokens' => $usage['totalTokens'] ?? 0,
                 'prompt_tokens_details' => [
-                    'cache_write_input_tokens' => $usage['cacheWriteInputTokens'] ?? 0,
-                    'cache_read_input_tokens' => $usage['cacheReadInputTokens'] ?? 0,
-                    // 兼容旧参数
+                    'cache_write_input_tokens' => $cacheWriteTokens,
+                    'cache_read_input_tokens' => $cacheReadTokens,
+                    // 兼容 OpenAI 格式：cached_tokens表示缓存命中
                     'audio_tokens' => 0,
-                    'cached_tokens' => $usage['cacheReadInputTokens'] ?? 0,
+                    'cached_tokens' => $cacheReadTokens,
                 ],
                 'completion_tokens_details' => [
                     'reasoning_tokens' => 0,

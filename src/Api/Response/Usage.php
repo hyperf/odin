@@ -69,7 +69,7 @@ class Usage
     }
 
     /**
-     * 获取写入缓存的令牌数量
+     * 获取写入缓存的令牌数量.
      */
     public function getCacheWriteInputTokens(): int
     {
@@ -77,7 +77,7 @@ class Usage
     }
 
     /**
-     * 获取从缓存读取的令牌数量（命中的缓存）
+     * 获取从缓存读取的令牌数量（命中的缓存）.
      */
     public function getCacheReadInputTokens(): int
     {
@@ -85,7 +85,7 @@ class Usage
     }
 
     /**
-     * 获取缓存令牌数量（命中的缓存）
+     * 获取缓存令牌数量（命中的缓存）.
      */
     public function getCachedTokens(): int
     {
@@ -93,11 +93,34 @@ class Usage
     }
 
     /**
-     * 检查是否有缓存命中
+     * 检查是否有缓存命中.
      */
     public function hasCacheHit(): bool
     {
         return $this->getCacheReadInputTokens() > 0 || $this->getCachedTokens() > 0;
+    }
+
+    /**
+     * 获取缓存命中率（0-1之间的浮点数）
+     * 统一使用Qwen的计算方式：cached_tokens / prompt_tokens.
+     */
+    public function getCacheHitRate(): float
+    {
+        if ($this->promptTokens === 0) {
+            return 0.0;
+        }
+
+        // 统一使用cached_tokens字段（现在Claude和Qwen都使用相同格式）
+        $cachedTokens = $this->getCachedTokens();
+        return round($cachedTokens / $this->promptTokens, 4);
+    }
+
+    /**
+     * 获取缓存命中率的百分比表示（0-100%）.
+     */
+    public function getCacheHitRatePercentage(): float
+    {
+        return round($this->getCacheHitRate() * 100, 2);
     }
 
     public function toArray(): array

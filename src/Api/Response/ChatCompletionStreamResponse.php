@@ -283,23 +283,23 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
     }
 
     /**
-     * 检测是否为DashScope格式的usage数据
+     * 检测是否为DashScope格式的usage数据.
      */
     private function isDashScopeUsage(array $usage): bool
     {
-        return isset($usage['prompt_tokens_details']['cache_creation_input_tokens']) 
-            || isset($usage['prompt_tokens_details']['cache_type']) 
+        return isset($usage['prompt_tokens_details']['cache_creation_input_tokens'])
+            || isset($usage['prompt_tokens_details']['cache_type'])
             || isset($usage['prompt_tokens_details']['cache_creation']);
     }
 
     /**
-     * 转换DashScope格式的usage数据为标准格式
+     * 转换DashScope格式的usage数据为标准格式.
      */
     private function convertDashScopeUsage(array $usage): array
     {
         if (isset($usage['prompt_tokens_details'])) {
             $promptTokensDetails = $usage['prompt_tokens_details'];
-            
+
             // 1. 优先转换外层的 cache_creation_input_tokens -> cache_write_input_tokens
             if (isset($promptTokensDetails['cache_creation_input_tokens'])) {
                 $usage['prompt_tokens_details']['cache_write_input_tokens'] = $promptTokensDetails['cache_creation_input_tokens'];
@@ -309,7 +309,7 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
                 $usage['prompt_tokens_details']['cache_write_input_tokens'] = $promptTokensDetails['cache_creation']['ephemeral_5m_input_tokens'];
             }
         }
-        
+
         return $usage;
     }
 

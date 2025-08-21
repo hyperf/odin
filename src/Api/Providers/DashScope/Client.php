@@ -15,7 +15,6 @@ namespace Hyperf\Odin\Api\Providers\DashScope;
 use GuzzleHttp\RequestOptions;
 use Hyperf\Odin\Api\Providers\AbstractClient;
 use Hyperf\Odin\Api\Providers\DashScope\Cache\DashScopeCachePointManager;
-use Hyperf\Odin\Api\Providers\DashScope\ResponseHandler;
 use Hyperf\Odin\Api\Request\ChatCompletionRequest;
 use Hyperf\Odin\Api\RequestOptions\ApiOptions;
 use Hyperf\Odin\Api\Response\ChatCompletionResponse;

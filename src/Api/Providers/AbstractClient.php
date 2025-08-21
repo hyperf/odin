@@ -88,6 +88,7 @@ abstract class AbstractClient implements ClientInterface
             $this->logResponse('ChatCompletionsResponse', $requestId, $duration, [
                 'content' => $chatCompletionResponse->getContent(),
                 'response_headers' => $response->getHeaders(),
+                'usage' => $chatCompletionResponse->getUsage()?->toArray(),
             ]);
 
             EventUtil::dispatch(new AfterChatCompletionsEvent($chatRequest, $chatCompletionResponse, $duration));

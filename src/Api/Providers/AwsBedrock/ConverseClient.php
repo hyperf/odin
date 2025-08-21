@@ -76,7 +76,9 @@ class ConverseClient extends Client
                 'request_id' => $requestId,
                 'model_id' => $modelId,
                 'duration_ms' => $duration,
-                'usage' => $result['usage'] ?? [],
+                'usage' => $result['usage'] ?? [], // 原始Claude usage
+                'converted_usage' => $chatCompletionResponse->getUsage()->toArray(), // 转换后的usage
+                'cache_hit_rate' => $chatCompletionResponse->getUsage()->getCacheHitRatePercentage(), // 缓存命中率
                 'content' => $chatCompletionResponse->getContent(),
                 'response_headers' => $result['@metadata']['headers'] ?? [],
                 'performance_flag' => $performanceFlag,

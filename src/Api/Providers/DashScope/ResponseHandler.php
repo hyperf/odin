@@ -24,7 +24,7 @@ class ResponseHandler
 {
     /**
      * 转换DashScope响应数据为标准格式.
-     * 
+     *
      * @param ResponseInterface $response 原始HTTP响应
      * @return ResponseInterface 转换后的响应
      */
@@ -39,7 +39,7 @@ class ResponseHandler
 
         // 重新编码为JSON
         $newContent = json_encode($data);
-        
+
         // 创建新的响应对象
         return new Response(
             $response->getStatusCode(),
@@ -85,7 +85,7 @@ class ResponseHandler
 
         // 3. 转换 cached_tokens（命中的缓存）
         // DashScope中的cached_tokens直接对应标准的cached_tokens，已经是标准字段，不需要转换
-        
+
         // 4. 处理其他可能的DashScope字段到标准字段的映射
         // cache_type, cache_creation等保留为原始格式，不影响标准字段的使用
 
