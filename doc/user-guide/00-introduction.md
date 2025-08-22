@@ -1,39 +1,39 @@
-# 简介
+# Introduction
 
-> 本文档介绍了 Odin 框架的基本概念、设计理念和核心价值。
+> This document introduces the basic concepts, design philosophy, and core values of the Odin framework.
 
-## 什么是 Odin
+## What is Odin
 
-Odin 是一个基于 PHP 的 LLM 应用开发框架，其命名灵感来自于北欧神话中的主神 Odin（奥丁）和他的两只乌鸦 Huginn 和 Muninn。Huginn 和 Muninn 分别代表的**思想**和**记忆**，它们每天早上一破晓就飞到人间，到了晚上再将所见所闻带回给 Odin。
+Odin is a PHP-based LLM application development framework. Its naming is inspired by the chief god Odin from Norse mythology and his two ravens Huginn and Muninn. Huginn and Muninn represent **thought** and **memory** respectively. Every morning at dawn, they fly to the human world and return in the evening to bring back what they have seen and heard to Odin.
 
-此项目旨在帮助开发人员利用 LLM 技术创建更加智能和灵活的应用程序，通过提供一系列强大而易用的功能，为 LLM 技术落地提供了更多的可能性。项目提供一系列便捷的工具和API，简化与各种LLM提供商（如OpenAI、Azure OpenAI、AWS Bedrock等）的集成过程。
+This project aims to help developers create more intelligent and flexible applications using LLM technology, providing more possibilities for LLM technology implementation through a series of powerful and easy-to-use features. The project provides a series of convenient tools and APIs to simplify the integration process with various LLM providers (such as OpenAI, Azure OpenAI, AWS Bedrock, etc.).
 
-## 设计理念
+## Design Philosophy
 
-Odin 的设计遵循以下核心理念：
+Odin's design follows these core principles:
 
-- **简单易用**：提供简洁直观的API，降低开发人员的学习成本
-- **高度灵活**：支持多种LLM提供商和向量数据库，适应不同场景需求
-- **可扩展性**：模块化设计，便于扩展和定制
-- **高性能**：优化的实现，支持流式响应和高效处理
-- **标准规范**：遵循PSR规范，保持代码质量和可维护性
+- **Simple and Easy to Use**: Provides clean and intuitive APIs, reducing the learning curve for developers
+- **Highly Flexible**: Supports multiple LLM providers and vector databases, adapting to different scenario requirements
+- **Extensible**: Modular design, easy to extend and customize
+- **High Performance**: Optimized implementation, supporting streaming responses and efficient processing
+- **Standard Compliance**: Follows PSR standards, maintaining code quality and maintainability
 
-## 框架架构
+## Framework Architecture
 
-Odin 框架的总体架构如下：
+The overall architecture of the Odin framework is as follows:
 
 ```
 Odin
-├── Api                 // 模型提供商API接口
+├── Api                 // Model provider API interfaces
 │   ├── Providers
 │   │   ├── OpenAI
 │   │   ├── AzureOpenAI
 │   │   └── AwsBedrock
-│   ├── Request         // 请求相关
-│   ├── RequestOptions  // 请求选项
-│   ├── Response        // 响应处理
-│   └── Transport       // 传输层
-├── Model               // 模型实现
+│   ├── Request         // Request related
+│   ├── RequestOptions  // Request options
+│   ├── Response        // Response handling
+│   └── Transport       // Transport layer
+├── Model               // Model implementations
 │   ├── OpenAIModel
 │   ├── AzureOpenAIModel
 │   ├── AwsBedrockModel
@@ -42,42 +42,42 @@ Odin
 │   ├── DoubaoModel
 │   ├── RWKVModel
 │   └── ...
-├── Message             // 消息处理
-├── Memory              // 记忆管理
-├── Tool                // 工具调用
-│   └── Definition      // 工具定义
-├── Document            // 文档处理
-├── VectorStore         // 向量存储
-│   └── Qdrant          // Qdrant向量数据库支持
-├── TextSplitter        // 文本分割
-├── Loader              // 文档加载器
-├── Knowledge           // 知识库管理
-├── Prompt              // 提示词模板
-├── Agent               // 智能代理
-│   └── Tool            // 代理工具
-├── Wrapper             // 外部服务包装器
-├── Factory             // 工厂类
-├── Utils               // 工具类
-└── Contract            // 接口契约
+├── Message             // Message handling
+├── Memory              // Memory management
+├── Tool                // Tool calling
+│   └── Definition      // Tool definition
+├── Document            // Document processing
+├── VectorStore         // Vector storage
+│   └── Qdrant          // Qdrant vector database support
+├── TextSplitter        // Text splitting
+├── Loader              // Document loader
+├── Knowledge           // Knowledge base management
+├── Prompt              // Prompt templates
+├── Agent               // Intelligent agents
+│   └── Tool            // Agent tools
+├── Wrapper             // External service wrappers
+├── Factory             // Factory classes
+├── Utils               // Utility classes
+└── Contract            // Interface contracts
 ```
 
-## 核心概念和术语
+## Core Concepts and Terminology
 
-- **LLM (Large Language Model)**：大型语言模型，如GPT、DeepSeek、Claude等
-- **Provider**：模型提供商，如OpenAI、Azure OpenAI、AWS Bedrock等
-- **Model**：模型实现，包括OpenAI、Azure OpenAI、AWS Bedrock、Ollama等多种模型支持
-- **Tool**：工具，可以被LLM调用的函数
-- **Memory**：记忆，用于存储和检索会话上下文
-- **Embedding**：嵌入，文本的向量表示
-- **Vector Store**：向量数据库，用于存储和检索向量，如Qdrant
-- **Knowledge**：知识库，用于管理和检索知识
-- **Prompt**：提示词，用于引导模型生成内容
-- **Agent**：代理，能够规划和执行任务的智能体
-- **RAG (Retrieval Augmented Generation)**：检索增强生成，通过检索相关信息来增强生成能力
-- **Wrapper**：外部服务包装器，用于简化与外部服务的集成，如Tavily搜索API
+- **LLM (Large Language Model)**: Large language models such as GPT, DeepSeek, Claude, etc.
+- **Provider**: Model providers such as OpenAI, Azure OpenAI, AWS Bedrock, etc.
+- **Model**: Model implementations, including support for OpenAI, Azure OpenAI, AWS Bedrock, Ollama, and other models
+- **Tool**: Tools that can be called by LLMs
+- **Memory**: Memory for storing and retrieving conversation context
+- **Embedding**: Vector representation of text
+- **Vector Store**: Vector database for storing and retrieving vectors, such as Qdrant
+- **Knowledge**: Knowledge base for managing and retrieving knowledge
+- **Prompt**: Prompts used to guide model content generation
+- **Agent**: Intelligent agents capable of planning and executing tasks
+- **RAG (Retrieval Augmented Generation)**: Retrieval-augmented generation, enhancing generation capabilities by retrieving relevant information
+- **Wrapper**: External service wrappers for simplifying integration with external services, such as Tavily Search API
 
-## 下一步
+## Next Steps
 
-- 查看[安装和配置](./01-installation.md)指南开始使用 Odin
-- 了解[核心概念](./02-core-concepts.md)深入理解框架设计
-- 浏览[示例项目](./11-examples.md)学习实际应用案例
+- View the [Installation and Configuration](./01-installation.md) guide to start using Odin
+- Learn about [Core Concepts](./02-core-concepts.md) to understand the framework design in depth
+- Browse [Example Projects](./09-examples.md) to learn practical use cases

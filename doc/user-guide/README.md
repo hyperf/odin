@@ -1,78 +1,106 @@
-# Odin 使用手册
+# Odin User Manual
 
-欢迎使用 Odin PHP LLM 开发框架！本手册将帮助您快速上手并充分利用 Odin 的全部功能。
+Welcome to the Odin PHP LLM development framework! This manual will help you get started quickly and make full use of all Odin features.
 
-## 目录
+## Table of Contents
 
-1. [简介](./00-introduction.md)
-   - 什么是Odin
-   - 设计理念
-   - 框架架构
-   - 核心概念和术语
+1. [Introduction](./00-introduction.md)
+   - What is Odin
+   - Design Philosophy
+   - Framework Architecture
+   - Core Concepts and Terminology
 
-2. [安装和配置](./01-installation.md)
-   - 系统要求
-   - 安装步骤
-   - 初始配置
-   - 环境变量
-   - 配置文件
+2. [Installation and Configuration](./01-installation.md)
+   - System Requirements
+   - Installation Steps
+   - Initial Configuration
+   - Environment Variables
+   - Configuration Files
 
-3. [核心概念](./02-core-concepts.md)
-   - LLM模型接口
-   - 消息和会话
-   - 工具调用
-   - 记忆管理
-   - 向量存储
-   - 异常处理
+3. [Core Concepts](./02-core-concepts.md)
+   - LLM Model Interface
+   - Messages and Conversations
+   - Tool Calling
+   - Memory Management
+   - Vector Storage
+   - Exception Handling
 
-4. [API参考](./03-api-reference.md)
-   - 类和接口说明
-   - 方法参数和返回值
-   - 示例代码
+4. [API Reference](./03-api-reference.md)
+   - Class and Interface Documentation
+   - Method Parameters and Return Values
+   - Usage Examples
 
-5. [模型提供商](./04-model-providers.md)
-   - 支持的模型
-   - 提供商特性对比
-   - 配置不同提供商
-   - 添加新的提供商
+5. [Model Providers](./04-model-providers.md)
+   - Supported Models Overview
+   - Configuration Methods
+   - Provider-specific Features
+   - Best Practices
 
-6. [工具开发](./05-tool-development.md)
-   - 工具概念和用途
-   - 内置工具
-   - 自定义工具开发
-   - 工具测试
+6. [Tool Development](./05-tool-development.md)
+   - Tool Definition
+   - Parameter Validation
+   - Tool Execution
+   - Advanced Tool Features
 
-7. [记忆管理](./06-memory-management.md)
-   - 记忆策略
-   - 记忆管理器
-   - 会话记忆示例
-   - 自定义记忆实现
+7. [Memory Management](./06-memory-management.md)
+   - Memory Interfaces
+   - Memory Policies
+   - Memory Drivers
+   - Performance Optimization
 
-8. [Agent开发](./07-agent-development.md)
-   - Agent架构
-   - 工具规划和执行
-   - 状态管理
-   - 复杂Agent示例
+8. [Agent Development](./07-agent-development.md)
+   - Agent Architecture
+   - Tool Use Agents
+   - Multi-tool Parallel Processing
+   - Agent Best Practices
 
-9. [测试和调试](./08-testing-debugging.md)
-    - 单元测试
-    - 日志记录和分析
-    - 问题排查
-    - 性能分析
+9. [Testing and Debugging](./08-testing-debugging.md)
+   - Unit Testing
+   - Integration Testing
+   - Debugging Tools
+   - Performance Monitoring
 
-10. [示例项目](./09-examples.md)
-    - 聊天应用
-    - 文档问答系统
-    - 智能助手
-    - 流程自动化
+10. [Example Projects](./09-examples.md)
+    - Basic Chat Application
+    - Tool Use Examples
+    - Agent Implementation
+    - Advanced Use Cases
 
-11. [MCP 集成](./11-mcp-integration.md)
-    - MCP 协议概述
-    - 服务器配置与连接
-    - 工具发现与调用
-    - 最佳实践与故障排查
+11. [FAQ](./10-faq.md)
+    - Common Issues
+    - Performance Tips
+    - Best Practices
+    - Troubleshooting
 
-12. [常见问题解答](./10-faq.md)
-    - 常见错误
-    - 性能问题
-    - 兼容性问题
+12. [MCP Integration](./11-mcp-integration.md)
+    - Model Context Protocol
+    - MCP Server Setup
+    - Tool Integration
+    - Advanced Features
+
+## Quick Start
+
+If you're new to Odin, we recommend following this learning path:
+
+1. **Start with the basics**: Read the [Introduction](./00-introduction.md) to understand Odin's design philosophy
+2. **Set up your environment**: Follow the [Installation and Configuration](./01-installation.md) guide
+3. **Learn core concepts**: Study the [Core Concepts](./02-core-concepts.md) chapter
+4. **Try examples**: Run through the [Example Projects](./09-examples.md)
+5. **Build your application**: Use the [API Reference](./03-api-reference.md) for detailed implementation
+
+## Getting Help
+
+If you need help or have questions:
+
+- Check the [FAQ](./10-faq.md) for common issues
+- Review the [API Reference](./03-api-reference.md) for detailed documentation
+- Look at [Example Projects](./09-examples.md) for implementation patterns
+- Check the project's GitHub repository for issues and discussions
+
+## Contributing
+
+We welcome contributions to improve Odin and its documentation. Please refer to the project's contributing guidelines for more information.
+
+## License
+
+Odin is open-sourced software licensed under the MIT license.

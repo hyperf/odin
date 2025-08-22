@@ -1,6 +1,6 @@
-# Memory Management
+# 记忆管理
 
-> This chapter provides detailed information about Odin framework's memory management system, including memory policies, memory drivers, and practical application scenarios, helping you build AI applications with persistent conversation capabilities.
+> 本章详细介绍 Odin 框架的记忆管理系统，包括记忆策略、记忆驱动以及实际应用场景，帮助您构建具有持久对话能力的 AI 应用。
 
 ## 记忆系统概述
 

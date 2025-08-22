@@ -1,6 +1,6 @@
-# Agent Development
+# Agent 开发
 
-> This chapter provides detailed information about the Agent system in the Odin framework, including its architectural design, tool calling mechanisms, and practical application scenarios, helping you build intelligent applications that can use tools to execute complex tasks.
+> 本章详细介绍 Odin 框架中的 Agent 系统，包括其架构设计、工具调用机制和实际应用场景，帮助您构建能够使用工具执行复杂任务的智能应用。
 
 ## Agent 架构
 

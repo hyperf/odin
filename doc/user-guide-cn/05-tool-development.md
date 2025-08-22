@@ -1,6 +1,6 @@
-# Tool Development
+# 工具开发
 
-> This chapter introduces the core concepts, design principles, and implementation methods of tool development in the Odin framework, helping you extend model capabilities to meet specific business requirements.
+> 本章介绍 Odin 框架中工具（Tool）开发的核心概念、设计原则和实现方法，帮助您扩展模型的能力以满足特定业务需求。
 
 ## 工具系统概述
 

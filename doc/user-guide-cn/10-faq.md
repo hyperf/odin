@@ -1,6 +1,6 @@
-# Frequently Asked Questions
+# 常见问题解答
 
-> This chapter lists common questions and solutions that you may encounter when using the Odin framework.
+> 本章节列出了在使用 Odin 框架过程中可能遇到的常见问题及其解决方案。
 
 ## 常见错误
 

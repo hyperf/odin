@@ -1,70 +1,72 @@
+English | [中文](README-CN.md)
+
 # Odin
 
-Odin 是一个基于 PHP 的 LLM 应用开发框架，其命名灵感来自于北欧神话中的主神 Odin（奥丁）和他的两只乌鸦 Huginn 和 Muninn，Huginn 和 Muninn 分别代表的 **思想** 和 **记忆**，它们两个每天早上一破晓就飞到人间，到了晚上再将所见所闻带回给 Odin。    
-此项目旨在帮助开发人员利用 LLM 技术创建更加智能和灵活的应用程序，通过提供一系列强大而易用的功能，为 LLM 技术落地提供了更多的可能性。
+Odin is a PHP-based LLM application development framework. Its naming is inspired by the chief god Odin from Norse mythology and his two ravens Huginn and Muninn, which represent **thought** and **memory** respectively. Every morning at dawn, they fly to the human world and return in the evening to bring back what they have seen and heard to Odin.
+This project aims to help developers create more intelligent and flexible applications using LLM technology, providing more possibilities for LLM technology implementation through a series of powerful and easy-to-use features.
 
-## 核心特性
+## Core Features
 
-- **多模型支持**：支持 OpenAI、Azure OpenAI、AWS Bedrock、Doubao、ChatGLM 等多种大语言模型
-- **统一接口**：提供一致的 API 接口，简化与不同 LLM 提供商的集成
-- **工具调用**：支持 Function Calling，允许模型调用自定义工具和函数
-- **MCP 集成**：基于 [dtyq/php-mcp](https://github.com/dtyq/php-mcp) 实现 Model Context Protocol 支持，轻松接入外部工具和服务
-- **记忆管理**：提供灵活的记忆管理系统，支持会话上下文保持
-- **向量存储**：集成 Qdrant 向量数据库，支持知识检索和语义搜索
-- **Agent 开发**：内置 Agent 框架，支持智能代理开发
-- **高性能**：优化的实现，支持流式响应和高效处理
+- **Multi-Model Support**: Supports various large language models including OpenAI, Azure OpenAI, AWS Bedrock, Doubao, ChatGLM, and more
+- **Unified Interface**: Provides consistent API interface, simplifying integration with different LLM providers
+- **Tool Calling**: Supports Function Calling, allowing models to invoke custom tools and functions
+- **MCP Integration**: Based on [dtyq/php-mcp](https://github.com/dtyq/php-mcp) to implement Model Context Protocol support, easily integrating external tools and services
+- **Memory Management**: Provides flexible memory management system, supporting conversation context persistence
+- **Vector Storage**: Integrates Qdrant vector database, supporting knowledge retrieval and semantic search
+- **Agent Development**: Built-in Agent framework, supporting intelligent agent development
+- **High Performance**: Optimized implementation, supporting streaming responses and efficient processing
 
-## 系统要求
+## System Requirements
 
 - PHP >= 8.0
-- PHP 扩展：bcmath、curl、mbstring
+- PHP Extensions: bcmath, curl, mbstring
 - Composer >= 2.0
-- Hyperf 框架 (2.2.x, 3.0.x 或 3.1.x)
+- Hyperf Framework (2.2.x, 3.0.x or 3.1.x)
 
-## 安装
+## Installation
 
 ```bash
 composer require hyperf/odin
 ```
 
-## 快速开始
+## Quick Start
 
-1. 安装完成后，发布配置文件：
+1. After installation, publish the configuration files:
 
 ```bash
 php bin/hyperf.php vendor:publish hyperf/odin
 ```
 
-2. 在 `.env` 文件中配置你的 API 密钥：
+2. Configure your API key in the `.env` file:
 
 ```
 OPENAI_API_KEY=your_openai_api_key
 ```
 
-3. 在 `config/autoload/odin.php` 中设置默认模型：
+3. Set the default model in `config/autoload/odin.php`:
 
 ```php
 return [
     'llm' => [
-        'default' => 'gpt-4o', // 设置你的默认模型
-        // ... 其他配置
+        'default' => 'gpt-4o', // Set your default model
+        // ... other configurations
     ],
 ];
 ```
 
-## 文档
+## Documentation
 
-详细的文档可在 `doc/user-guide` 目录中找到，包括：
-- 安装和配置
-- 核心概念
-- API 参考
-- 模型提供商
-- 工具开发
-- 记忆管理
-- Agent 开发
-- 示例项目
-- MCP 集成
-- 常见问题解答
+Detailed documentation can be found in the `doc/user-guide` directory:
+- [Installation and Configuration](doc/user-guide/01-installation.md)
+- [Core Concepts](doc/user-guide/02-core-concepts.md)
+- [API Reference](doc/user-guide/03-api-reference.md)
+- [Model Providers](doc/user-guide/04-model-providers.md)
+- [Tool Development](doc/user-guide/05-tool-development.md)
+- [Memory Management](doc/user-guide/06-memory-management.md)
+- [Agent Development](doc/user-guide/07-agent-development.md)
+- [Example Projects](doc/user-guide/09-examples.md)
+- [MCP Integration](doc/user-guide/11-mcp-integration.md)
+- [Frequently Asked Questions](doc/user-guide/10-faq.md)
 
 ## License
 

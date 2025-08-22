@@ -1,6 +1,6 @@
-# MCP Integration
+# MCP 集成
 
-> This chapter introduces the integration and usage of Model Context Protocol (MCP) in the Odin framework, helping you easily integrate and manage external tool services, expanding the capability boundaries of AI applications.
+> 本章介绍 Odin 框架中 Model Context Protocol (MCP) 的集成和使用，帮助您轻松接入和管理外部工具服务，扩展 AI 应用的能力边界。
 
 ## MCP 概述
 
