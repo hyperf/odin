@@ -33,7 +33,7 @@ class LLMReadTimeoutException extends LLMNetworkException
     /**
      * 创建一个新的读取超时异常实例.
      */
-    public function __construct(string $message = '从LLM服务读取响应超时', ?Throwable $previous = null, ?float $timeoutSeconds = null)
+    public function __construct(string $message = '从LLM服务读取响应超时', ?Throwable $previous = null, ?float $timeoutSeconds = null, int $statusCode = 408)
     {
         $this->timeoutSeconds = $timeoutSeconds;
 
@@ -41,7 +41,7 @@ class LLMReadTimeoutException extends LLMNetworkException
             $message = sprintf('%s，超时时间: %.2f秒', $message, $timeoutSeconds);
         }
 
-        parent::__construct($message, self::ERROR_CODE, $previous);
+        parent::__construct($message, self::ERROR_CODE, $previous, 0, $statusCode);
     }
 
     /**

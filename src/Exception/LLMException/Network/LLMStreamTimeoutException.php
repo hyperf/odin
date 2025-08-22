@@ -37,7 +37,8 @@ class LLMStreamTimeoutException extends LLMNetworkException
         string $message = '流式响应超时',
         ?Throwable $previous = null,
         string $timeoutType = 'total',
-        ?float $timeoutSeconds = null
+        ?float $timeoutSeconds = null,
+        int $statusCode = 408
     ) {
         $this->timeoutType = $timeoutType;
 
@@ -47,7 +48,7 @@ class LLMStreamTimeoutException extends LLMNetworkException
             $message = sprintf('%s，超时类型: %s', $message, $timeoutType);
         }
 
-        parent::__construct($message, self::ERROR_CODE, $previous);
+        parent::__construct($message, self::ERROR_CODE, $previous, 0, $statusCode);
     }
 
     /**

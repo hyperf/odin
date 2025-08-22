@@ -25,8 +25,9 @@ class LLMThinkingStreamTimeoutException extends LLMStreamTimeoutException
     public function __construct(
         string $message = '等待首个流式响应块超时',
         ?Throwable $previous = null,
-        ?float $timeoutSeconds = null
+        ?float $timeoutSeconds = null,
+        int $statusCode = 408
     ) {
-        parent::__construct($message, $previous, 'initial_response', $timeoutSeconds);
+        parent::__construct($message, $previous, 'initial_response', $timeoutSeconds, $statusCode);
     }
 }

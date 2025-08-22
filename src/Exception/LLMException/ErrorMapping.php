@@ -54,7 +54,8 @@ class ErrorMapping
                         // 尝试从消息中提取超时时间
                         preg_match('/(\d+(?:\.\d+)?)\s*s/i', $message, $matches);
                         $timeout = isset($matches[1]) ? (float) $matches[1] : null;
-                        return new LLMConnectionTimeoutException('连接LLM服务超时', $e, $timeout);
+                        $statusCode = ($e instanceof RequestException && $e->getResponse()) ? $e->getResponse()->getStatusCode() : 408;
+                        return new LLMConnectionTimeoutException('连接LLM服务超时', $e, $timeout, $statusCode);
                     },
                 ],
                 // 无法解析主机名异常
@@ -240,10 +241,11 @@ class ErrorMapping
                 ],
                 // 上下文长度超出限制
                 [
-                    'regex' => '/context\s+length|token\s+limit|maximum\s+context\s+length/i',
+                    'regex' => '/context\s+length|token\s+limit|maximum\s+context\s+length|input\s+is\s+too\s+long|input\s+too\s+long/i',
                     'factory' => function (RequestException $e) {
                         $currentLength = null;
                         $maxLength = null;
+                        $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : 400;
                         // 尝试从消息中提取长度信息
                         $message = $e->getMessage();
                         preg_match('/(\d+)\s*\/\s*(\d+)/i', $message, $matches);
@@ -251,7 +253,7 @@ class ErrorMapping
                             $currentLength = (int) $matches[1];
                             $maxLength = (int) $matches[2];
                         }
-                        return new LLMContextLengthException('上下文长度超出模型限制', $e, null, $currentLength, $maxLength);
+                        return new LLMContextLengthException('上下文长度超出模型限制', $e, null, $currentLength, $maxLength, $statusCode);
                     },
                 ],
                 // 多模态图片URL不可访问
@@ -277,7 +279,8 @@ class ErrorMapping
                                 }
                             }
                         }
-                        return new LLMImageUrlAccessException('多模态图片URL不可访问', $e, null, $imageUrl);
+                        $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : 400;
+                        return new LLMImageUrlAccessException('多模态图片URL不可访问', $e, null, $imageUrl, $statusCode);
                     },
                 ],
                 // 无效请求 (更精确的匹配，避免误匹配模型错误)
@@ -314,7 +317,7 @@ class ErrorMapping
                             // 其他状态码仍然当作网络异常，但记录状态码
                             return new LLMNetworkException('LLM网络请求错误: ' . $e->getMessage(), 4, $e, ErrorCode::NETWORK_CONNECTION_ERROR, $statusCode);
                         }
-                        return new LLMNetworkException('LLM网络请求错误: ' . $e->getMessage(), 4, $e, ErrorCode::NETWORK_CONNECTION_ERROR);
+                        return new LLMNetworkException('LLM网络请求错误: ' . $e->getMessage(), 4, $e, ErrorCode::NETWORK_CONNECTION_ERROR, 500);
                     },
                 ],
             ],

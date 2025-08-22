@@ -43,7 +43,8 @@ class LLMContextLengthException extends LLMModelException
         ?Throwable $previous = null,
         ?string $model = null,
         ?int $currentLength = null,
-        ?int $maxLength = null
+        ?int $maxLength = null,
+        int $statusCode = 400
     ) {
         $this->currentLength = $currentLength;
         $this->maxLength = $maxLength;
@@ -52,7 +53,7 @@ class LLMContextLengthException extends LLMModelException
             $message = sprintf('%s，当前长度: %d，最大限制: %d', $message, $currentLength, $maxLength);
         }
 
-        parent::__construct($message, self::ERROR_CODE, $previous, 0, $model);
+        parent::__construct($message, self::ERROR_CODE, $previous, 0, $model, $statusCode);
     }
 
     /**

@@ -38,7 +38,8 @@ class LLMImageUrlAccessException extends LLMModelException
         string $message = '多模态图片URL不可访问',
         ?Throwable $previous = null,
         ?string $model = null,
-        ?string $imageUrl = null
+        ?string $imageUrl = null,
+        int $statusCode = 400
     ) {
         $this->imageUrl = $imageUrl;
 
@@ -46,7 +47,7 @@ class LLMImageUrlAccessException extends LLMModelException
             $message = sprintf('%s，图片URL: %s', $message, $imageUrl);
         }
 
-        parent::__construct($message, self::ERROR_CODE, $previous, ErrorCode::MODEL_IMAGE_URL_ACCESS_ERROR, $model);
+        parent::__construct($message, self::ERROR_CODE, $previous, ErrorCode::MODEL_IMAGE_URL_ACCESS_ERROR, $model, $statusCode);
     }
 
     /**
