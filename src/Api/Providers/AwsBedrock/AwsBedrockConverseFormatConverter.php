@@ -169,7 +169,9 @@ class AwsBedrockConverseFormatConverter implements IteratorAggregate
         $cacheWriteTokens = $usage['cacheWriteInputTokens'] ?? 0;
 
         // 按照 OpenAI 的方式：promptTokens = 总处理的提示tokens（包括缓存）
-        $promptTokens = $inputTokens + $cacheReadTokens;
+        $promptTokens = $inputTokens + $cacheReadTokens + $cacheWriteTokens;
+        $completionTokens = $usage['outputTokens'] ?? 0;
+        $totalTokens = $promptTokens + $completionTokens;
 
         return $this->formatOpenAiEvent([
             'id' => $this->messageId ?? ('bedrock-' . uniqid()),
@@ -179,8 +181,8 @@ class AwsBedrockConverseFormatConverter implements IteratorAggregate
             'choices' => null,
             'usage' => [
                 'prompt_tokens' => $promptTokens,
-                'completion_tokens' => $usage['outputTokens'] ?? 0,
-                'total_tokens' => $usage['totalTokens'] ?? 0,
+                'completion_tokens' => $completionTokens,
+                'total_tokens' => $totalTokens,
                 'prompt_tokens_details' => [
                     'cache_write_input_tokens' => $cacheWriteTokens,
                     'cache_read_input_tokens' => $cacheReadTokens,
