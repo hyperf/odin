@@ -185,4 +185,24 @@ abstract class AbstractMessage implements MessageInterface, Stringable
     {
         return md5(serialize($this->toArray()));
     }
+
+    /**
+     * 标准化 tool call ID 以确保跨平台兼容性.
+     *
+     * 将包含不兼容字符（如冒号）的 tool call ID 转换为 MD5 格式
+     * 解决 kimi-k2 等模型与 AWS Claude 的兼容性问题
+     *
+     * @param string $toolCallId 原始工具调用ID
+     * @return string 标准化后的工具调用ID
+     */
+    protected function normalizeToolCallId(string $toolCallId): string
+    {
+        // 检查 ID 是否包含不兼容字符（AWS 要求：只允许 [a-zA-Z0-9_-]）
+        if (! preg_match('/^[a-zA-Z0-9_-]+$/', $toolCallId)) {
+            // 使用 MD5 生成兼容的 ID
+            return md5($toolCallId);
+        }
+
+        return $toolCallId;
+    }
 }

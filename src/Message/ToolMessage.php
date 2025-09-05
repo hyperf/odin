@@ -50,7 +50,7 @@ class ToolMessage extends AbstractMessage
     public function __construct(string $content, string $toolCallId, ?string $name = null, ?array $arguments = null)
     {
         parent::__construct($content);
-        $this->toolCallId = $toolCallId;
+        $this->toolCallId = $this->normalizeToolCallId($toolCallId);
         $this->name = $name;
         $this->arguments = $arguments;
     }
