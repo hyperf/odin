@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Exception\LLMException;
 
+use GuzzleHttp\Exception\RequestException;
 use Hyperf\Odin\Exception\LLMException;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
@@ -62,12 +63,15 @@ class LLMErrorHandler implements ErrorHandlerInterface
     public function handle(Throwable $exception, array $context = []): LLMException
     {
         try {
+            // 主动提取Guzzle RequestException的响应头信息
+            $enrichedContext = $this->enrichContextWithResponseInfo($exception, $context);
+
             // 将异常映射为标准的LLM异常
-            $llmException = $this->errorMappingManager->mapException($exception, $context);
+            $llmException = $this->errorMappingManager->mapException($exception, $enrichedContext);
 
             // 记录错误信息
             if ($this->logErrors) {
-                $this->logError($llmException, $context);
+                $this->logError($llmException, $enrichedContext);
             }
 
             return $llmException;
@@ -274,10 +278,17 @@ class LLMErrorHandler implements ErrorHandlerInterface
         $sensitiveKeys = ['api_key', 'api-key', 'apiKey', 'password', 'secret', 'token', 'authorization'];
 
         foreach ($context as $key => $value) {
+            // 对于数字索引，直接处理值
             if (! is_string($key)) {
+                if (is_array($value)) {
+                    $filtered[$key] = $this->filterSensitiveInfo($value);
+                } else {
+                    $filtered[$key] = $value;
+                }
                 continue;
             }
-            // 检查是否为敏感信息
+
+            // 检查是否为敏感信息（只针对字符串键）
             $isSensitive = false;
             foreach ($sensitiveKeys as $sensitiveKey) {
                 if (stripos($key, $sensitiveKey) !== false) {
@@ -298,5 +309,62 @@ class LLMErrorHandler implements ErrorHandlerInterface
         }
 
         return $filtered;
+    }
+
+    /**
+     * 从异常中提取响应信息并丰富上下文.
+     *
+     * @param Throwable $exception 原始异常
+     * @param array $context 原始上下文
+     * @return array 丰富后的上下文
+     */
+    protected function enrichContextWithResponseInfo(Throwable $exception, array $context): array
+    {
+        $previous = $exception->getPrevious();
+        // 如果是Guzzle的RequestException且有响应对象，提取响应信息
+        if ($previous instanceof RequestException && $previous->getResponse()) {
+            $response = $previous->getResponse();
+
+            // 提取响应头
+            $context['response_headers'] = $response->getHeaders();
+            $context['response_status_code'] = $response->getStatusCode();
+            $context['response_reason_phrase'] = $response->getReasonPhrase();
+
+            // 提取响应体（如果有且不是流）
+            try {
+                $body = $response->getBody();
+                if ($body->isSeekable()) {
+                    $body->rewind();
+                }
+                $responseContent = $body->getContents();
+
+                // 如果响应体不为空且较小（避免记录过大的响应体）
+                if (! empty($responseContent) && strlen($responseContent) < 10240) {
+                    $context['response_body'] = $responseContent;
+                }
+
+                // 重新设置流位置，以便后续处理
+                if ($body->isSeekable()) {
+                    $body->rewind();
+                }
+            } catch (Throwable $e) {
+                // 如果无法读取响应体，记录但不影响主流程
+                $this->logger?->debug('无法读取响应体内容', [
+                    'error' => $e->getMessage(),
+                    'status_code' => $response->getStatusCode(),
+                ]);
+            }
+
+            // 记录HTTP错误响应信息到日志
+            $this->logger?->info('HTTPErrorResponseInfo', [
+                'status_code' => $response->getStatusCode(),
+                'reason_phrase' => $response->getReasonPhrase(),
+                'headers' => $response->getHeaders(),
+                'has_body' => isset($context['response_body']),
+                'content' => $context['response_body'] ?? null,
+            ]);
+        }
+
+        return $context;
     }
 }
