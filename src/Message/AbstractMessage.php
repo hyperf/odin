@@ -197,6 +197,11 @@ abstract class AbstractMessage implements MessageInterface, Stringable
      */
     protected function normalizeToolCallId(string $toolCallId): string
     {
+        // 如果 ID 为空，直接返回（不应该处理空 ID）
+        if (empty($toolCallId)) {
+            return $toolCallId;
+        }
+
         // 检查 ID 是否包含不兼容字符（AWS 要求：只允许 [a-zA-Z0-9_-]）
         if (! preg_match('/^[a-zA-Z0-9_-]+$/', $toolCallId)) {
             // 使用 MD5 生成兼容的 ID
