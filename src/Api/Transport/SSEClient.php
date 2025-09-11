@@ -61,7 +61,7 @@ class SSEClient implements IteratorAggregate
         }
 
         // 从timeoutConfig中提取stream_total作为基础超时
-        $this->timeout = $timeoutConfig['stream_total'] ?? null;
+        $this->timeout = isset($timeoutConfig['stream_total']) ? (int) $timeoutConfig['stream_total'] : null;
         $this->connectionStartTime = microtime(true);
         $this->logger = $logger;
 
