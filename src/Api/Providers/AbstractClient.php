@@ -35,6 +35,7 @@ use Hyperf\Odin\Exception\LLMException\LLMErrorHandler;
 use Hyperf\Odin\Utils\EventUtil;
 use Hyperf\Odin\Utils\LoggingConfigHelper;
 use Hyperf\Odin\Utils\LogUtil;
+use Hyperf\Odin\Utils\TimeUtil;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -355,7 +356,7 @@ abstract class AbstractClient implements ClientInterface
      */
     protected function calculateDuration(float $startTime): float
     {
-        return round((microtime(true) - $startTime) * 1000);
+        return TimeUtil::calculateDurationMs($startTime);
     }
 
     /**

@@ -26,6 +26,7 @@ use Hyperf\Odin\Message\AssistantMessage;
 use Hyperf\Odin\Message\ToolMessage;
 use Hyperf\Odin\Message\UserMessage;
 use Hyperf\Odin\Tool\Definition\ToolDefinition;
+use Hyperf\Odin\Utils\TimeUtil;
 use Hyperf\Odin\Utils\ToolUtil;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -456,7 +457,7 @@ class ToolUseAgent
                     ], JSON_UNESCAPED_UNICODE);
                 } finally {
                     $usedTool = new UsedTool(
-                        elapsedTime: round((microtime(true) - $start) * 1000, 2),
+                        elapsedTime: TimeUtil::calculateDurationMs($start, 2),
                         success: $success,
                         id: $toolCall->getId(),
                         name: $tool->getName(),
