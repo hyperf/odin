@@ -136,7 +136,7 @@ class SSEClientTest extends AbstractTestCase
             })
         );
 
-        $sseClient = new SSEClient($stream, true, null, null, $logger);
+        $sseClient = new SSEClient($stream, true, null, $logger);
         $events = iterator_to_array($sseClient->getIterator());
 
         $this->assertCount(1, $events);
@@ -153,8 +153,8 @@ class SSEClientTest extends AbstractTestCase
         fwrite($stream, "data: test\n\n");
         rewind($stream);
 
-        // 创建SSEClient实例
-        $sseClient = new SSEClient($stream, true, 1); // 1秒超时
+        // 创建SSEClient实例，通过timeoutConfig传递1秒超时
+        $sseClient = new SSEClient($stream, true, ['stream_total' => 1]);
 
         // 初始状态下不应超时
         $isTimedOut = $this->callNonpublicMethod($sseClient, 'isTimedOut');

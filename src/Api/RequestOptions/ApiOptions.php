@@ -29,6 +29,7 @@ class ApiOptions
         'thinking' => 120.0,  // 思考超时（初始响应前的时间）
         'stream_chunk' => 30.0, // 流式响应块间超时
         'stream_first' => 60.0, // 流式响应首个块超时
+        'stream_total' => 600.0, // 流式总超时
     ];
 
     /**
@@ -173,6 +174,14 @@ class ApiOptions
     public function getStreamFirstChunkTimeout(): float
     {
         return $this->timeout['stream_first'];
+    }
+
+    /**
+     * 获取流式响应总体超时.
+     */
+    public function getStreamTotalTimeout(): float
+    {
+        return $this->timeout['stream_total'];
     }
 
     /**

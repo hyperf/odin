@@ -53,7 +53,6 @@ class SSEClient implements IteratorAggregate
     public function __construct(
         private $stream,
         private bool $autoClose = true,
-        ?int $timeout = null,
         ?array $timeoutConfig = null,
         ?LoggerInterface $logger = null
     ) {
@@ -61,7 +60,8 @@ class SSEClient implements IteratorAggregate
             throw new InvalidArgumentException('Stream must be a resource');
         }
 
-        $this->timeout = $timeout;
+        // 从timeoutConfig中提取stream_total作为基础超时
+        $this->timeout = $timeoutConfig['stream_total'] ?? null;
         $this->connectionStartTime = microtime(true);
         $this->logger = $logger;
 

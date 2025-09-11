@@ -134,7 +134,7 @@ class StreamExceptionDetector
     private function normalizeTimeoutConfig(array $config): array
     {
         return [
-            'total' => $config['total'] ?? 300.0,
+            'total' => $config['stream_total'] ?? $config['total'] ?? 600.0,
             'stream_first' => $config['stream_first'] ?? 60.0,
             'stream_chunk' => $config['stream_chunk'] ?? 30.0,
         ];

@@ -36,6 +36,7 @@ return [
                 'thinking' => 120.0,  // 思考超时（秒）
                 'stream_chunk' => 30.0, // 流式块间超时（秒）
                 'stream_first' => 60.0, // 首个流式块超时（秒）
+                'stream_total' => 600.0, // 流式总超时（秒，默认10分钟）
             ],
             'custom_error_mapping_rules' => [],
             /**

@@ -119,7 +119,6 @@ class Client extends AbstractClient
             $sseClient = new SSEClient(
                 $stream,
                 true,
-                (int) $this->requestOptions->getTotalTimeout(),
                 $this->requestOptions->getTimeout(),
                 $this->logger
             );
