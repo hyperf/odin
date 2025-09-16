@@ -65,11 +65,7 @@ class ImageFormatValidator
         // If extension exists but not supported, throw error
         if (! in_array($extension, self::$supportedExtensions, true)) {
             throw new LLMUnsupportedImageFormatException(
-                sprintf(
-                    '不支持的图片格式: .%s。支持的格式: %s',
-                    $extension,
-                    implode(', ', array_map(fn ($ext) => ".{$ext}", self::$supportedExtensions))
-                ),
+                sprintf('不支持的图片格式: .%s', $extension),
                 null,
                 $extension,
                 $imageUrl
