@@ -19,10 +19,12 @@ use Hyperf\Odin\Exception\InvalidArgumentException;
 use Hyperf\Odin\Exception\LLMException\LLMModelException;
 use Hyperf\Odin\Message\Role;
 use Hyperf\Odin\Message\SystemMessage;
+use Hyperf\Odin\Message\UserMessage;
 use Hyperf\Odin\Tool\Definition\ToolDefinition;
 use Hyperf\Odin\Utils\MessageUtil;
 use Hyperf\Odin\Utils\TokenEstimator;
 use Hyperf\Odin\Utils\ToolUtil;
+use Hyperf\Odin\Utils\VisionMessageValidator;
 
 class ChatCompletionRequest implements RequestInterface
 {
@@ -95,6 +97,9 @@ class ChatCompletionRequest implements RequestInterface
 
         // 验证消息序列是否符合API规范
         $this->validateMessageSequence();
+
+        // 验证视觉理解消息中的图片格式
+        $this->validateImageFormats();
     }
 
     public function createOptions(): array
@@ -548,5 +553,20 @@ class ChatCompletionRequest implements RequestInterface
         }
 
         return mb_substr($content, 0, $maxLength - 3) . '...';
+    }
+
+    /**
+     * 验证视觉理解消息中的图片格式.
+     *
+     * 检查用户消息中的图片URL是否使用了支持的格式。
+     * 只有当URL包含文件扩展名且不在支持列表中时才会抛出异常。
+     */
+    private function validateImageFormats(): void
+    {
+        foreach ($this->messages as $message) {
+            if ($message instanceof UserMessage) {
+                VisionMessageValidator::validateUserMessage($message);
+            }
+        }
     }
 }
