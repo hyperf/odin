@@ -300,8 +300,13 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
                 $data = $event->getData();
 
                 // 处理结束标记
-                if ($data === '[DONE]') {
-                    $this->logger?->debug('SseStreamCompleted');
+                if ($data === '[DONE]' || $event->getEvent() === 'done') {
+                    $this->logger?->debug('SseStreamCompleted', [
+                        'event_type' => $event->getEvent(),
+                        'data' => $data,
+                    ]);
+                    // Signal the SSE client to close early to prevent waiting for more data
+                    $this->sseClient->closeEarly();
                     break;
                 }
 

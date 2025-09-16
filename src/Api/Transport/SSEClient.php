@@ -48,6 +48,11 @@ class SSEClient implements IteratorAggregate
     private ?LoggerInterface $logger = null;
 
     /**
+     * Flag to indicate if stream should be closed early.
+     */
+    private bool $shouldClose = false;
+
+    /**
      * @param resource $stream
      */
     public function __construct(
@@ -89,7 +94,7 @@ class SSEClient implements IteratorAggregate
         try {
             $lastCheckTime = microtime(true);
 
-            while (! feof($this->stream)) {
+            while (! feof($this->stream) && ! $this->shouldClose) {
                 // 定期检查超时状态，每1秒检查一次
                 $now = microtime(true);
                 if ($now - $lastCheckTime > 1.0) {
@@ -168,6 +173,16 @@ class SSEClient implements IteratorAggregate
     public function getRetryTimeout(): int
     {
         return $this->retryTimeout;
+    }
+
+    /**
+     * Signal the SSE client to close the stream early.
+     * This is useful when a [DONE] event is received to prevent waiting for more data.
+     */
+    public function closeEarly(): void
+    {
+        $this->shouldClose = true;
+        $this->logger?->debug('SSE stream marked for early closure');
     }
 
     /**
