@@ -20,6 +20,7 @@ use Hyperf\Odin\Message\SystemMessage;
 use Hyperf\Odin\Message\ToolMessage;
 use Hyperf\Odin\Message\UserMessage;
 use Hyperf\Odin\Tool\Definition\ToolDefinition;
+use Hyperf\Odin\Utils\ImageDownloader;
 use stdClass;
 
 class ConverseConverter implements ConverterInterface
@@ -264,11 +265,16 @@ class ConverseConverter implements ConverterInterface
     /**
      * 处理图像URL并转换为适合AWS Bedrock Claude格式的图像数据.
      *
-     * @param string $imageUrl 图像URL（必须是 data:image 格式的 base64 编码数据）
+     * @param string $imageUrl 图像URL（支持 data:image base64 格式或 HTTP(S) URL）
      * @return array Claude 格式的图像数据
      */
     private function processImageUrl(string $imageUrl): array
     {
+        // 如果是远程链接，先下载并转换为base64格式
+        if (ImageDownloader::isRemoteImageUrl($imageUrl)) {
+            $imageUrl = ImageDownloader::downloadAndConvertToBase64($imageUrl);
+        }
+
         // 检查是否为base64编码的Data URL
         if (str_starts_with($imageUrl, 'data:image/') && str_contains($imageUrl, ';base64,')) {
             // 提取MIME类型和base64数据
@@ -287,7 +293,7 @@ class ConverseConverter implements ConverterInterface
             ];
         }
 
-        // 对于非 base64 编码的 URL，抛出异常
-        throw new LLMInvalidRequestException('图像URL必须是 base64 编码格式 (data:image/xxx;base64,...)');
+        // 不支持的URL格式
+        throw new LLMInvalidRequestException('图像URL必须是 base64 编码格式 (data:image/xxx;base64,...) 或 HTTP(S) URL');
     }
 }
