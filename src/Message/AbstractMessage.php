@@ -47,6 +47,7 @@ abstract class AbstractMessage implements MessageInterface, Stringable
 
     public function __construct(string $content, array $context = [])
     {
+        $content = trim($content);
         $this->content = $content;
         $this->context = $context;
     }
