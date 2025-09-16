@@ -289,16 +289,53 @@ class ErrorMapping
                     'status' => [400],
                     'factory' => function (RequestException $e) {
                         $invalidFields = null;
+                        $providerErrorDetails = null;
+
                         if ($e->getResponse()) {
                             $response = $e->getResponse();
                             $response->getBody()->rewind(); // 重置流位置
                             $body = $response->getBody()->getContents();
                             $data = json_decode($body, true);
+
+                            // 提取无效字段信息（保持原有逻辑）
                             if (isset($data['error']['param'])) {
                                 $invalidFields = [$data['error']['param'] => $data['error']['message'] ?? '无效参数'];
                             }
+
+                            // 提取完整的服务商错误详情
+                            if (isset($data['error']) && is_array($data['error'])) {
+                                $providerErrorDetails = [];
+
+                                // 提取错误码
+                                if (isset($data['error']['code'])) {
+                                    $providerErrorDetails['code'] = $data['error']['code'];
+                                }
+
+                                // 提取错误消息
+                                if (isset($data['error']['message'])) {
+                                    $providerErrorDetails['message'] = $data['error']['message'];
+                                }
+
+                                // 提取错误类型
+                                if (isset($data['error']['type'])) {
+                                    $providerErrorDetails['type'] = $data['error']['type'];
+                                }
+
+                                // 提取参数字段
+                                if (isset($data['error']['param'])) {
+                                    $providerErrorDetails['param'] = $data['error']['param'];
+                                }
+
+                                // 如果有其他字段，也一并保存
+                                foreach ($data['error'] as $key => $value) {
+                                    if (! in_array($key, ['code', 'message', 'type', 'param']) && is_scalar($value)) {
+                                        $providerErrorDetails[$key] = $value;
+                                    }
+                                }
+                            }
                         }
-                        return new LLMInvalidRequestException('无效的API请求', $e, 400, $invalidFields);
+
+                        return new LLMInvalidRequestException('无效的API请求', $e, 400, $invalidFields, $providerErrorDetails);
                     },
                 ],
                 // 默认异常处理
