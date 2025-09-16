@@ -14,7 +14,6 @@ namespace Hyperf\Odin\Api\Transport;
 
 use Generator;
 use Hyperf\Odin\Exception\InvalidArgumentException;
-use Hyperf\Odin\Exception\RuntimeException;
 use IteratorAggregate;
 use JsonException;
 use Psr\Log\LoggerInterface;
@@ -100,24 +99,14 @@ class SSEClient implements IteratorAggregate
                 if ($now - $lastCheckTime > 1.0) {
                     $lastCheckTime = $now;
 
-                    // 使用标准超时检查
-                    if ($this->isTimedOut()) {
-                        throw new RuntimeException('Periodic check timeout - Connection exceeds wait time limit');
-                    }
-
-                    // 如果启用了更复杂的超时检测，使用流异常检测器
+                    // 使用专业的超时检测器
                     $this->exceptionDetector?->checkTimeout();
                 }
 
                 $chunk = stream_get_line($this->stream, self::BUFFER_SIZE, self::EVENT_END);
 
                 if ($chunk === false) {
-                    // 使用标准超时检查
-                    if ($this->isTimedOut()) {
-                        throw new RuntimeException('Read operation failed timeout - Stream read returned false and exceeded timeout limit');
-                    }
-
-                    // 如果启用了更复杂的超时检测，使用流异常检测器
+                    // 使用专业的超时检测器
                     $this->exceptionDetector?->checkTimeout();
 
                     continue;
@@ -147,8 +136,16 @@ class SSEClient implements IteratorAggregate
                     continue;
                 }
 
-                // 通知流异常检测器已接收到块
-                $this->exceptionDetector?->onChunkReceived();
+                // 通知流异常检测器已接收到块，传递调试信息
+                $chunkInfo = [
+                    'event_type' => $event->getEvent(),
+                    'event_id' => $event->getId(),
+                    'data_preview' => is_string($event->getData())
+                        ? substr($event->getData(), 0, 200)
+                        : (is_array($event->getData()) ? json_encode($event->getData()) : 'non-string-data'),
+                    'raw_chunk_size' => strlen($chunk),
+                ];
+                $this->exceptionDetector?->onChunkReceived($chunkInfo);
 
                 yield $event;
             }

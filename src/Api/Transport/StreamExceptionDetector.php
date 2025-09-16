@@ -47,6 +47,16 @@ class StreamExceptionDetector
     private ?LoggerInterface $logger;
 
     /**
+     * 最后接收到的块信息.
+     */
+    private ?array $lastChunkInfo = null;
+
+    /**
+     * 已接收的总块数.
+     */
+    private int $totalChunksReceived = 0;
+
+    /**
      * 构造函数.
      */
     public function __construct(array $timeoutConfig, ?LoggerInterface $logger = null)
@@ -70,12 +80,22 @@ class StreamExceptionDetector
 
         // 检查总体超时
         if ($elapsedTotal > $this->timeoutConfig['total']) {
-            $this->logger?->warning('Stream total timeout detected', [
+            // 准备详细的调试信息
+            $debugInfo = [
                 'elapsed' => $elapsedTotal,
                 'timeout' => $this->timeoutConfig['total'],
-            ]);
+                'total_chunks_received' => $this->totalChunksReceived,
+                'time_since_last_chunk' => $this->firstChunkReceived ? $now - $this->lastChunkTime : null,
+                'last_chunk_info' => $this->lastChunkInfo,
+            ];
+
+            $this->logger?->warning('检测到流式响应总体超时', $debugInfo);
+
+            // 构建简洁的异常消息（详细信息已记录在日志中）
+            $message = sprintf('流式响应总体超时，已经等待 %.2f 秒', $elapsedTotal);
+
             throw new LLMStreamTimeoutException(
-                sprintf('流式响应总体超时，已经等待 %.2f 秒', $elapsedTotal),
+                $message,
                 null,
                 'total',
                 $elapsedTotal
@@ -85,12 +105,21 @@ class StreamExceptionDetector
         // 如果尚未收到第一个块，检查思考超时
         if (! $this->firstChunkReceived) {
             if ($elapsedTotal > $this->timeoutConfig['stream_first']) {
-                $this->logger?->warning('Stream first chunk timeout detected', [
+                // 准备详细的调试信息
+                $debugInfo = [
                     'elapsed' => $elapsedTotal,
                     'timeout' => $this->timeoutConfig['stream_first'],
-                ]);
+                    'total_chunks_received' => $this->totalChunksReceived,
+                    'waiting_for_first_chunk' => true,
+                ];
+
+                $this->logger?->warning('检测到等待首个流式响应块超时', $debugInfo);
+
+                // 构建简洁的异常消息（详细信息已记录在日志中）
+                $message = sprintf('等待首个流式响应块超时，已经等待 %.2f 秒', $elapsedTotal);
+
                 throw new LLMThinkingStreamTimeoutException(
-                    sprintf('等待首个流式响应块超时，已经等待 %.2f 秒', $elapsedTotal),
+                    $message,
                     null,
                     $elapsedTotal
                 );
@@ -99,12 +128,22 @@ class StreamExceptionDetector
             // 如果已收到第一个块，检查块间超时
             $elapsedSinceLastChunk = $now - $this->lastChunkTime;
             if ($elapsedSinceLastChunk > $this->timeoutConfig['stream_chunk']) {
-                $this->logger?->warning('Stream chunk interval timeout detected', [
+                // 准备详细的调试信息
+                $debugInfo = [
                     'elapsed_since_last' => $elapsedSinceLastChunk,
                     'timeout' => $this->timeoutConfig['stream_chunk'],
-                ]);
+                    'total_chunks_received' => $this->totalChunksReceived,
+                    'total_elapsed_time' => $now - $this->startTime,
+                    'last_chunk_info' => $this->lastChunkInfo,
+                ];
+
+                $this->logger?->warning('检测到流式响应块间隔超时', $debugInfo);
+
+                // 构建简洁的异常消息（详细信息已记录在日志中）
+                $message = sprintf('流式响应块间超时，已经等待 %.2f 秒', $elapsedSinceLastChunk);
+
                 throw new LLMStreamTimeoutException(
-                    sprintf('流式响应块间超时，已经等待 %.2f 秒', $elapsedSinceLastChunk),
+                    $message,
                     null,
                     'chunk_interval',
                     $elapsedSinceLastChunk
@@ -116,14 +155,25 @@ class StreamExceptionDetector
     /**
      * 接收到块后调用此方法更新时间戳.
      */
-    public function onChunkReceived(): void
+    public function onChunkReceived(array $chunkInfo = []): void
     {
         $this->lastChunkTime = microtime(true);
+        ++$this->totalChunksReceived;
+
+        // 记录最后接收到的块信息（用于调试）
+        $this->lastChunkInfo = [
+            'chunk_number' => $this->totalChunksReceived,
+            'timestamp' => $this->lastChunkTime,
+            'time_since_start' => $this->lastChunkTime - $this->startTime,
+            'chunk_data' => $chunkInfo,
+        ];
+
         if (! $this->firstChunkReceived) {
             $this->firstChunkReceived = true;
             $initialResponseTime = $this->lastChunkTime - $this->startTime;
-            $this->logger?->debug('First chunk received', [
+            $this->logger?->debug('接收到首个流式响应块', [
                 'initial_response_time' => $initialResponseTime,
+                'chunk_info' => $chunkInfo,
             ]);
         }
     }
