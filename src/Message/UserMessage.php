@@ -65,6 +65,7 @@ class UserMessage extends AbstractMessage
         $data = [
             'role' => $this->role->value,
             'content' => $this->content,
+            'context' => $this->context,
         ];
         if (! is_null($this->contents)) {
             $contents = [];
