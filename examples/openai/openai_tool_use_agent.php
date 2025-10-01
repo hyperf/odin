@@ -30,6 +30,8 @@ use Hyperf\Odin\Model\ModelOptions;
 use Hyperf\Odin\Tool\Definition\ToolDefinition;
 use Hyperf\Odin\Tool\Definition\ToolParameters;
 
+use function Hyperf\Support\env;
+
 ClassLoader::init();
 $container = ApplicationContext::setContainer(new Container((new DefinitionSourceFactory())()));
 $logger = new Logger();
@@ -41,7 +43,7 @@ $model = ModelFactory::create(
     config: [
         'api_key' => env('AZURE_OPENAI_GPT5_API_KEY'),
         'api_base' => env('AZURE_OPENAI_GPT5_API_BASE'),
-        'api_version' => '2024-08-01-preview',
+        'api_version' => env('AZURE_OPENAI_GPT5_API_VERSION'),
         'deployment_name' => env('AZURE_OPENAI_GPT5_DEPLOYMENT_NAME'),
     ],
     modelOptions: ModelOptions::fromArray([
