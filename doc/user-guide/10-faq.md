@@ -43,7 +43,60 @@ $model = ModelFactory::create(
 );
 ```
 
-### 2. 模型响应格式错误
+### 2. Stream Response Connection Failed in Coroutine Context
+
+**Problem**: When running in Hyperf framework's coroutine environment (such as Command with `$coroutine = true`), stream responses fail with "Connection refused" error, but work normally in non-coroutine context.
+
+**Causes**: 
+- Swoole compiled with an older OpenSSL version may have compatibility issues with cURL extension when handling HTTPS connections in coroutine context
+- cURL handler may not correctly handle SSL/TLS connections in coroutine environment
+
+**Solutions**:
+
+Starting from Odin v1.x.x, the framework **automatically detects coroutine context** and switches to a compatible HTTP handler. If you encounter this issue:
+
+```php
+// Solution 1: Let the framework handle automatically (Recommended)
+// Using default 'auto' configuration, framework will auto-detect coroutine and use stream handler
+$model = new DoubaoModel(
+    'deepseek-r1-250120',
+    [
+        'api_key' => 'sk-xxx',
+        'base_url' => 'https://api.example.com/v1',
+    ],
+    new Logger(),
+);
+// Will automatically use stream handler in coroutine context
+
+// Solution 2: Explicitly specify stream handler
+$model->setApiRequestOptions(new ApiOptions([
+    'http_handler' => 'stream',  // Force use of stream handler
+]));
+
+// Solution 3: Global configuration via environment variable
+// Set in .env file
+// ODIN_HTTP_HANDLER=stream
+
+// Solution 4: Set in configuration file (for specific models)
+// config/autoload/odin.php
+return [
+    'models' => [
+        'deepseek-r1' => [
+            // ...
+            'api_options' => [
+                'http_handler' => 'stream',
+            ],
+        ],
+    ],
+];
+```
+
+**Notes**:
+- Stream handler is a pure PHP implementation, does not depend on cURL extension, and is more stable in coroutine environments
+- Auto-detection mechanism checks for `Swoole\Coroutine` and `Hyperf\Engine\Coroutine`
+- You can also explicitly specify stream handler in non-coroutine environments if needed
+
+### 3. 模型响应格式错误
 
 **问题**: 模型返回的响应格式与预期不符，导致解析错误。
 
@@ -69,7 +122,7 @@ try {
 }
 ```
 
-### 3. 工具调用失败
+### 4. 工具调用失败
 
 **问题**: 工具调用返回错误或未按预期执行。
 
@@ -109,7 +162,7 @@ try {
 }
 ```
 
-### 4. 内存溢出错误
+### 5. 内存溢出错误
 
 **问题**: 处理大量对话历史或大文档时出现内存溢出错误。
 
@@ -142,7 +195,7 @@ foreach ($batches as $batch) {
 }
 ```
 
-### 5. 授权和认证错误
+### 6. 授权和认证错误
 
 **问题**: 授权失败，无法访问 LLM 服务。
 

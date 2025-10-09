@@ -43,7 +43,60 @@ $model = ModelFactory::create(
 );
 ```
 
-### 2. 模型响应格式错误
+### 2. 协程环境下流式响应连接失败
+
+**问题**: 在 Hyperf 框架的协程环境中（如 Command 命令且 `$coroutine = true`），执行流式响应时出现 "Connection refused" 错误，但在非协程环境中正常工作。
+
+**原因**: 
+- Swoole 编译时使用的 OpenSSL 版本较旧，可能与 cURL 扩展在协程上下文中处理 HTTPS 连接时存在兼容性问题
+- cURL handler 在协程环境中可能无法正确处理 SSL/TLS 连接
+
+**解决方案**:
+
+从 Odin v1.x.x 版本开始，框架会**自动检测协程上下文**并切换到兼容的 HTTP 处理器。如果您遇到此问题：
+
+```php
+// 方案 1: 让框架自动处理（推荐）
+// 使用默认的 'auto' 配置，框架会自动检测协程环境并使用 stream 处理器
+$model = new DoubaoModel(
+    'deepseek-r1-250120',
+    [
+        'api_key' => 'sk-xxx',
+        'base_url' => 'https://api.example.com/v1',
+    ],
+    new Logger(),
+);
+// 在协程环境中会自动使用 stream 处理器
+
+// 方案 2: 显式指定使用 stream 处理器
+$model->setApiRequestOptions(new ApiOptions([
+    'http_handler' => 'stream',  // 强制使用 stream 处理器
+]));
+
+// 方案 3: 通过环境变量全局配置
+// 在 .env 中设置
+// ODIN_HTTP_HANDLER=stream
+
+// 方案 4: 在配置文件中设置（针对特定模型）
+// config/autoload/odin.php
+return [
+    'models' => [
+        'deepseek-r1' => [
+            // ...
+            'api_options' => [
+                'http_handler' => 'stream',
+            ],
+        ],
+    ],
+];
+```
+
+**注意事项**:
+- Stream 处理器是纯 PHP 实现，不依赖 cURL 扩展，在协程环境中更稳定
+- 自动检测机制会检测 `Swoole\Coroutine` 和 `Hyperf\Engine\Coroutine`
+- 如果需要在非协程环境中使用 stream 处理器，也可以显式指定
+
+### 3. 模型响应格式错误
 
 **问题**: 模型返回的响应格式与预期不符，导致解析错误。
 
@@ -69,7 +122,7 @@ try {
 }
 ```
 
-### 3. 工具调用失败
+### 4. 工具调用失败
 
 **问题**: 工具调用返回错误或未按预期执行。
 
@@ -109,7 +162,7 @@ try {
 }
 ```
 
-### 4. 内存溢出错误
+### 5. 内存溢出错误
 
 **问题**: 处理大量对话历史或大文档时出现内存溢出错误。
 
@@ -142,7 +195,7 @@ foreach ($batches as $batch) {
 }
 ```
 
-### 5. 授权和认证错误
+### 6. 授权和认证错误
 
 **问题**: 授权失败，无法访问 LLM 服务。
 
