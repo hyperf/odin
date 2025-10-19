@@ -178,8 +178,14 @@ class ErrorMappingManager
             // 对于RequestException，也检查响应体内容
             if ($exception instanceof RequestException && $exception->getResponse()) {
                 $response = $exception->getResponse();
-                $response->getBody()->rewind(); // 重置流位置
-                $responseBody = (string) $response->getBody();
+                $body = $response->getBody();
+
+                // Check if the stream is seekable before attempting to rewind
+                if ($body->isSeekable()) {
+                    $body->rewind(); // 重置流位置
+                }
+
+                $responseBody = (string) $body;
                 $message .= ' ' . $responseBody; // 将响应体内容加入匹配文本中
             }
 
