@@ -64,8 +64,7 @@ class AzureModelErrorTest extends TestCase
         $this->assertEquals(500, $mappedException->getStatusCode());
 
         // 断言异常消息包含有用信息
-        $this->assertStringContainsString('模型生成了无效内容', $mappedException->getMessage());
-        $this->assertStringContainsString('建议修改您的提示词内容', $mappedException->getMessage());
+        $this->assertStringContainsString('Model produced invalid content', $mappedException->getMessage());
     }
 
     /**
@@ -102,8 +101,8 @@ class AzureModelErrorTest extends TestCase
         $this->assertEquals(500, $mappedException->getStatusCode());
 
         // 错误消息应该表明这是可重试的服务错误
-        $this->assertStringContainsString('Azure OpenAI 服务暂时不可用', $mappedException->getMessage());
-        $this->assertStringContainsString('建议稍后重试', $mappedException->getMessage());
+        $this->assertStringContainsString('Azure OpenAI service temporarily unavailable', $mappedException->getMessage());
+        $this->assertStringContainsString('please retry later', $mappedException->getMessage());
     }
 
     /**

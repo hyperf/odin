@@ -73,7 +73,7 @@ class ErrorMappingTest extends AbstractTestCase
         $result = $this->mapper->mapException($exception);
 
         $this->assertInstanceOf(LLMException::class, $result);
-        $this->assertEquals('LLM调用错误: 测试异常', $result->getMessage());
+        $this->assertEquals('LLM invocation error: 测试异常', $result->getMessage());
     }
 
     /**

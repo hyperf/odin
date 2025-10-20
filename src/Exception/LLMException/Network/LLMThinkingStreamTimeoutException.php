@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Exception\LLMException\Network;
 
+use Hyperf\Odin\Exception\LLMException\ErrorMessage;
 use Throwable;
 
 /**
@@ -23,7 +24,7 @@ class LLMThinkingStreamTimeoutException extends LLMStreamTimeoutException
      * 创建一个新的思考阶段流式响应超时异常实例.
      */
     public function __construct(
-        string $message = '等待首个流式响应块超时',
+        string $message = ErrorMessage::FIRST_CHUNK_TIMEOUT,
         ?Throwable $previous = null,
         ?float $timeoutSeconds = null,
         int $statusCode = 408

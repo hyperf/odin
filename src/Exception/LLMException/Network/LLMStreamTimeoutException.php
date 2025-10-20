@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Exception\LLMException\Network;
 
+use Hyperf\Odin\Exception\LLMException\ErrorMessage;
 use Hyperf\Odin\Exception\LLMException\LLMNetworkException;
 use Throwable;
 
@@ -34,7 +35,7 @@ class LLMStreamTimeoutException extends LLMNetworkException
      * 创建一个新的流式响应超时异常实例.
      */
     public function __construct(
-        string $message = '流式响应超时',
+        string $message = ErrorMessage::STREAM_TIMEOUT,
         ?Throwable $previous = null,
         string $timeoutType = 'total',
         ?float $timeoutSeconds = null,
@@ -43,9 +44,9 @@ class LLMStreamTimeoutException extends LLMNetworkException
         $this->timeoutType = $timeoutType;
 
         if ($timeoutSeconds !== null) {
-            $message = sprintf('%s，超时类型: %s，已等待: %.2f秒', $message, $timeoutType, $timeoutSeconds);
+            $message = sprintf('%s, timeout type: %s, waited: %.2f seconds', $message, $timeoutType, $timeoutSeconds);
         } else {
-            $message = sprintf('%s，超时类型: %s', $message, $timeoutType);
+            $message = sprintf('%s, timeout type: %s', $message, $timeoutType);
         }
 
         parent::__construct($message, self::ERROR_CODE, $previous, 0, $statusCode);

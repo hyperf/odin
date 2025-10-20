@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Exception\LLMException\Model;
 
+use Hyperf\Odin\Exception\LLMException\ErrorMessage;
 use Hyperf\Odin\Exception\LLMException\LLMModelException;
 use Throwable;
 
@@ -36,10 +37,10 @@ class LLMContextLengthException extends LLMModelException
     protected ?int $maxLength = null;
 
     /**
-     * 创建一个新的上下文长度超出限制异常实例.
+     * Create a new context length exception instance.
      */
     public function __construct(
-        string $message = '上下文长度超出模型限制',
+        string $message = ErrorMessage::CONTEXT_LENGTH,
         ?Throwable $previous = null,
         ?string $model = null,
         ?int $currentLength = null,
@@ -50,7 +51,7 @@ class LLMContextLengthException extends LLMModelException
         $this->maxLength = $maxLength;
 
         if ($currentLength !== null && $maxLength !== null) {
-            $message = sprintf('%s，当前长度: %d，最大限制: %d', $message, $currentLength, $maxLength);
+            $message = sprintf('%s, current length: %d, max limit: %d', $message, $currentLength, $maxLength);
         }
 
         parent::__construct($message, self::ERROR_CODE, $previous, 0, $model, $statusCode);

@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Exception\LLMException\Model;
 
+use Hyperf\Odin\Exception\LLMException\ErrorMessage;
 use Hyperf\Odin\Exception\LLMException\LLMModelException;
 use Throwable;
 
@@ -35,7 +36,7 @@ class LLMEmbeddingInputTooLargeException extends LLMModelException
      * @param int $statusCode HTTP状态码
      */
     public function __construct(
-        string $message = '嵌入请求输入内容过大',
+        string $message = ErrorMessage::EMBEDDING_INPUT_TOO_LARGE,
         ?Throwable $previous = null,
         ?string $model = null,
         ?int $inputLength = null,
@@ -70,19 +71,19 @@ class LLMEmbeddingInputTooLargeException extends LLMModelException
     public function getSuggestion(): string
     {
         $suggestions = [
-            '建议将输入文本分割成较小的块进行处理',
-            '可以使用 TextSplitter 工具进行文本分割',
-            '考虑移除不必要的多媒体内容或格式标记',
+            'Consider splitting the input text into smaller chunks for processing',
+            'You can use a TextSplitter tool to split the text',
+            'Consider removing unnecessary multimedia content or formatting tags',
         ];
 
         if ($this->inputLength && $this->maxInputLength) {
             array_unshift($suggestions, sprintf(
-                '当前输入长度: %d，最大限制: %d',
+                'Current input length: %d, max limit: %d',
                 $this->inputLength,
                 $this->maxInputLength
             ));
         }
 
-        return implode('；', $suggestions);
+        return implode('; ', $suggestions);
     }
 }

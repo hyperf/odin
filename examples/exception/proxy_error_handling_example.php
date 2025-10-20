@@ -42,7 +42,7 @@ echo str_repeat('=', 60) . "\n";
 
 $nestedErrorResponse = json_encode([
     'error' => [
-        'message' => '上下文长度超出模型限制',
+        'message' => 'Context length exceeds model limit',
         'code' => 4002,
         'request_id' => '838816451070042112',
     ],
@@ -71,7 +71,7 @@ echo str_repeat('=', 60) . "\n";
 
 $flatErrorResponse = json_encode([
     'code' => 4002,
-    'message' => '上下文长度超出模型限制',
+    'message' => 'Context length exceeds model limit',
 ]);
 
 $request = new Request('POST', 'https://proxy-service.example.com/v1/chat/completions');
@@ -91,7 +91,7 @@ echo str_repeat('=', 60) . "\n";
 
 $detailedErrorResponse = json_encode([
     'error' => [
-        'message' => '上下文长度超出模型限制，当前长度: 8000，最大限制: 4096',
+        'message' => 'Context length exceeds model limit, current length: 8000, max limit: 4096',
         'code' => 4002,
         'type' => 'context_length_exceeded',
         'request_id' => '838816451070042116',
@@ -123,17 +123,21 @@ echo "Error Report:\n";
 echo json_encode($errorReport, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
 echo "\n";
 
-// Example 5: Demonstrating various Chinese error messages
-echo "Example 5: Various Chinese error messages\n";
+// Example 5: Demonstrating various error messages (English and Chinese)
+echo "Example 5: Various error messages (English and Chinese for backward compatibility)\n";
 echo str_repeat('=', 60) . "\n";
 
-$chineseErrors = [
+$errorMessages = [
+    ['message' => 'API rate limit exceeded', 'status' => 429],
+    ['message' => 'Content filtered by safety system', 'status' => 400],
+    ['message' => 'Invalid or missing API key', 'status' => 401],
+    // Also test Chinese messages for backward compatibility
     ['message' => 'API请求频率超出限制', 'status' => 429],
     ['message' => '内容被系统安全过滤', 'status' => 400],
     ['message' => 'API密钥无效或已过期', 'status' => 401],
 ];
 
-foreach ($chineseErrors as $error) {
+foreach ($errorMessages as $error) {
     $errorResponse = json_encode([
         'error' => [
             'message' => $error['message'],
@@ -154,7 +158,8 @@ foreach ($chineseErrors as $error) {
 
 echo "\nKey Features:\n";
 echo "- Supports both OpenAI-style nested and flat error formats\n";
-echo "- Recognizes Chinese and English error messages\n";
+echo "- Recognizes English and Chinese error messages (backward compatibility)\n";
 echo "- Extracts detailed error information (lengths, retry times, etc.)\n";
 echo "- Works seamlessly with multiple proxy layers\n";
 echo "- Maintains error context across service boundaries\n";
+echo "- All default error messages are now in English for better internationalization\n";

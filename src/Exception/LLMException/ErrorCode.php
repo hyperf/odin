@@ -13,12 +13,12 @@ declare(strict_types=1);
 namespace Hyperf\Odin\Exception\LLMException;
 
 /**
- * LLM错误码定义.
+ * LLM error code definitions.
  */
 class ErrorCode
 {
     /**
-     * 错误类型基数.
+     * Error type base values.
      */
     public const CONFIG_ERROR_BASE = 1000;
 
@@ -85,78 +85,78 @@ class ErrorCode
     public const MODEL_EMBEDDING_INPUT_TOO_LARGE = self::MODEL_ERROR_BASE + 7;
 
     /**
-     * 错误码映射表.
+     * Error code mapping table.
      */
     public static function getErrorMessages(): array
     {
         return [
-            // 配置错误
-            self::CONFIG_INVALID_API_KEY => '无效的API密钥或API密钥缺失',
-            self::CONFIG_INVALID_ENDPOINT => '无效的API终端点URL',
-            self::CONFIG_INVALID_MODEL => '无效的模型名称或模型不可用',
-            self::CONFIG_INVALID_PARAMETER => '无效的配置参数',
+            // Configuration errors
+            self::CONFIG_INVALID_API_KEY => ErrorMessage::INVALID_API_KEY,
+            self::CONFIG_INVALID_ENDPOINT => ErrorMessage::INVALID_ENDPOINT,
+            self::CONFIG_INVALID_MODEL => ErrorMessage::INVALID_MODEL,
+            self::CONFIG_INVALID_PARAMETER => ErrorMessage::INVALID_PARAMETER,
 
-            // 网络错误
-            self::NETWORK_CONNECTION_TIMEOUT => '连接LLM服务超时',
-            self::NETWORK_READ_TIMEOUT => '从LLM服务读取响应超时',
-            self::NETWORK_WRITE_TIMEOUT => '向LLM服务发送请求超时',
-            self::NETWORK_CONNECTION_ERROR => '连接LLM服务失败',
-            self::NETWORK_SSL_ERROR => 'SSL/TLS连接错误',
+            // Network errors
+            self::NETWORK_CONNECTION_TIMEOUT => ErrorMessage::CONNECTION_TIMEOUT,
+            self::NETWORK_READ_TIMEOUT => ErrorMessage::READ_TIMEOUT,
+            self::NETWORK_WRITE_TIMEOUT => ErrorMessage::WRITE_TIMEOUT,
+            self::NETWORK_CONNECTION_ERROR => ErrorMessage::CONNECTION_ERROR,
+            self::NETWORK_SSL_ERROR => ErrorMessage::SSL_ERROR,
 
-            // API错误
-            self::API_RATE_LIMIT => 'API请求频率超出限制',
-            self::API_INVALID_REQUEST => '无效的API请求',
-            self::API_SERVER_ERROR => 'LLM服务端错误',
-            self::API_AUTHENTICATION_ERROR => 'API认证失败',
-            self::API_PERMISSION_DENIED => 'API权限不足',
-            self::API_QUOTA_EXCEEDED => 'API配额已用尽',
+            // API errors
+            self::API_RATE_LIMIT => ErrorMessage::RATE_LIMIT,
+            self::API_INVALID_REQUEST => ErrorMessage::INVALID_REQUEST,
+            self::API_SERVER_ERROR => ErrorMessage::SERVER_ERROR,
+            self::API_AUTHENTICATION_ERROR => ErrorMessage::AUTHENTICATION_ERROR,
+            self::API_PERMISSION_DENIED => ErrorMessage::PERMISSION_DENIED,
+            self::API_QUOTA_EXCEEDED => ErrorMessage::QUOTA_EXCEEDED,
 
-            // 模型错误
-            self::MODEL_CONTENT_FILTER => '内容被系统安全过滤',
-            self::MODEL_CONTEXT_LENGTH => '上下文长度超出模型限制',
-            self::MODEL_FUNCTION_CALL_NOT_SUPPORTED => '模型不支持函数调用功能',
-            self::MODEL_MULTI_MODAL_NOT_SUPPORTED => '模型不支持多模态输入',
-            self::MODEL_EMBEDDING_NOT_SUPPORTED => '模型不支持嵌入向量生成',
-            self::MODEL_IMAGE_URL_ACCESS_ERROR => '多模态图片URL不可访问',
-            self::MODEL_EMBEDDING_INPUT_TOO_LARGE => '嵌入请求输入内容过大，超出模型处理限制',
+            // Model errors
+            self::MODEL_CONTENT_FILTER => ErrorMessage::CONTENT_FILTER,
+            self::MODEL_CONTEXT_LENGTH => ErrorMessage::CONTEXT_LENGTH,
+            self::MODEL_FUNCTION_CALL_NOT_SUPPORTED => ErrorMessage::FUNCTION_NOT_SUPPORTED,
+            self::MODEL_MULTI_MODAL_NOT_SUPPORTED => ErrorMessage::MULTIMODAL_NOT_SUPPORTED,
+            self::MODEL_EMBEDDING_NOT_SUPPORTED => ErrorMessage::EMBEDDING_NOT_SUPPORTED,
+            self::MODEL_IMAGE_URL_ACCESS_ERROR => ErrorMessage::IMAGE_URL_ACCESS,
+            self::MODEL_EMBEDDING_INPUT_TOO_LARGE => ErrorMessage::EMBEDDING_INPUT_TOO_LARGE,
         ];
     }
 
     /**
-     * 获取错误提示消息.
+     * Get error message.
      */
     public static function getMessage(int $code): string
     {
         $messages = self::getErrorMessages();
-        return $messages[$code] ?? '未知错误';
+        return $messages[$code] ?? ErrorMessage::UNKNOWN_ERROR;
     }
 
     /**
-     * 获取错误建议.
+     * Get error suggestion.
      */
     public static function getSuggestion(int $code): string
     {
         $suggestions = [
-            // 配置错误建议
-            self::CONFIG_INVALID_API_KEY => '请检查API密钥是否正确配置，或联系服务提供商获取有效的API密钥',
-            self::CONFIG_INVALID_ENDPOINT => '请检查API终端点URL是否正确，确保包含协议前缀(http/https)',
-            self::CONFIG_INVALID_MODEL => '请检查模型名称是否正确，或查询可用的模型列表',
+            // Configuration error suggestions
+            self::CONFIG_INVALID_API_KEY => 'Please check your API key configuration or contact the service provider for a valid API key',
+            self::CONFIG_INVALID_ENDPOINT => 'Please verify the API endpoint URL is correct and includes the protocol prefix (http/https)',
+            self::CONFIG_INVALID_MODEL => 'Please verify the model name is correct or check the list of available models',
 
-            // 网络错误建议
-            self::NETWORK_CONNECTION_TIMEOUT => '请检查网络连接或增加连接超时时间，稍后重试',
-            self::NETWORK_READ_TIMEOUT => '请增加读取超时时间或减少请求复杂度，稍后重试',
+            // Network error suggestions
+            self::NETWORK_CONNECTION_TIMEOUT => 'Please check your network connection or increase the connection timeout, then retry',
+            self::NETWORK_READ_TIMEOUT => 'Please increase the read timeout or reduce request complexity, then retry',
 
-            // API错误建议
-            self::API_RATE_LIMIT => '请降低请求频率，实现请求节流或等待后重试',
-            self::API_QUOTA_EXCEEDED => '请检查账户额度或升级账户计划',
+            // API error suggestions
+            self::API_RATE_LIMIT => 'Please reduce request frequency, implement rate limiting, or wait before retrying',
+            self::API_QUOTA_EXCEEDED => 'Please check your account quota or upgrade your account plan',
 
-            // 模型错误建议
-            self::MODEL_CONTEXT_LENGTH => '请减少输入内容长度，或使用支持更长上下文的模型',
-            self::MODEL_FUNCTION_CALL_NOT_SUPPORTED => '请选择支持函数调用功能的模型',
-            self::MODEL_MULTI_MODAL_NOT_SUPPORTED => '请选择支持多模态输入的模型',
-            self::MODEL_IMAGE_URL_ACCESS_ERROR => '请检查图片URL是否正确、可公开访问，并确保图片格式受支持',
+            // Model error suggestions
+            self::MODEL_CONTEXT_LENGTH => 'Please reduce input length or use a model that supports longer context',
+            self::MODEL_FUNCTION_CALL_NOT_SUPPORTED => 'Please select a model that supports function calling',
+            self::MODEL_MULTI_MODAL_NOT_SUPPORTED => 'Please select a model that supports multimodal input',
+            self::MODEL_IMAGE_URL_ACCESS_ERROR => 'Please verify the image URL is correct, publicly accessible, and in a supported format',
         ];
 
-        return $suggestions[$code] ?? '请检查输入参数和配置，如问题持续存在请联系技术支持';
+        return $suggestions[$code] ?? 'Please check input parameters and configuration. If the issue persists, contact technical support';
     }
 }

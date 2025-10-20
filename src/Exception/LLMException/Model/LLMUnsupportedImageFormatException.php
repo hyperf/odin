@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Exception\LLMException\Model;
 
+use Hyperf\Odin\Exception\LLMException\ErrorMessage;
 use Hyperf\Odin\Exception\LLMException\LLMModelException;
 use Throwable;
 
@@ -53,7 +54,7 @@ class LLMUnsupportedImageFormatException extends LLMModelException
      * @param int $statusCode HTTP status code
      */
     public function __construct(
-        string $message = '不支持的图片格式',
+        string $message = ErrorMessage::UNSUPPORTED_IMAGE_FORMAT,
         ?Throwable $previous = null,
         ?string $fileExtension = null,
         ?string $imageUrl = null,

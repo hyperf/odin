@@ -39,7 +39,7 @@ class ProxyErrorHandlingTest extends AbstractTestCase
     {
         $errorResponse = json_encode([
             'error' => [
-                'message' => '上下文长度超出模型限制',
+                'message' => 'Context length exceeds model limit',
                 'code' => 4002,
                 'request_id' => '838816451070042112',
             ],
@@ -53,7 +53,7 @@ class ProxyErrorHandlingTest extends AbstractTestCase
         $mappedException = $errorHandler->handle($exception);
 
         $this->assertInstanceOf(LLMContextLengthException::class, $mappedException);
-        $this->assertStringContainsString('上下文长度超出模型限制', $mappedException->getMessage());
+        $this->assertStringContainsString('Context length exceeds model limit', $mappedException->getMessage());
         $this->assertEquals(4002, $mappedException->getErrorCode());
     }
 
@@ -64,7 +64,7 @@ class ProxyErrorHandlingTest extends AbstractTestCase
     {
         $errorResponse = json_encode([
             'code' => 4002,
-            'message' => '上下文长度超出模型限制',
+            'message' => 'Context length exceeds model limit',
         ]);
 
         $request = new Request('POST', 'https://api.example.com/v1/chat/completions');
@@ -75,7 +75,7 @@ class ProxyErrorHandlingTest extends AbstractTestCase
         $mappedException = $errorHandler->handle($exception);
 
         $this->assertInstanceOf(LLMContextLengthException::class, $mappedException);
-        $this->assertStringContainsString('上下文长度超出模型限制', $mappedException->getMessage());
+        $this->assertStringContainsString('Context length exceeds model limit', $mappedException->getMessage());
     }
 
     /**
@@ -85,7 +85,7 @@ class ProxyErrorHandlingTest extends AbstractTestCase
     {
         $errorResponse = json_encode([
             'error' => [
-                'message' => 'API请求频率超出限制',
+                'message' => 'API rate limit exceeded',
                 'code' => 3001,
                 'request_id' => '838816451070042113',
             ],
@@ -99,7 +99,7 @@ class ProxyErrorHandlingTest extends AbstractTestCase
         $mappedException = $errorHandler->handle($exception);
 
         $this->assertInstanceOf(LLMRateLimitException::class, $mappedException);
-        $this->assertStringContainsString('API请求频率超出限制', $mappedException->getMessage());
+        $this->assertStringContainsString('API rate limit exceeded', $mappedException->getMessage());
 
         /** @var LLMRateLimitException $mappedException */
         $this->assertEquals(60, $mappedException->getRetryAfter());
@@ -112,7 +112,7 @@ class ProxyErrorHandlingTest extends AbstractTestCase
     {
         $errorResponse = json_encode([
             'error' => [
-                'message' => '内容被系统安全过滤',
+                'message' => 'Content filtered by safety system',
                 'code' => 4001,
                 'request_id' => '838816451070042114',
             ],
@@ -126,7 +126,7 @@ class ProxyErrorHandlingTest extends AbstractTestCase
         $mappedException = $errorHandler->handle($exception);
 
         $this->assertInstanceOf(LLMContentFilterException::class, $mappedException);
-        $this->assertStringContainsString('内容被系统安全过滤', $mappedException->getMessage());
+        $this->assertStringContainsString('Content filtered by safety system', $mappedException->getMessage());
     }
 
     /**
@@ -136,7 +136,7 @@ class ProxyErrorHandlingTest extends AbstractTestCase
     {
         $errorResponse = json_encode([
             'error' => [
-                'message' => 'API密钥无效或已过期',
+                'message' => 'Invalid or missing API key',
                 'code' => 1001,
                 'request_id' => '838816451070042115',
             ],
@@ -150,7 +150,7 @@ class ProxyErrorHandlingTest extends AbstractTestCase
         $mappedException = $errorHandler->handle($exception);
 
         $this->assertInstanceOf(LLMInvalidApiKeyException::class, $mappedException);
-        $this->assertStringContainsString('API密钥无效', $mappedException->getMessage());
+        $this->assertStringContainsString('Invalid or missing API key', $mappedException->getMessage());
     }
 
     /**
@@ -160,7 +160,7 @@ class ProxyErrorHandlingTest extends AbstractTestCase
     {
         $errorResponse = json_encode([
             'error' => [
-                'message' => '上下文长度超出模型限制',
+                'message' => 'Context length exceeds model limit',
                 'code' => 4002,
             ],
         ]);
@@ -184,7 +184,7 @@ class ProxyErrorHandlingTest extends AbstractTestCase
         // Simulate an error from a downstream service that's already been formatted by an Odin proxy
         $errorResponse = json_encode([
             'error' => [
-                'message' => '上下文长度超出模型限制，当前长度: 8000，最大限制: 4096',
+                'message' => 'Context length exceeds model limit, current length: 8000, max limit: 4096',
                 'code' => 4002,
                 'type' => 'context_length_exceeded',
                 'request_id' => '838816451070042116',
@@ -199,7 +199,7 @@ class ProxyErrorHandlingTest extends AbstractTestCase
         $mappedException = $errorHandler->handle($exception);
 
         $this->assertInstanceOf(LLMContextLengthException::class, $mappedException);
-        $this->assertStringContainsString('上下文长度超出模型限制', $mappedException->getMessage());
+        $this->assertStringContainsString('Context length exceeds model limit', $mappedException->getMessage());
 
         // Verify length extraction still works
         /** @var LLMContextLengthException $mappedException */
@@ -208,20 +208,35 @@ class ProxyErrorHandlingTest extends AbstractTestCase
     }
 
     /**
-     * Test that Chinese error messages are properly recognized.
+     * Test that both Chinese and English error messages are properly recognized (for backward compatibility).
      */
-    public function testChineseErrorMessageRecognition()
+    public function testChineseAndEnglishErrorMessageRecognition()
     {
         $testCases = [
+            [
+                'message' => 'Context length exceeds model limit',
+                'expectedClass' => LLMContextLengthException::class,
+                'statusCode' => 400,
+            ],
             [
                 'message' => '上下文长度超出模型限制',
                 'expectedClass' => LLMContextLengthException::class,
                 'statusCode' => 400,
             ],
             [
+                'message' => 'API rate limit exceeded',
+                'expectedClass' => LLMRateLimitException::class,
+                'statusCode' => 429,
+            ],
+            [
                 'message' => 'API请求频率超出限制',
                 'expectedClass' => LLMRateLimitException::class,
                 'statusCode' => 429,
+            ],
+            [
+                'message' => 'Content filtered by safety system',
+                'expectedClass' => LLMContentFilterException::class,
+                'statusCode' => 400,
             ],
             [
                 'message' => '内容被系统安全过滤',
@@ -248,7 +263,7 @@ class ProxyErrorHandlingTest extends AbstractTestCase
             $this->assertInstanceOf(
                 $testCase['expectedClass'],
                 $mappedException,
-                "Failed to recognize Chinese message: {$testCase['message']}"
+                "Failed to recognize message: {$testCase['message']}"
             );
         }
     }

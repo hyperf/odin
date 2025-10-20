@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Exception\LLMException\Api;
 
+use Hyperf\Odin\Exception\LLMException\ErrorMessage;
 use Hyperf\Odin\Exception\LLMException\LLMApiException;
 use Throwable;
 
@@ -39,7 +40,7 @@ class LLMInvalidRequestException extends LLMApiException
      * 创建一个新的无效请求异常实例.
      */
     public function __construct(
-        string $message = '无效的API请求',
+        string $message = ErrorMessage::INVALID_REQUEST,
         ?Throwable $previous = null,
         ?int $statusCode = 400,
         ?array $invalidFields = null,
@@ -80,7 +81,7 @@ class LLMInvalidRequestException extends LLMApiException
         // 如果有问题字段，添加到消息中
         if (! empty($invalidFields)) {
             $fieldsStr = implode(', ', array_keys($invalidFields));
-            $message = sprintf('%s，问题字段: %s', $message, $fieldsStr);
+            $message = sprintf('%s, invalid fields: %s', $message, $fieldsStr);
         }
 
         // 如果有服务商详细错误信息，添加到消息中
@@ -88,19 +89,19 @@ class LLMInvalidRequestException extends LLMApiException
             $providerDetails = [];
 
             if (isset($providerErrorDetails['code'])) {
-                $providerDetails[] = sprintf('错误码: %s', $providerErrorDetails['code']);
+                $providerDetails[] = sprintf('code: %s', $providerErrorDetails['code']);
             }
 
             if (isset($providerErrorDetails['message'])) {
-                $providerDetails[] = sprintf('错误信息: %s', $providerErrorDetails['message']);
+                $providerDetails[] = sprintf('message: %s', $providerErrorDetails['message']);
             }
 
             if (isset($providerErrorDetails['type'])) {
-                $providerDetails[] = sprintf('错误类型: %s', $providerErrorDetails['type']);
+                $providerDetails[] = sprintf('type: %s', $providerErrorDetails['type']);
             }
 
             if (! empty($providerDetails)) {
-                $message .= '，错误详情: [' . implode(', ', $providerDetails) . ']';
+                $message .= ', error details: [' . implode(', ', $providerDetails) . ']';
             }
         }
 

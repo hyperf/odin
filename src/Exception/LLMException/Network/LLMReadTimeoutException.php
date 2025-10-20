@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Exception\LLMException\Network;
 
+use Hyperf\Odin\Exception\LLMException\ErrorMessage;
 use Hyperf\Odin\Exception\LLMException\LLMNetworkException;
 use Throwable;
 
@@ -33,12 +34,12 @@ class LLMReadTimeoutException extends LLMNetworkException
     /**
      * 创建一个新的读取超时异常实例.
      */
-    public function __construct(string $message = '从LLM服务读取响应超时', ?Throwable $previous = null, ?float $timeoutSeconds = null, int $statusCode = 408)
+    public function __construct(string $message = ErrorMessage::READ_TIMEOUT, ?Throwable $previous = null, ?float $timeoutSeconds = null, int $statusCode = 408)
     {
         $this->timeoutSeconds = $timeoutSeconds;
 
         if ($timeoutSeconds !== null) {
-            $message = sprintf('%s，超时时间: %.2f秒', $message, $timeoutSeconds);
+            $message = sprintf('%s, timeout: %.2f seconds', $message, $timeoutSeconds);
         }
 
         parent::__construct($message, self::ERROR_CODE, $previous, 0, $statusCode);
