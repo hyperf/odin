@@ -37,7 +37,7 @@ class Cache implements CacheInterface
         return $default;
     }
 
-    public function set(string $key, mixed $value, null|DateInterval|int $ttl = null): bool
+    public function set(string $key, mixed $value, DateInterval|int|null $ttl = null): bool
     {
         $this->storage[$key] = $value;
 
@@ -85,7 +85,7 @@ class Cache implements CacheInterface
         return $result;
     }
 
-    public function setMultiple(iterable $values, null|DateInterval|int $ttl = null): bool
+    public function setMultiple(iterable $values, DateInterval|int|null $ttl = null): bool
     {
         $success = true;
         foreach ($values as $key => $value) {
