@@ -146,9 +146,9 @@ class StreamExceptionDetectorTest extends AbstractTestCase
         $logger = Mockery::mock(LoggerInterface::class);
         // @phpstan-ignore-next-line
         $logger->shouldReceive('debug')->once()->with(
-            'First chunk received',
+            '接收到首个流式响应块',
             Mockery::on(function ($context) {
-                return isset($context['initial_response_time']);
+                return isset($context['initial_response_time']) && isset($context['chunk_info']);
             })
         );
 
