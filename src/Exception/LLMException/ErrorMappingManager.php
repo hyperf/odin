@@ -186,7 +186,23 @@ class ErrorMappingManager
                 }
 
                 $responseBody = (string) $body;
-                $message .= ' ' . $responseBody; // 将响应体内容加入匹配文本中
+
+                // Try to parse JSON response and extract the message field for matching
+                // This is important for proxy scenarios where downstream Odin services return structured errors
+                $decodedBody = json_decode($responseBody, true);
+                if (is_array($decodedBody)) {
+                    // Extract message from common error response structures
+                    if (isset($decodedBody['message'])) {
+                        // Direct message field: {"code": 4017, "message": "上下文长度超出模型限制"}
+                        $message .= ' ' . $decodedBody['message'];
+                    } elseif (isset($decodedBody['error']['message'])) {
+                        // Nested message field: {"error": {"code": "...", "message": "..."}}
+                        $message .= ' ' . $decodedBody['error']['message'];
+                    }
+                }
+
+                // Also include the full response body for fallback matching
+                $message .= ' ' . $responseBody;
             }
 
             if (! preg_match($handler['regex'], $message)) {

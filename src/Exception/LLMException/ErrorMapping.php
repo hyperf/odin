@@ -92,27 +92,67 @@ class ErrorMapping
             RequestException::class => [
                 // API密钥无效
                 [
-                    'regex' => '/invalid.+api.+key|api.+key.+invalid|authentication|unauthorized/i',
+                    'regex' => '/invalid.+api.+key|api.+key.+invalid|authentication|unauthorized|API密钥无效/i',
                     'status' => [401, 403],
                     'factory' => function (RequestException $e) {
                         $provider = '';
+                        $message = 'API密钥无效或已过期';
+
                         if ($e->getRequest()->getUri()->getHost()) {
                             $provider = $e->getRequest()->getUri()->getHost();
                         }
-                        return new LLMInvalidApiKeyException('API密钥无效或已过期', $e, $provider);
+
+                        // Extract message from response body
+                        if ($e->getResponse()) {
+                            $response = $e->getResponse();
+                            $body = $response->getBody();
+                            if ($body->isSeekable()) {
+                                $body->rewind();
+                            }
+                            $responseBody = (string) $body;
+                            $data = json_decode($responseBody, true);
+                            if (is_array($data)) {
+                                if (isset($data['error']['message'])) {
+                                    $message = $data['error']['message'];
+                                } elseif (isset($data['message'])) {
+                                    $message = $data['message'];
+                                }
+                            }
+                        }
+
+                        return new LLMInvalidApiKeyException($message, $e, $provider);
                     },
                 ],
                 // 速率限制
                 [
-                    'regex' => '/rate\s+limit|too\s+many\s+requests/i',
+                    'regex' => '/rate\s+limit|too\s+many\s+requests|API请求频率超出限制/i',
                     'status' => [429],
                     'factory' => function (RequestException $e) {
                         $retryAfter = null;
+                        $message = 'API请求频率超出限制';
+
                         if ($e->getResponse()) {
                             $retryAfter = $e->getResponse()->getHeaderLine('Retry-After');
                             $retryAfter = $retryAfter ? (int) $retryAfter : null;
+
+                            // Extract message from response body
+                            $response = $e->getResponse();
+                            $body = $response->getBody();
+                            if ($body->isSeekable()) {
+                                $body->rewind();
+                            }
+                            $responseBody = (string) $body;
+                            $data = json_decode($responseBody, true);
+                            if (is_array($data)) {
+                                if (isset($data['error']['message'])) {
+                                    $message = $data['error']['message'];
+                                } elseif (isset($data['message'])) {
+                                    $message = $data['message'];
+                                }
+                            }
                         }
-                        return new LLMRateLimitException('API请求频率超出限制', $e, 429, $retryAfter);
+
+                        return new LLMRateLimitException($message, $e, 429, $retryAfter);
                     },
                 ],
                 // Azure OpenAI 模型内容过滤错误
@@ -223,37 +263,84 @@ class ErrorMapping
                 ],
                 // 内容过滤
                 [
-                    'regex' => '/content\s+filter|content\s+policy|inappropriate|unsafe content|violate|policy/i',
+                    'regex' => '/content\s+filter|content\s+policy|inappropriate|unsafe content|violate|policy|内容被系统安全过滤/i',
                     'factory' => function (RequestException $e) {
                         $labels = null;
+                        $message = '内容被系统安全过滤';
+
                         if ($e->getResponse()) {
                             $response = $e->getResponse();
                             $response->getBody()->rewind(); // 重置流位置
                             $body = $response->getBody()->getContents();
                             $data = json_decode($body, true);
-                            if (isset($data['error']['content_filter_results'])) {
-                                $labels = array_keys($data['error']['content_filter_results']);
+
+                            // Extract message from response
+                            if (is_array($data)) {
+                                if (isset($data['error']['message'])) {
+                                    $message = $data['error']['message'];
+                                } elseif (isset($data['message'])) {
+                                    $message = $data['message'];
+                                }
+
+                                // Extract content filter labels if available
+                                if (isset($data['error']['content_filter_results'])) {
+                                    $labels = array_keys($data['error']['content_filter_results']);
+                                }
                             }
                         }
+
                         $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : 400;
-                        return new LLMContentFilterException('内容被系统安全过滤', $e, null, $labels, $statusCode);
+                        return new LLMContentFilterException($message, $e, null, $labels, $statusCode);
                     },
                 ],
                 // 上下文长度超出限制
                 [
-                    'regex' => '/context\s+length|token\s+limit|maximum\s+context\s+length|input\s+is\s+too\s+long|input\s+too\s+long/i',
+                    'regex' => '/context\s+length|token\s+limit|maximum\s+context\s+length|input\s+is\s+too\s+long|input\s+too\s+long|上下文长度超出模型限制/i',
                     'factory' => function (RequestException $e) {
                         $currentLength = null;
                         $maxLength = null;
                         $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : 400;
+                        $message = null;
+
+                        // Try to extract message from response body for proxy scenarios
+                        if ($e->getResponse()) {
+                            $response = $e->getResponse();
+                            $body = $response->getBody();
+                            if ($body->isSeekable()) {
+                                $body->rewind();
+                            }
+                            $responseBody = (string) $body;
+                            $decodedBody = json_decode($responseBody, true);
+                            if (is_array($decodedBody)) {
+                                // Support both formats:
+                                // 1. {"error": {"message": "...", "code": 4002}}
+                                // 2. {"code": 4017, "message": "..."}
+                                if (isset($decodedBody['error']['message'])) {
+                                    $message = $decodedBody['error']['message'];
+                                } elseif (isset($decodedBody['message'])) {
+                                    $message = $decodedBody['message'];
+                                }
+                            }
+                        }
+
+                        // Fallback to exception message
+                        if (! $message) {
+                            $message = $e->getMessage();
+                        }
+
                         // 尝试从消息中提取长度信息
-                        $message = $e->getMessage();
-                        preg_match('/(\d+)\s*\/\s*(\d+)/i', $message, $matches);
-                        if (isset($matches[1], $matches[2])) {
+                        // Support multiple formats:
+                        // 1. "8000 / 4096" or "8000/4096"
+                        // 2. "当前长度: 8000，最大限制: 4096"
+                        if (preg_match('/(\d+)\s*\/\s*(\d+)/i', $message, $matches)) {
+                            $currentLength = (int) $matches[1];
+                            $maxLength = (int) $matches[2];
+                        } elseif (preg_match('/当前长度[：:]\s*(\d+).*最大限制[：:]\s*(\d+)/i', $message, $matches)) {
                             $currentLength = (int) $matches[1];
                             $maxLength = (int) $matches[2];
                         }
-                        return new LLMContextLengthException('上下文长度超出模型限制', $e, null, $currentLength, $maxLength, $statusCode);
+
+                        return new LLMContextLengthException($message ?: '上下文长度超出模型限制', $e, null, $currentLength, $maxLength, $statusCode);
                     },
                 ],
                 // 多模态图片URL不可访问
