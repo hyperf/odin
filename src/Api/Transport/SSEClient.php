@@ -109,7 +109,7 @@ class SSEClient implements IteratorAggregate
                 }
 
                 // Read available data (non-blocking read with small chunks)
-                $data = fread($this->stream, 1024);
+                $data = fread($this->stream, 8192);
 
                 if ($data === false || $data === '') {
                     // No data available, check timeout
