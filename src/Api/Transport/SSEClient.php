@@ -111,11 +111,25 @@ class SSEClient implements IteratorAggregate
                 // Read available data (non-blocking read with small chunks)
                 $data = fread($this->stream, 8192);
 
-                if ($data === false || $data === '') {
-                    // No data available, check timeout
+                // Handle read errors
+                if ($data === false) {
+                    // fread() returned false - this indicates an error
+                    // Check if stream is still valid
+                    if (! is_resource($this->stream) || feof($this->stream)) {
+                        $this->logger?->debug('StreamClosed', ['reason' => 'fread returned false']);
+                        break; // Exit loop if stream is closed or at EOF
+                    }
+                    // Stream still valid, check timeout and retry
                     $this->exceptionDetector?->checkTimeout();
-                    // Small sleep to avoid busy loop (1ms for better responsiveness)
-                    usleep(1000); // 1ms
+                    usleep(1000);
+                    continue;
+                }
+
+                // Handle empty data (no data available yet - normal in non-blocking mode)
+                if ($data === '') {
+                    // No data available right now, check timeout
+                    $this->exceptionDetector?->checkTimeout();
+                    usleep(1000);
                     continue;
                 }
 
