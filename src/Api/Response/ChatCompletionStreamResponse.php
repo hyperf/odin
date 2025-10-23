@@ -197,6 +197,7 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
         $startTime = microtime(true);
         $chunkCount = 0;
         $lastLogTime = $startTime;
+        $lastChunkData = null;
 
         try {
             $this->logger?->info('StreamProcessingStartedWithCustomIterator', [
@@ -227,6 +228,9 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
                     $this->logger?->warning('InvalidDataFormat', ['data' => $data, 'chunk_count' => $chunkCount]);
                     continue;
                 }
+
+                // Store last valid chunk data
+                $lastChunkData = $data;
 
                 // Log checkpoint (first 5 chunks and every 200 chunks)
                 if ($this->shouldLogCheckpoint($chunkCount)) {
@@ -268,6 +272,18 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
             ]);
             throw $e; // 重新抛出异常，让调用方可以处理
         } finally {
+            // Log last chunk content if available
+            if ($lastChunkData !== null) {
+                $this->logger?->info('LastChunkReceivedFromCustomIterator', [
+                    'chunk_count' => $chunkCount,
+                    'id' => $lastChunkData['id'] ?? null,
+                    'model' => $lastChunkData['model'] ?? null,
+                    'choices' => $lastChunkData['choices'] ?? [],
+                    'usage' => $lastChunkData['usage'] ?? null,
+                    'finish_reason' => $lastChunkData['choices'][0]['finish_reason'] ?? null,
+                ]);
+            }
+
             // Log completion summary (always executed)
             $this->logger?->info('CustomIteratorStreamCompleted', [
                 'total_chunks' => $chunkCount,
@@ -288,6 +304,7 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
         $startTime = microtime(true);
         $chunkCount = 0;
         $lastLogTime = $startTime;
+        $lastChunkData = null;
 
         try {
             $this->logger?->info('StreamProcessingStartedWithSseClient', [
@@ -323,6 +340,9 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
                     $this->logger?->warning('InvalidDataFormat', ['data' => $data, 'chunk_count' => $chunkCount]);
                     continue;
                 }
+
+                // Store last valid chunk data
+                $lastChunkData = $data;
 
                 // Log checkpoint (first 5 chunks and every 200 chunks)
                 if ($this->shouldLogCheckpoint($chunkCount)) {
@@ -364,6 +384,18 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
             ]);
             throw $e; // 重新抛出异常，让调用方可以处理
         } finally {
+            // Log last chunk content if available
+            if ($lastChunkData !== null) {
+                $this->logger?->info('LastChunkReceivedFromSseClient', [
+                    'chunk_count' => $chunkCount,
+                    'id' => $lastChunkData['id'] ?? null,
+                    'model' => $lastChunkData['model'] ?? null,
+                    'choices' => $lastChunkData['choices'] ?? [],
+                    'usage' => $lastChunkData['usage'] ?? null,
+                    'finish_reason' => $lastChunkData['choices'][0]['finish_reason'] ?? null,
+                ]);
+            }
+
             // Log completion summary (always executed)
             $this->logger?->info('SseClientStreamCompleted', [
                 'total_chunks' => $chunkCount,
@@ -451,6 +483,7 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
         $startTime = microtime(true);
         $chunkCount = 0;
         $lastLogTime = $startTime;
+        $lastChunkData = null;
         $body = $this->originResponse->getBody();
 
         $this->logger?->info('StreamProcessingStartedWithLegacyMethod', [
@@ -488,6 +521,9 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
                     $data = json_decode(trim($line), true, 512, JSON_THROW_ON_ERROR);
                     ++$chunkCount;
 
+                    // Store last valid chunk data
+                    $lastChunkData = $data;
+
                     // Log checkpoint (first 5 chunks and every 200 chunks)
                     if ($this->shouldLogCheckpoint($chunkCount)) {
                         $currentTime = microtime(true);
@@ -523,6 +559,18 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
                     continue;
                 }
             }
+        }
+
+        // Log last chunk content if available
+        if ($lastChunkData !== null) {
+            $this->logger?->info('LastChunkReceivedFromLegacyMethod', [
+                'chunk_count' => $chunkCount,
+                'id' => $lastChunkData['id'] ?? null,
+                'model' => $lastChunkData['model'] ?? null,
+                'choices' => $lastChunkData['choices'] ?? [],
+                'usage' => $lastChunkData['usage'] ?? null,
+                'finish_reason' => $lastChunkData['choices'][0]['finish_reason'] ?? null,
+            ]);
         }
 
         // Log completion summary
