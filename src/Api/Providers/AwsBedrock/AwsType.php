@@ -14,7 +14,18 @@ namespace Hyperf\Odin\Api\Providers\AwsBedrock;
 
 class AwsType
 {
+    /**
+     * Converse API with AWS SDK.
+     */
     public const CONVERSE = 'converse';
 
+    /**
+     * Converse API without AWS SDK (custom Guzzle implementation).
+     */
+    public const CONVERSE_CUSTOM = 'converse_custom';
+
+    /**
+     * InvokeModel API with AWS SDK.
+     */
     public const INVOKE = 'invoke';
 }

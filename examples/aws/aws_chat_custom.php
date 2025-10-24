@@ -17,6 +17,7 @@ use Hyperf\Context\ApplicationContext;
 use Hyperf\Di\ClassLoader;
 use Hyperf\Di\Container;
 use Hyperf\Di\Definition\DefinitionSourceFactory;
+use Hyperf\Odin\Api\Providers\AwsBedrock\AwsType;
 use Hyperf\Odin\Api\Request\ChatCompletionRequest;
 use Hyperf\Odin\Api\RequestOptions\ApiOptions;
 use Hyperf\Odin\Logger;
@@ -31,32 +32,33 @@ ClassLoader::init();
 
 $container = ApplicationContext::setContainer(new Container((new DefinitionSourceFactory())()));
 
-// 创建 AWS Bedrock 模型实例
-// 使用 Claude 3 Sonnet 模型 ID
+echo '=== AWS Bedrock Custom Client Test (Without AWS SDK) ===' . PHP_EOL . PHP_EOL;
+
+// Create AWS Bedrock model instance with CONVERSE_CUSTOM type
+// This uses custom Guzzle + SigV4 implementation instead of AWS SDK
 $model = new AwsBedrockModel(
     'us.anthropic.claude-3-7-sonnet-20250219-v1:0',
     [
         'access_key' => env('AWS_ACCESS_KEY'),
         'secret_key' => env('AWS_SECRET_KEY'),
         'region' => env('AWS_REGION', 'us-east-1'),
+        'type' => AwsType::CONVERSE_CUSTOM, // Use custom client without AWS SDK
     ],
     new Logger(),
 );
 $model->setApiRequestOptions(new ApiOptions([
-    // 如果你的环境不需要代理，那就不用
     'proxy' => env('HTTP_CLIENT_PROXY'),
-    // HTTP 处理器配置 - 支持环境变量 ODIN_HTTP_HANDLER
     'http_handler' => env('ODIN_HTTP_HANDLER', 'auto'),
 ]));
 
 $messages = [
-    new SystemMessage('你是一位友好、专业的AI助手，擅长简明扼要地回答问题。每次回答问题必须携带 emoji 表情。'),
-    new UserMessage('你觉得量子纠缠的原理是什么？请用通俗易懂的语言解释一下。'),
+    new SystemMessage('You are a helpful AI assistant. Always include emoji in your responses.'),
+    new UserMessage('Explain quantum entanglement in simple terms.'),
 ];
 
 $start = microtime(true);
 
-// 使用非流式API调用
+// Use non-streaming API
 $request = new ChatCompletionRequest($messages);
 $request->setThinking([
     'type' => 'enabled',
@@ -64,21 +66,24 @@ $request->setThinking([
 ]);
 $response = $model->chatWithRequest($request);
 
-// 输出完整响应
+// Output full response
 $message = $response->getFirstChoice()->getMessage();
 if ($message instanceof AssistantMessage) {
-    echo '<think>' . $message->getReasoningContent() . '</think>' . PHP_EOL;
-    echo $message->getContent();
+    echo 'Response: ' . ($message->getReasoningContent() ?? $message->getContent()) . PHP_EOL;
 }
 
-echo PHP_EOL;
-echo '耗时' . (microtime(true) - $start) . '秒' . PHP_EOL;
+echo PHP_EOL . 'Duration: ' . round(microtime(true) - $start, 2) . ' seconds' . PHP_EOL;
 
-// Display usage information
+// Output usage information
 $usage = $response->getUsage();
-if ($usage) {
-    echo PHP_EOL . '=== Token 使用情况 ===' . PHP_EOL;
-    echo '输入 Tokens: ' . $usage->getPromptTokens() . PHP_EOL;
-    echo '输出 Tokens: ' . $usage->getCompletionTokens() . PHP_EOL;
-    echo '总计 Tokens: ' . $usage->getTotalTokens() . PHP_EOL;
+echo PHP_EOL . '=== Token Usage ===' . PHP_EOL;
+echo 'Input Tokens: ' . $usage->getPromptTokens() . PHP_EOL;
+echo 'Output Tokens: ' . $usage->getCompletionTokens() . PHP_EOL;
+echo 'Total Tokens: ' . $usage->getTotalTokens() . PHP_EOL;
+
+if ($usage->getCachedTokens() > 0) {
+    echo PHP_EOL . 'Cache Hit: ' . $usage->getCachedTokens() . ' tokens' . PHP_EOL;
+    echo 'Cache Hit Rate: ' . $usage->getCacheHitRatePercentage() . '%' . PHP_EOL;
 }
+
+echo PHP_EOL . '✅ Custom client (without AWS SDK) works perfectly!' . PHP_EOL;

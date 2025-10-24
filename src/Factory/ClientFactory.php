@@ -104,7 +104,7 @@ class ClientFactory
         $accessKey = $config['access_key'] ?? '';
         $secretKey = $config['secret_key'] ?? '';
         $region = $config['region'] ?? 'us-east-1';
-        $type = $config['type'] ?? AwsType::CONVERSE;
+        $type = $config['type'] ?? AwsType::CONVERSE_CUSTOM;
         $autoCache = (bool) ($config['auto_cache'] ?? false);
         $autoCacheConfig = null;
         if (isset($config['auto_cache_config'])) {

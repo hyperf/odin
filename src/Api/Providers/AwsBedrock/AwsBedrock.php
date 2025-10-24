@@ -21,11 +21,11 @@ use Psr\Log\LoggerInterface;
 class AwsBedrock extends AbstractApi
 {
     /**
-     * @var Client[]|ConverseClient[]
+     * @var Client[]|ConverseClient[]|ConverseCustomClient[]
      */
     protected array $clients = [];
 
-    public function getClient(AwsBedrockConfig $config, ?ApiOptions $requestOptions = null, ?LoggerInterface $logger = null): Client|ConverseClient
+    public function getClient(AwsBedrockConfig $config, ?ApiOptions $requestOptions = null, ?LoggerInterface $logger = null): Client|ConverseClient|ConverseCustomClient
     {
         // 检查AWS凭证，必须有访问密钥和密钥
         if (empty($config->accessKey) || empty($config->secretKey)) {
@@ -44,9 +44,14 @@ class AwsBedrock extends AbstractApi
             return $this->clients[$key];
         }
 
-        if ($config->getType() === AwsType::CONVERSE) {
+        if ($config->getType() === AwsType::CONVERSE_CUSTOM) {
+            // Use custom Converse client without AWS SDK (manual Guzzle + SigV4)
+            $client = new ConverseCustomClient($config, $requestOptions, $logger);
+        } elseif ($config->getType() === AwsType::CONVERSE) {
+            // Use Converse API with AWS SDK
             $client = new ConverseClient($config, $requestOptions, $logger);
         } else {
+            // Use InvokeModel API with AWS SDK (default)
             $client = new Client($config, $requestOptions, $logger);
         }
 
