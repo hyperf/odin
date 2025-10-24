@@ -237,7 +237,6 @@ class ConverseCustomClient extends AbstractClient
 
             $this->logger?->info('AwsBedrockConverseCustomStreamFirstResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
 
-            // Create custom stream converter (no AWS SDK dependency)
             $streamConverter = new CustomConverseStreamConverter($response, $this->logger, $modelId);
 
             $chatCompletionStreamResponse = new ChatCompletionStreamResponse(

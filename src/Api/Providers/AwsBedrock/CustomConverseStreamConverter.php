@@ -16,6 +16,7 @@ use Generator;
 use IteratorAggregate;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
+use RuntimeException;
 
 /**
  * Custom Converse Stream Converter.
@@ -42,7 +43,14 @@ class CustomConverseStreamConverter implements IteratorAggregate
      */
     public function __construct(ResponseInterface $response, ?LoggerInterface $logger = null, string $model = '')
     {
-        $this->parser = new AwsEventStreamParser($response->getBody());
+        // Detach the stream resource from the StreamInterface wrapper
+        // This allows direct access to the underlying resource for non-blocking I/O
+        $stream = $response->getBody()->detach();
+        if (! is_resource($stream)) {
+            throw new RuntimeException('Failed to detach stream resource from response body');
+        }
+
+        $this->parser = new AwsEventStreamParser($stream);
         $this->messageId = $response->getHeaderLine('x-amzn-requestid') ?: uniqid('bedrock-');
         $this->model = $model;
         $this->logger = $logger;

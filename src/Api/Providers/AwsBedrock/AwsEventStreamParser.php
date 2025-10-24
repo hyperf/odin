@@ -13,8 +13,8 @@ declare(strict_types=1);
 namespace Hyperf\Odin\Api\Providers\AwsBedrock;
 
 use Generator;
+use InvalidArgumentException;
 use IteratorAggregate;
-use Psr\Http\Message\StreamInterface;
 use RuntimeException;
 
 /**
@@ -32,13 +32,26 @@ use RuntimeException;
  */
 class AwsEventStreamParser implements IteratorAggregate
 {
-    private StreamInterface $stream;
+    /**
+     * @var resource
+     */
+    private $stream;
 
     private string $buffer = '';
 
-    public function __construct(StreamInterface $stream)
+    /**
+     * @param resource $stream PHP stream resource
+     */
+    public function __construct($stream)
     {
+        if (! is_resource($stream)) {
+            throw new InvalidArgumentException('Stream must be a resource');
+        }
+
         $this->stream = $stream;
+
+        // Enable non-blocking mode for real-time streaming
+        stream_set_blocking($this->stream, false);
     }
 
     /**
@@ -46,18 +59,55 @@ class AwsEventStreamParser implements IteratorAggregate
      */
     public function getIterator(): Generator
     {
-        while (! $this->stream->eof()) {
+        $lastDataTime = microtime(true);
+        // In non-blocking mode, allow up to 30 seconds of waiting for data
+        // This is reasonable for streaming responses that may have natural pauses
+        $maxWaitTime = 30.0; // seconds
+
+        // Adaptive chunk size strategy:
+        // - Start with small chunks (256 bytes) for low latency on first message
+        // - Switch to larger chunks (8KB) after first message for better throughput
+        $chunkSize = 256;
+        $hasReceivedFirstMessage = false;
+
+        while (! feof($this->stream)) {
             // Read more data into buffer
-            // Use 8KB chunk size for optimal network performance
-            $chunk = $this->stream->read(8192);
-            if ($chunk === '') {
-                break;
+            // In non-blocking mode, this will return immediately with whatever is available
+            $chunk = fread($this->stream, $chunkSize);
+
+            if ($chunk === false || $chunk === '') {
+                // Check if we've been waiting too long without data
+                $timeSinceLastData = microtime(true) - $lastDataTime;
+
+                // For non-blocking streams, EOF is the primary signal to stop
+                if (feof($this->stream)) {
+                    break;
+                }
+
+                // Check for stalled stream (no data for too long)
+                if ($timeSinceLastData > $maxWaitTime) {
+                    break;
+                }
+
+                // In non-blocking mode, sleep briefly to avoid tight CPU loop
+                usleep(1000); // 1ms
+                continue;
             }
+
+            // Update last data time when we get data
+            $lastDataTime = microtime(true);
             $this->buffer .= $chunk;
 
-            // Try to parse messages from buffer
+            // Parse and yield all available messages from buffer
+            // This is the standard approach - AWS SDK does the same
             while (($message = $this->parseNextMessage()) !== null) {
                 yield $message;
+
+                // After first message, switch to larger chunk size for better throughput
+                if (! $hasReceivedFirstMessage) {
+                    $hasReceivedFirstMessage = true;
+                    $chunkSize = 8192; // Switch to 8KB
+                }
             }
         }
 
