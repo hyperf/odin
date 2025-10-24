@@ -78,11 +78,37 @@ class AwsBedrockConverseFormatConverter implements IteratorAggregate
         $created = time();
         $isFirstChunk = true;
         $toolCallIndex = 0;
+        $chunkIndex = 0;
+        $firstChunks = [];
+        $lastChunks = [];
+        $maxChunksToLog = 5;
 
         foreach ($this->responseStream as $chunk) {
             if (empty($chunk) || ! is_array($chunk)) {
                 continue;
             }
+
+            $timestamp = microtime(true);
+            $chunkWithTime = [
+                'index' => $chunkIndex,
+                'timestamp' => $timestamp,
+                'datetime' => date('Y-m-d H:i:s', (int) $timestamp) . '.' . substr((string) fmod($timestamp, 1), 2, 6),
+                'data' => $chunk,
+            ];
+
+            // Collect first 5 chunks
+            if ($chunkIndex < $maxChunksToLog) {
+                $firstChunks[] = $chunkWithTime;
+            }
+
+            // Keep a rolling window of last 5 chunks
+            $lastChunks[] = $chunkWithTime;
+            if (count($lastChunks) > $maxChunksToLog) {
+                array_shift($lastChunks);
+            }
+
+            ++$chunkIndex;
+
             foreach ($chunk as $eventType => $event) {
                 // 根据事件类型处理
                 switch ($eventType) {
@@ -140,6 +166,21 @@ class AwsBedrockConverseFormatConverter implements IteratorAggregate
                         break;
                 }
             }
+        }
+
+        // Log first 5 and last 5 chunks after all processing
+        if (! empty($firstChunks)) {
+            $this->log(LogLevel::INFO, 'FirstChunks', [
+                'total_chunks' => $chunkIndex,
+                'chunks' => $firstChunks,
+            ]);
+        }
+
+        if (! empty($lastChunks)) {
+            $this->log(LogLevel::INFO, 'LastChunks', [
+                'total_chunks' => $chunkIndex,
+                'chunks' => $lastChunks,
+            ]);
         }
     }
 
