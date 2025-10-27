@@ -226,12 +226,6 @@ class CustomConverseStreamConverter implements IteratorAggregate
                     'reasoning_tokens' => 0,
                 ],
             ];
-            // Return the chunk with usage information
-            $openAiChunk['choices'][] = [
-                'index' => 0,
-                'delta' => [],
-                'finish_reason' => null,
-            ];
             return $openAiChunk;
         } elseif (isset($chunk['metrics'])) {
             // Metadata without usage - skip
