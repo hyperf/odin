@@ -95,8 +95,9 @@ class ConverseCustomClient extends AbstractClient
             // Generate request ID
             $requestId = $this->generateRequestId();
 
-            // Build URL
-            $url = "{$this->endpoint}/model/{$modelId}/converse";
+            // Build URL with URL-encoded model ID to support ARNs with special characters
+            $encodedModelId = rawurlencode($modelId);
+            $url = "{$this->endpoint}/model/{$encodedModelId}/converse";
 
             // Convert binary bytes to base64 for JSON encoding
             $requestBodyForJson = $this->prepareBytesForJsonEncoding($requestBody);
@@ -190,8 +191,9 @@ class ConverseCustomClient extends AbstractClient
             $requestBody = $this->prepareConverseRequestBody($chatRequest);
             $requestId = $this->generateRequestId();
 
-            // Build streaming URL
-            $url = "{$this->endpoint}/model/{$modelId}/converse-stream";
+            // Build streaming URL with URL-encoded model ID to support ARNs with special characters
+            $encodedModelId = rawurlencode($modelId);
+            $url = "{$this->endpoint}/model/{$encodedModelId}/converse-stream";
 
             // Convert binary bytes to base64 for JSON encoding
             $requestBodyForJson = $this->prepareBytesForJsonEncoding($requestBody);
