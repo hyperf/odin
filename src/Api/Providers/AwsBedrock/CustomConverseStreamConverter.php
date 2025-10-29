@@ -40,8 +40,9 @@ class CustomConverseStreamConverter implements IteratorAggregate
      * @param ResponseInterface $response Guzzle HTTP response with event stream body
      * @param null|LoggerInterface $logger Logger instance
      * @param string $model Model ID
+     * @param float $chunkTimeout Maximum time to wait between chunks (seconds)
      */
-    public function __construct(ResponseInterface $response, ?LoggerInterface $logger = null, string $model = '')
+    public function __construct(ResponseInterface $response, ?LoggerInterface $logger = null, string $model = '', float $chunkTimeout = 30.0)
     {
         // Detach the stream resource from the StreamInterface wrapper
         // This allows direct access to the underlying resource for non-blocking I/O
@@ -50,7 +51,7 @@ class CustomConverseStreamConverter implements IteratorAggregate
             throw new RuntimeException('Failed to detach stream resource from response body');
         }
 
-        $this->parser = new AwsEventStreamParser($stream);
+        $this->parser = new AwsEventStreamParser($stream, $chunkTimeout);
         $this->messageId = $response->getHeaderLine('x-amzn-requestid') ?: uniqid('bedrock-');
         $this->model = $model;
         $this->logger = $logger;

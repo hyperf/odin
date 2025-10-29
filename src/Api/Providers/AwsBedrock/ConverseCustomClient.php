@@ -239,7 +239,12 @@ class ConverseCustomClient extends AbstractClient
 
             $this->logger?->info('AwsBedrockConverseCustomStreamFirstResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
 
-            $streamConverter = new CustomConverseStreamConverter($response, $this->logger, $modelId);
+            $streamConverter = new CustomConverseStreamConverter(
+                $response,
+                $this->logger,
+                $modelId,
+                $this->requestOptions->getStreamChunkTimeout()
+            );
 
             $chatCompletionStreamResponse = new ChatCompletionStreamResponse(
                 logger: $this->logger,
@@ -318,8 +323,14 @@ class ConverseCustomClient extends AbstractClient
      */
     protected function getGuzzleOptions(bool $stream = false): array
     {
+        // For streaming requests, use first chunk timeout to fail fast on network issues
+        // For non-streaming requests, use total timeout
+        $timeout = $stream
+            ? $this->requestOptions->getStreamFirstChunkTimeout()
+            : $this->requestOptions->getTotalTimeout();
+
         $options = [
-            'timeout' => $this->requestOptions->getTotalTimeout(),  // Use total timeout (number)
+            'timeout' => $timeout,
             'connect_timeout' => $this->requestOptions->getConnectionTimeout(),  // Connection timeout
             'http_errors' => true,  // Enable exceptions for 4xx and 5xx responses
         ];

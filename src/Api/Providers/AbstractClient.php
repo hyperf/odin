@@ -112,7 +112,9 @@ abstract class AbstractClient implements ClientInterface
 
         $startTime = microtime(true);
         try {
+            // For streaming requests, use first chunk timeout to fail fast on network issues
             $options[RequestOptions::STREAM] = true;
+            $options[RequestOptions::TIMEOUT] = $this->requestOptions->getStreamFirstChunkTimeout();
             $response = $this->client->post($url, $options);
             $firstResponseDuration = $this->calculateDuration($startTime);
 

@@ -39,16 +39,20 @@ class AwsEventStreamParser implements IteratorAggregate
 
     private string $buffer = '';
 
+    private float $maxWaitTime;
+
     /**
      * @param resource $stream PHP stream resource
+     * @param float $maxWaitTime Maximum time to wait for data between chunks (seconds)
      */
-    public function __construct($stream)
+    public function __construct($stream, float $maxWaitTime = 30.0)
     {
         if (! is_resource($stream)) {
             throw new InvalidArgumentException('Stream must be a resource');
         }
 
         $this->stream = $stream;
+        $this->maxWaitTime = $maxWaitTime;
 
         // Enable non-blocking mode for real-time streaming
         stream_set_blocking($this->stream, false);
@@ -60,9 +64,6 @@ class AwsEventStreamParser implements IteratorAggregate
     public function getIterator(): Generator
     {
         $lastDataTime = microtime(true);
-        // In non-blocking mode, allow up to 30 seconds of waiting for data
-        // This is reasonable for streaming responses that may have natural pauses
-        $maxWaitTime = 30.0; // seconds
 
         // Adaptive chunk size strategy:
         // - Start with small chunks (256 bytes) for low latency on first message
@@ -85,7 +86,7 @@ class AwsEventStreamParser implements IteratorAggregate
                 }
 
                 // Check for stalled stream (no data for too long)
-                if ($timeSinceLastData > $maxWaitTime) {
+                if ($timeSinceLastData > $this->maxWaitTime) {
                     break;
                 }
 
