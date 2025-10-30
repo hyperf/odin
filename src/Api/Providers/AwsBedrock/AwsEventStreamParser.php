@@ -53,9 +53,9 @@ class AwsEventStreamParser implements IteratorAggregate
 
         $this->stream = $stream;
         $this->maxWaitTime = $maxWaitTime;
-
-        // Enable non-blocking mode for real-time streaming
-        stream_set_blocking($this->stream, false);
+        $seconds = (int) floor($maxWaitTime);
+        $microseconds = (int) (($maxWaitTime - $seconds) * 1000000);
+        stream_set_timeout($this->stream, $seconds, $microseconds);
     }
 
     /**
@@ -63,59 +63,116 @@ class AwsEventStreamParser implements IteratorAggregate
      */
     public function getIterator(): Generator
     {
-        $lastDataTime = microtime(true);
-
-        // Adaptive chunk size strategy:
-        // - Start with small chunks (256 bytes) for low latency on first message
-        // - Switch to larger chunks (8KB) after first message for better throughput
-        $chunkSize = 256;
-        $hasReceivedFirstMessage = false;
-
         while (! feof($this->stream)) {
-            // Read more data into buffer
-            // In non-blocking mode, this will return immediately with whatever is available
-            $chunk = fread($this->stream, $chunkSize);
-
-            if ($chunk === false || $chunk === '') {
-                // Check if we've been waiting too long without data
-                $timeSinceLastData = microtime(true) - $lastDataTime;
-
-                // For non-blocking streams, EOF is the primary signal to stop
+            // Read length prefix (4 bytes) - MUST be complete
+            try {
+                $lengthBytes = $this->readExactly(4);
+            } catch (RuntimeException $e) {
+                // Handle EOF gracefully
                 if (feof($this->stream)) {
                     break;
                 }
+                throw $e;
+            }
 
-                // Check for stalled stream (no data for too long)
-                if ($timeSinceLastData > $this->maxWaitTime) {
-                    break;
+            $totalLength = unpack('N', $lengthBytes)[1];
+
+            // Validate length to prevent memory issues
+            // AWS event-stream messages should be reasonable size
+            if ($totalLength < 12) {
+                throw new RuntimeException("Invalid message length: {$totalLength} (minimum is 12 bytes)");
+            }
+            if ($totalLength > 16 * 1024 * 1024) { // Max 16MB per message
+                throw new RuntimeException("Message too large: {$totalLength} bytes (maximum is 16MB)");
+            }
+
+            // Read remaining message body
+            $remaining = $totalLength - 4;
+            $body = $this->readExactly($remaining);
+
+            // Combine and add to buffer
+            $this->buffer .= $lengthBytes . $body;
+
+            // Parse all complete messages in buffer
+            while (($message = $this->parseNextMessage()) !== null) {
+                yield $message;
+            }
+        }
+    }
+
+    /**
+     * Safely read exactly $length bytes from stream.
+     *
+     * In blocking mode, fread() may return fewer bytes than requested,
+     * so we need to loop until we get all the data.
+     *
+     * @param int $length Number of bytes to read
+     * @return string Exactly $length bytes
+     * @throws RuntimeException if unable to read required bytes
+     */
+    private function readExactly(int $length): string
+    {
+        $buffer = '';
+        $remaining = $length;
+        // Safety net: prevent infinite loop in case of stream anomaly
+        // With 50ms intervals, 300 attempts = 15 seconds backup timeout
+        // The main timeout is controlled by stream_set_timeout()
+        $maxAttempts = 300;
+        $attempts = 0;
+
+        while ($remaining > 0 && ! feof($this->stream)) {
+            $chunk = fread($this->stream, $remaining);
+
+            if ($chunk === false) {
+                throw new RuntimeException('Failed to read from stream');
+            }
+
+            if ($chunk === '') {
+                // No data read, check stream status
+                $meta = stream_get_meta_data($this->stream);
+
+                if ($meta['timed_out']) {
+                    throw new RuntimeException(
+                        sprintf('Stream read timeout after %.2f seconds', $this->maxWaitTime)
+                    );
                 }
 
-                // In non-blocking mode, sleep briefly to avoid tight CPU loop
-                usleep(1000); // 1ms
+                if ($meta['eof'] || feof($this->stream)) {
+                    throw new RuntimeException(
+                        sprintf('Unexpected EOF: expected %d more bytes, got %d', $remaining, strlen($buffer))
+                    );
+                }
+
+                // Increment attempts counter to prevent infinite loop
+                // This should rarely trigger as stream_set_timeout should catch timeouts first
+                if (++$attempts > $maxAttempts) {
+                    throw new RuntimeException(
+                        sprintf(
+                            'Too many empty reads: expected %d bytes, got %d after %d attempts',
+                            $length,
+                            strlen($buffer),
+                            $attempts
+                        )
+                    );
+                }
+
+                // Wait a bit before retry to avoid busy-waiting
+                usleep(50000); // 50ms - longer interval for better CPU efficiency
                 continue;
             }
 
-            // Update last data time when we get data
-            $lastDataTime = microtime(true);
-            $this->buffer .= $chunk;
-
-            // Parse and yield all available messages from buffer
-            // This is the standard approach - AWS SDK does the same
-            while (($message = $this->parseNextMessage()) !== null) {
-                yield $message;
-
-                // After first message, switch to larger chunk size for better throughput
-                if (! $hasReceivedFirstMessage) {
-                    $hasReceivedFirstMessage = true;
-                    $chunkSize = 8192; // Switch to 8KB
-                }
-            }
+            $buffer .= $chunk;
+            $remaining -= strlen($chunk);
+            $attempts = 0; // Reset counter on successful read
         }
 
-        // Process any remaining data in buffer
-        while (($message = $this->parseNextMessage()) !== null) {
-            yield $message;
+        if ($remaining > 0) {
+            throw new RuntimeException(
+                sprintf('Incomplete read: expected %d bytes, got %d', $length, strlen($buffer))
+            );
         }
+
+        return $buffer;
     }
 
     /**
@@ -228,10 +285,10 @@ class AwsEventStreamParser implements IteratorAggregate
             2 => ord($data[$offset]), // byte
             3 => unpack('n', substr($data, $offset, 2))[1], // short
             4 => unpack('N', substr($data, $offset, 4))[1], // integer
-            5 => unpack('J', substr($data, $offset, 8))[1], // long
+            5, 8 => unpack('J', substr($data, $offset, 8))[1], // long
             6 => $this->parseByteArray($data, $offset), // byte array
             7 => $this->parseString($data, $offset), // string
-            8 => unpack('J', substr($data, $offset, 8))[1], // timestamp
+            // timestamp
             9 => $this->parseUuid($data, $offset), // UUID
             default => null,
         };
@@ -248,8 +305,8 @@ class AwsEventStreamParser implements IteratorAggregate
             3 => 2,     // short
             4 => 4,     // integer
             5 => 8,     // long
-            6 => unpack('n', substr($data, $offset, 2))[1] + 2, // byte array (2-byte length + data)
-            7 => unpack('n', substr($data, $offset, 2))[1] + 2, // string (2-byte length + data)
+            6, 7 => unpack('n', substr($data, $offset, 2))[1] + 2, // byte array (2-byte length + data)
+            // string (2-byte length + data)
             8 => 8,     // timestamp
             9 => 16,    // UUID
             default => 0,
