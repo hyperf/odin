@@ -64,9 +64,6 @@ class SSEClient implements IteratorAggregate
             throw new InvalidArgumentException('Stream must be a resource');
         }
 
-        // Set stream to non-blocking mode for real-time reading
-        stream_set_blocking($this->stream, false);
-
         // 从timeoutConfig中提取stream_total作为基础超时
         $this->timeout = isset($timeoutConfig['stream_total']) ? (int) $timeoutConfig['stream_total'] : null;
         $this->connectionStartTime = microtime(true);
@@ -95,8 +92,6 @@ class SSEClient implements IteratorAggregate
     {
         try {
             $lastCheckTime = microtime(true);
-            $buffer = ''; // Accumulate data
-            $maxBufferSize = 1048576; // 1MB limit to prevent memory overflow
 
             while (! feof($this->stream) && ! $this->shouldClose) {
                 // 定期检查超时状态，每1秒检查一次
@@ -108,87 +103,51 @@ class SSEClient implements IteratorAggregate
                     $this->exceptionDetector?->checkTimeout();
                 }
 
-                // Read available data (non-blocking read with small chunks)
-                $data = fread($this->stream, 8192);
+                $chunk = stream_get_line($this->stream, self::BUFFER_SIZE, self::EVENT_END);
 
-                // Handle read errors
-                if ($data === false) {
-                    // fread() returned false - this indicates an error
-                    // Check if stream is still valid
-                    if (! is_resource($this->stream) || feof($this->stream)) {
-                        $this->logger?->debug('StreamClosed', ['reason' => 'fread returned false']);
-                        break; // Exit loop if stream is closed or at EOF
-                    }
-                    // Stream still valid, check timeout and retry
+                if ($chunk === false) {
+                    // 使用专业的超时检测器
                     $this->exceptionDetector?->checkTimeout();
-                    usleep(1000);
+
+                    continue;
+                }
+                // 检查流是否仍然有效
+                if (! is_resource($this->stream) || feof($this->stream)) {
+                    break;
+                }
+
+                $eventData = $this->parseEvent($chunk);
+                $event = SSEEvent::fromArray($eventData);
+
+                if ($event->getId() !== null) {
+                    $this->lastEventId = $event->getId();
+                }
+
+                if ($event->getRetry() !== null) {
+                    $retryInt = (int) $event->getRetry();
+                    // 设置合理的上下限，避免极端值
+                    if ($retryInt > 0 && $retryInt <= 600000) { // 最大10分钟
+                        $this->retryTimeout = $retryInt;
+                    }
+                }
+
+                // 如果是注释或空行，则跳过
+                if ($event->isEmpty()) {
                     continue;
                 }
 
-                // Handle empty data (no data available yet - normal in non-blocking mode)
-                if ($data === '') {
-                    // No data available right now, check timeout
-                    $this->exceptionDetector?->checkTimeout();
-                    usleep(1000);
-                    continue;
-                }
+                // 通知流异常检测器已接收到块，传递调试信息
+                $chunkInfo = [
+                    'event_type' => $event->getEvent(),
+                    'event_id' => $event->getId(),
+                    'data_preview' => is_string($event->getData())
+                        ? substr($event->getData(), 0, 200)
+                        : (is_array($event->getData()) ? json_encode($event->getData()) : 'non-string-data'),
+                    'raw_chunk_size' => strlen($chunk),
+                ];
+                $this->exceptionDetector?->onChunkReceived($chunkInfo);
 
-                // Append to buffer
-                $buffer .= $data;
-
-                // Prevent buffer overflow - if no event boundary found in 1MB, something is wrong
-                if (strlen($buffer) > $maxBufferSize) {
-                    $this->logger?->error('SseBufferOverflow', [
-                        'buffer_size' => strlen($buffer),
-                        'buffer_preview' => substr($buffer, 0, 200),
-                    ]);
-                    throw new InvalidArgumentException('SSE buffer overflow - no event boundary found in 1MB of data');
-                }
-
-                // Process complete events (ending with \n\n)
-                while (($pos = strpos($buffer, self::EVENT_END)) !== false) {
-                    // Extract event
-                    $chunk = substr($buffer, 0, $pos);
-                    // Remove from buffer (including the \n\n)
-                    $buffer = substr($buffer, $pos + strlen(self::EVENT_END));
-
-                    if ($chunk === '') {
-                        continue;
-                    }
-
-                    $eventData = $this->parseEvent($chunk);
-                    $event = SSEEvent::fromArray($eventData);
-
-                    if ($event->getId() !== null) {
-                        $this->lastEventId = $event->getId();
-                    }
-
-                    if ($event->getRetry() !== null) {
-                        $retryInt = (int) $event->getRetry();
-                        // 设置合理的上下限，避免极端值
-                        if ($retryInt > 0 && $retryInt <= 600000) { // 最大10分钟
-                            $this->retryTimeout = $retryInt;
-                        }
-                    }
-
-                    // 如果是注释或空行，则跳过
-                    if ($event->isEmpty()) {
-                        continue;
-                    }
-
-                    // 通知流异常检测器已接收到块，传递调试信息
-                    $chunkInfo = [
-                        'event_type' => $event->getEvent(),
-                        'event_id' => $event->getId(),
-                        'data_preview' => is_string($event->getData())
-                            ? substr($event->getData(), 0, 200)
-                            : (is_array($event->getData()) ? json_encode($event->getData()) : 'non-string-data'),
-                        'raw_chunk_size' => strlen($chunk),
-                    ];
-                    $this->exceptionDetector?->onChunkReceived($chunkInfo);
-
-                    yield $event;
-                }
+                yield $event;
             }
         } finally {
             if ($this->autoClose && is_resource($this->stream)) {
