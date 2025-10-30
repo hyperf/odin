@@ -39,23 +39,16 @@ class AwsEventStreamParser implements IteratorAggregate
 
     private string $buffer = '';
 
-    private float $maxWaitTime;
-
     /**
      * @param resource $stream PHP stream resource
-     * @param float $maxWaitTime Maximum time to wait for data between chunks (seconds)
      */
-    public function __construct($stream, float $maxWaitTime = 30.0)
+    public function __construct($stream)
     {
         if (! is_resource($stream)) {
             throw new InvalidArgumentException('Stream must be a resource');
         }
 
         $this->stream = $stream;
-        $this->maxWaitTime = $maxWaitTime;
-        $seconds = (int) floor($maxWaitTime);
-        $microseconds = (int) (($maxWaitTime - $seconds) * 1000000);
-        stream_set_timeout($this->stream, $seconds, $microseconds);
     }
 
     /**
@@ -64,115 +57,27 @@ class AwsEventStreamParser implements IteratorAggregate
     public function getIterator(): Generator
     {
         while (! feof($this->stream)) {
-            // Read length prefix (4 bytes) - MUST be complete
-            try {
-                $lengthBytes = $this->readExactly(4);
-            } catch (RuntimeException $e) {
-                // Handle EOF gracefully
-                if (feof($this->stream)) {
-                    break;
-                }
-                throw $e;
+            $length = fread($this->stream, 4);
+            if ($length === '') {
+                break;
             }
-
-            $totalLength = unpack('N', $lengthBytes)[1];
-
-            // Validate length to prevent memory issues
-            // AWS event-stream messages should be reasonable size
-            if ($totalLength < 12) {
-                throw new RuntimeException("Invalid message length: {$totalLength} (minimum is 12 bytes)");
+            if ($length === false) {
+                throw new RuntimeException('Failed to read from stream');
             }
-            if ($totalLength > 16 * 1024 * 1024) { // Max 16MB per message
-                throw new RuntimeException("Message too large: {$totalLength} bytes (maximum is 16MB)");
+            $lengthUnpacked = unpack('N', $length);
+            $toRead = $lengthUnpacked[1] - 4;
+            $body = fread($this->stream, $toRead);
+            if ($body === false) {
+                throw new RuntimeException('Failed to read from stream');
             }
+            $chunk = $length . $body;
 
-            // Read remaining message body
-            $remaining = $totalLength - 4;
-            $body = $this->readExactly($remaining);
+            $this->buffer .= $chunk;
 
-            // Combine and add to buffer
-            $this->buffer .= $lengthBytes . $body;
-
-            // Parse all complete messages in buffer
             while (($message = $this->parseNextMessage()) !== null) {
                 yield $message;
             }
         }
-    }
-
-    /**
-     * Safely read exactly $length bytes from stream.
-     *
-     * In blocking mode, fread() may return fewer bytes than requested,
-     * so we need to loop until we get all the data.
-     *
-     * @param int $length Number of bytes to read
-     * @return string Exactly $length bytes
-     * @throws RuntimeException if unable to read required bytes
-     */
-    private function readExactly(int $length): string
-    {
-        $buffer = '';
-        $remaining = $length;
-        // Safety net: prevent infinite loop in case of stream anomaly
-        // With 50ms intervals, 300 attempts = 15 seconds backup timeout
-        // The main timeout is controlled by stream_set_timeout()
-        $maxAttempts = 300;
-        $attempts = 0;
-
-        while ($remaining > 0 && ! feof($this->stream)) {
-            $chunk = fread($this->stream, $remaining);
-
-            if ($chunk === false) {
-                throw new RuntimeException('Failed to read from stream');
-            }
-
-            if ($chunk === '') {
-                // No data read, check stream status
-                $meta = stream_get_meta_data($this->stream);
-
-                if ($meta['timed_out']) {
-                    throw new RuntimeException(
-                        sprintf('Stream read timeout after %.2f seconds', $this->maxWaitTime)
-                    );
-                }
-
-                if ($meta['eof'] || feof($this->stream)) {
-                    throw new RuntimeException(
-                        sprintf('Unexpected EOF: expected %d more bytes, got %d', $remaining, strlen($buffer))
-                    );
-                }
-
-                // Increment attempts counter to prevent infinite loop
-                // This should rarely trigger as stream_set_timeout should catch timeouts first
-                if (++$attempts > $maxAttempts) {
-                    throw new RuntimeException(
-                        sprintf(
-                            'Too many empty reads: expected %d bytes, got %d after %d attempts',
-                            $length,
-                            strlen($buffer),
-                            $attempts
-                        )
-                    );
-                }
-
-                // Wait a bit before retry to avoid busy-waiting
-                usleep(50000); // 50ms - longer interval for better CPU efficiency
-                continue;
-            }
-
-            $buffer .= $chunk;
-            $remaining -= strlen($chunk);
-            $attempts = 0; // Reset counter on successful read
-        }
-
-        if ($remaining > 0) {
-            throw new RuntimeException(
-                sprintf('Incomplete read: expected %d bytes, got %d', $length, strlen($buffer))
-            );
-        }
-
-        return $buffer;
     }
 
     /**
