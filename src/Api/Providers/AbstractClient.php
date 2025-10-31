@@ -14,6 +14,7 @@ namespace Hyperf\Odin\Api\Providers;
 
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\RequestOptions;
+use Hyperf\Engine\Coroutine;
 use Hyperf\Odin\Api\Request\ChatCompletionRequest;
 use Hyperf\Odin\Api\Request\CompletionRequest;
 use Hyperf\Odin\Api\Request\EmbeddingRequest;
@@ -22,6 +23,7 @@ use Hyperf\Odin\Api\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\Response\ChatCompletionStreamResponse;
 use Hyperf\Odin\Api\Response\EmbeddingResponse;
 use Hyperf\Odin\Api\Response\TextCompletionResponse;
+use Hyperf\Odin\Api\Transport\OdinSimpleCurl;
 use Hyperf\Odin\Api\Transport\SSEClient;
 use Hyperf\Odin\Contract\Api\ClientInterface;
 use Hyperf\Odin\Contract\Api\ConfigInterface;
@@ -115,7 +117,16 @@ abstract class AbstractClient implements ClientInterface
             // For streaming requests, use first chunk timeout to fail fast on network issues
             $options[RequestOptions::STREAM] = true;
             $options[RequestOptions::TIMEOUT] = $this->requestOptions->getStreamFirstChunkTimeout();
-            $response = $this->client->post($url, $options);
+
+            if (Coroutine::id()) {
+                foreach ($this->getHeaders() as $key => $value) {
+                    $options['headers'][$key] = $value;
+                }
+                $response = OdinSimpleCurl::send($url, $options);
+            } else {
+                $response = $this->client->post($url, $options);
+            }
+
             $firstResponseDuration = $this->calculateDuration($startTime);
 
             $stream = $response->getBody()->detach();
@@ -363,7 +374,7 @@ abstract class AbstractClient implements ClientInterface
     /**
      * 获取请求头.
      */
-    private function getHeaders(): array
+    protected function getHeaders(): array
     {
         $headers = [
             'User-Agent' => 'Hyperf-Odin/1.0',

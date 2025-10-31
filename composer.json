@@ -16,6 +16,9 @@
         ],
         "exclude-from-classmap": [
             "vendor/aws/aws-sdk-php/src/Api/Validator.php"
+        ],
+        "files": [
+            "src/Api/Transport/SimpleCURLClient.php"
         ]
     },
     "autoload-dev": {
@@ -28,6 +31,7 @@
         "ext-bcmath": "*",
         "ext-mbstring": "*",
         "aws/aws-sdk-php": "^3.0",
+        "ext-curl": "*",
         "dtyq/php-mcp": "0.1.*",
         "guzzlehttp/guzzle": "^7.0|^6.0",
         "hyperf/cache": "~2.2.0 || 3.0.* || 3.1.*",

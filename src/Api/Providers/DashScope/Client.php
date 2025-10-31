@@ -13,12 +13,14 @@ declare(strict_types=1);
 namespace Hyperf\Odin\Api\Providers\DashScope;
 
 use GuzzleHttp\RequestOptions;
+use Hyperf\Engine\Coroutine;
 use Hyperf\Odin\Api\Providers\AbstractClient;
 use Hyperf\Odin\Api\Providers\DashScope\Cache\DashScopeCachePointManager;
 use Hyperf\Odin\Api\Request\ChatCompletionRequest;
 use Hyperf\Odin\Api\RequestOptions\ApiOptions;
 use Hyperf\Odin\Api\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\Response\ChatCompletionStreamResponse;
+use Hyperf\Odin\Api\Transport\OdinSimpleCurl;
 use Hyperf\Odin\Api\Transport\SSEClient;
 use Hyperf\Odin\Event\AfterChatCompletionsEvent;
 use Hyperf\Odin\Event\AfterChatCompletionsStreamEvent;
@@ -112,7 +114,17 @@ class Client extends AbstractClient
 
         try {
             $options[RequestOptions::STREAM] = true;
-            $response = $this->client->post($url, $options);
+            $options[RequestOptions::TIMEOUT] = $this->requestOptions->getStreamFirstChunkTimeout();
+
+            if (Coroutine::id()) {
+                foreach ($this->getHeaders() as $key => $value) {
+                    $options['headers'][$key] = $value;
+                }
+                $response = OdinSimpleCurl::send($url, $options);
+            } else {
+                $response = $this->client->post($url, $options);
+            }
+
             $firstResponseDuration = $this->calculateDuration($startTime);
 
             $stream = $response->getBody()->detach();
