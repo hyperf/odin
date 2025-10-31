@@ -53,7 +53,7 @@ class SimpleCURLClient
 
     public function __construct()
     {
-        $this->writeChannel = new Channel(1);
+        $this->writeChannel = new Channel(10);
         $this->headerChannel = new Channel(10);
     }
 
