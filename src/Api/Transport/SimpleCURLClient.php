@@ -54,7 +54,7 @@ class SimpleCURLClient
     public function __construct()
     {
         $this->writeChannel = new Channel(1);
-        $this->headerChannel = new Channel(1);
+        $this->headerChannel = new Channel(10);
     }
 
     public function __destruct()
@@ -62,6 +62,7 @@ class SimpleCURLClient
         if (isset($this->ch) && ! $this->closed) {
             curl_close($this->ch);
         }
+        $this->stream_close();
     }
 
     public function stream_open(string $path, string $mode, int $options, ?string &$opened_path): bool
@@ -120,11 +121,8 @@ class SimpleCURLClient
 
                     // Send error signal to waiting consumer
                     $this->headerChannel->push(false);
-                    $this->writeChannel->push(null);
-                } else {
-                    // Success: send EOF signal
-                    $this->writeChannel->push(null);
                 }
+                $this->writeChannel->push(null);
             } catch (Throwable $e) {
                 // Catch any unexpected errors
                 $this->curlError = $e->getMessage();
@@ -145,6 +143,7 @@ class SimpleCURLClient
         $headerReceived = $this->headerChannel->pop(10);
 
         if ($headerReceived === false) {
+            $this->stream_close();
             // Connection failed or timeout
             if ($this->curlError) {
                 throw new RuntimeException("cURL error ({$this->curlErrorCode}): {$this->curlError}");
@@ -210,9 +209,15 @@ class SimpleCURLClient
 
     public function writeFunction(CurlHandle $ch, $data): int
     {
-        // todo 超时
-        $this->writeChannel->push($data);
-        return strlen($data);
+        try {
+            $result = $this->writeChannel->push($data, timeout: 5);
+            if ($result === false) {
+                return 0;
+            }
+            return strlen($data);
+        } catch (Throwable $e) {
+            return 0;
+        }
     }
 
     public function headerFunction(CurlHandle $ch, $header): int
