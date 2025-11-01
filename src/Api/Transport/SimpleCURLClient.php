@@ -15,9 +15,10 @@ namespace Hyperf\Odin\Api\Transport;
 use CurlHandle;
 use Hyperf\Engine\Channel;
 use Hyperf\Engine\Coroutine;
+use Hyperf\Odin\Exception\LLMException\LLMNetworkException;
 use Hyperf\Odin\Exception\LLMException\Network\LLMConnectionTimeoutException;
 use Hyperf\Odin\Exception\LLMException\Network\LLMReadTimeoutException;
-use RuntimeException;
+use Hyperf\Odin\Exception\RuntimeException;
 use Throwable;
 
 // 注册 stream wrapper
@@ -150,7 +151,7 @@ class SimpleCURLClient
                         $this->headerChannel->push(false);
                     }
                 }
-                
+
                 $this->writeChannel->push(null);
             } catch (Throwable $e) {
                 // Catch any unexpected errors
@@ -181,7 +182,7 @@ class SimpleCURLClient
             if ($this->curlError) {
                 $curlCode = $this->curlErrorCode;
                 $errorMessage = $this->curlError;
-                
+
                 // Map cURL error codes to appropriate LLM exceptions
                 // 28: Operation timeout
                 if ($curlCode === 28) {
@@ -190,14 +191,14 @@ class SimpleCURLClient
                         new RuntimeException($errorMessage, $curlCode)
                     );
                 }
-                
+
                 // For other cURL errors, throw connection timeout exception
                 throw new LLMConnectionTimeoutException(
                     "cURL error ({$curlCode}): {$errorMessage}",
                     new RuntimeException($errorMessage, $curlCode)
                 );
             }
-            
+
             throw new LLMConnectionTimeoutException(
                 "Connection timeout: Failed to receive HTTP headers within {$headerTimeout} seconds",
                 new RuntimeException('Failed to receive HTTP headers within timeout'),
@@ -236,7 +237,7 @@ class SimpleCURLClient
 
         // 4. 检查缓冲区溢出
         if (strlen($data) > self::MAX_BUFFER_SIZE) {
-            throw new RuntimeException('Buffer overflow: received chunk larger than MAX_BUFFER_SIZE');
+            throw new LLMNetworkException('Buffer overflow: received chunk larger than MAX_BUFFER_SIZE');
         }
 
         // 5. 读取指定长度的数据
@@ -283,7 +284,7 @@ class SimpleCURLClient
         if (empty($trimmed)) {
             // Headers are complete, get status code and signal ready
             $this->statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            
+
             // Only signal header completion if we have a valid HTTP status code
             // Ignore proxy CONNECT responses (status code 0)
             if ($this->statusCode > 0) {

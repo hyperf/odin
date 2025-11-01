@@ -15,10 +15,11 @@ namespace Hyperf\Odin\Api\Transport;
 use GuzzleHttp\Psr7\Response;
 use Hyperf\Odin\Exception\LLMException\Api\LLMInvalidRequestException;
 use Hyperf\Odin\Exception\LLMException\LLMApiException;
+use Hyperf\Odin\Exception\LLMException\LLMConfigurationException;
 use Hyperf\Odin\Exception\LLMException\LLMNetworkException;
 use Hyperf\Odin\Exception\LLMException\Network\LLMConnectionTimeoutException;
 use Hyperf\Odin\Exception\LLMException\Network\LLMReadTimeoutException;
-use RuntimeException;
+use Hyperf\Odin\Exception\RuntimeException;
 
 class OdinSimpleCurl
 {
@@ -45,7 +46,7 @@ class OdinSimpleCurl
 
         if ($stream === false) {
             $error = error_get_last();
-            throw new RuntimeException(
+            throw new LLMNetworkException(
                 'Failed to open SimpleCURL stream: ' . ($error['message'] ?? 'Unknown error')
             );
         }
@@ -55,7 +56,7 @@ class OdinSimpleCurl
 
         if (! $wrapper instanceof SimpleCURLClient) {
             fclose($stream);
-            throw new RuntimeException('Invalid stream wrapper: expected SimpleCURLClient instance');
+            throw new LLMConfigurationException('Invalid stream wrapper: expected SimpleCURLClient instance');
         }
 
         $metadataInfo = $wrapper->stream_metadata();
@@ -67,7 +68,7 @@ class OdinSimpleCurl
             fclose($stream);
             $curlCode = $metadataInfo['error_code'] ?? 0;
             $errorMessage = $metadataInfo['error'];
-            
+
             // Map cURL error codes to appropriate LLM exceptions
             // Common cURL error codes:
             // 6: Could not resolve host
@@ -76,7 +77,7 @@ class OdinSimpleCurl
             // 35: SSL/TLS connection error
             // 52: Empty reply from server
             // 56: Failure in receiving network data
-            
+
             if ($curlCode === 28) {
                 // Operation timeout
                 throw new LLMReadTimeoutException(
@@ -84,7 +85,7 @@ class OdinSimpleCurl
                     new RuntimeException($errorMessage, $curlCode)
                 );
             }
-            
+
             if (in_array($curlCode, [6, 7, 52, 56])) {
                 // Connection or network errors
                 throw new LLMNetworkException(
@@ -93,7 +94,7 @@ class OdinSimpleCurl
                     new RuntimeException($errorMessage, $curlCode)
                 );
             }
-            
+
             if ($curlCode === 35) {
                 // SSL/TLS error
                 throw new LLMNetworkException(
@@ -102,7 +103,7 @@ class OdinSimpleCurl
                     new RuntimeException($errorMessage, $curlCode)
                 );
             }
-            
+
             // Default to network exception for other cURL errors
             throw new LLMNetworkException(
                 "HTTP request failed: {$errorMessage} (code: {$curlCode})",
@@ -158,7 +159,7 @@ class OdinSimpleCurl
                     $statusCode
                 );
             }
-            
+
             // Client errors (4xx)
             throw new LLMInvalidRequestException(
                 $errorMessage,
@@ -177,7 +178,7 @@ class OdinSimpleCurl
 
                 $errorMessage = "Expected 'text/event-stream' response but got '{$contentType}'. Response: "
                     . (strlen($body) > 200 ? substr($body, 0, 200) . '...' : $body);
-                
+
                 throw new LLMInvalidRequestException(
                     $errorMessage,
                     new RuntimeException($errorMessage),
