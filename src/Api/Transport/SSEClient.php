@@ -92,6 +92,12 @@ class SSEClient implements IteratorAggregate
     {
         try {
             $lastCheckTime = microtime(true);
+            $chunkCounter = 0;
+
+            $this->logger?->info('[SSEClient] 开始SSE流处理', [
+                'feof' => feof($this->stream),
+                'is_resource' => is_resource($this->stream),
+            ]);
 
             while (! feof($this->stream) && ! $this->shouldClose) {
                 // 定期检查超时状态，每1秒检查一次
@@ -111,8 +117,17 @@ class SSEClient implements IteratorAggregate
 
                     continue;
                 }
+
+                ++$chunkCounter;
+
                 // 检查流是否仍然有效
                 if (! is_resource($this->stream) || feof($this->stream)) {
+                    $this->logger?->info('[SSEClient] 流无效或已EOF，退出循环', [
+                        'total_chunks' => $chunkCounter,
+                        'is_resource' => is_resource($this->stream),
+                        'feof' => feof($this->stream),
+                        'last_chunk_preview' => substr($chunk, 0, 200),
+                    ]);
                     break;
                 }
 
@@ -150,7 +165,14 @@ class SSEClient implements IteratorAggregate
                 yield $event;
             }
         } finally {
+            $this->logger?->info('[SSEClient] SSE流处理完成', [
+                'total_chunks' => $chunkCounter,
+                'feof' => is_resource($this->stream) ? feof($this->stream) : true,
+                'should_close' => $this->shouldClose,
+            ]);
+
             if ($this->autoClose && is_resource($this->stream)) {
+                $this->logger?->info('[SSEClient] 关闭流资源');
                 fclose($this->stream);
             }
         }

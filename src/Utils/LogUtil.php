@@ -12,6 +12,9 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Utils;
 
+use Hyperf\Context\ApplicationContext;
+use Psr\Log\LoggerInterface;
+
 class LogUtil
 {
     /**
@@ -33,6 +36,11 @@ class LogUtil
     private const PERF_CRITICALLY_SLOW = 'CRITICALLY_SLOW';
 
     private const PERF_TIMEOUT_RISK = 'TIMEOUT_RISK';
+
+    public static function getHyperfLogger(): ?LoggerInterface
+    {
+        return ApplicationContext::getContainer()->get(LoggerInterface::class);
+    }
 
     /**
      * 递归处理数组，格式化超长文本和二进制数据.

@@ -19,6 +19,7 @@ use Hyperf\Odin\Exception\LLMException\LLMNetworkException;
 use Hyperf\Odin\Exception\LLMException\Network\LLMConnectionTimeoutException;
 use Hyperf\Odin\Exception\LLMException\Network\LLMReadTimeoutException;
 use Hyperf\Odin\Exception\RuntimeException;
+use Hyperf\Odin\Utils\LogUtil;
 use Throwable;
 
 if (! in_array('OdinSimpleCurl', stream_get_wrappers())) {
@@ -127,14 +128,30 @@ class SimpleCURLClient
 
         Coroutine::run(function () {
             $this->eof = false;
+            $this->log('curl_exec协程已启动', [
+                'url' => $this->options['url'],
+            ]);
 
             try {
+                $startTime = microtime(true);
                 $result = curl_exec($this->ch);
+                $elapsed = microtime(true) - $startTime;
+
+                $this->log('curl_exec执行完成', [
+                    'result' => $result === false ? 'false' : 'true',
+                    'elapsed' => $elapsed,
+                ]);
 
                 // Check for cURL errors
                 if ($result === false) {
                     $this->curlError = curl_error($this->ch);
                     $this->curlErrorCode = curl_errno($this->ch);
+
+                    $this->log('curl_exec执行失败', [
+                        'error' => $this->curlError,
+                        'error_code' => $this->curlErrorCode,
+                        'elapsed' => $elapsed,
+                    ]);
 
                     // Send error signal to waiting consumer
                     if (! $this->headersReceived) {
@@ -147,21 +164,38 @@ class SimpleCURLClient
                     if (! $this->headersReceived) {
                         $this->curlError = 'No HTTP response received (headers incomplete)';
                         $this->curlErrorCode = 0;
+                        $this->log('curl_exec成功但响应头不完整', [
+                            'elapsed' => $elapsed,
+                        ]);
                         $this->headerChannel->push(false);
+                    } else {
+                        $this->log('curl_exec成功且响应头完整', [
+                            'elapsed' => $elapsed,
+                            'status_code' => $this->statusCode,
+                        ]);
                     }
                 }
 
+                $this->log('向Channel发送EOF信号', []);
                 $this->writeChannel->push(null);
             } catch (Throwable $e) {
                 // Catch any unexpected errors
                 $this->curlError = $e->getMessage();
                 $this->curlErrorCode = $e->getCode();
+                $this->log('curl_exec协程异常', [
+                    'error' => $e->getMessage(),
+                    'code' => $e->getCode(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
                 if (! $this->headersReceived) {
                     $this->headerChannel->push(false);
                 }
                 $this->writeChannel->push(null);
             } finally {
                 $this->eof = true;
+                $this->log('curl_exec协程结束，设置EOF标志', [
+                    'eof' => $this->eof,
+                ]);
 
                 if (isset($this->ch)) {
                     curl_close($this->ch);
@@ -215,22 +249,41 @@ class SimpleCURLClient
         }
 
         $readTimeout = $this->options['read_timeout'] ?? 60;
+        $startTime = microtime(true);
         $data = $this->writeChannel->pop(timeout: $readTimeout);
+        $elapsed = microtime(true) - $startTime;
 
         // 3. 处理超时或 EOF
         if ($data === false) {
             // Channel pop 超时
+            $this->log('Channel读取超时', [
+                'requested_length' => $length,
+                'timeout' => $readTimeout,
+                'elapsed' => $elapsed,
+                'eof' => $this->eof,
+                'remaining_buffer' => substr($this->remaining, 0, 200),
+            ]);
             return false;
         }
 
         if ($data === null) {
-            // EOF 信号
+            // EOF signal
             $this->eof = true;
+            $this->log('收到EOF信号，流正常结束', [
+                'elapsed' => $elapsed,
+            ]);
             return '';
         }
 
+        $dataLength = strlen($data);
+
         // 4. 检查缓冲区溢出
-        if (strlen($data) > self::MAX_BUFFER_SIZE) {
+        if ($dataLength > self::MAX_BUFFER_SIZE) {
+            $this->log('缓冲区溢出', [
+                'received_length' => $dataLength,
+                'max_buffer_size' => self::MAX_BUFFER_SIZE,
+                'data_preview' => substr($data, 0, 500),
+            ]);
             throw new LLMNetworkException('Buffer overflow: received chunk larger than MAX_BUFFER_SIZE');
         }
 
@@ -258,17 +311,31 @@ class SimpleCURLClient
 
     public function writeFunction(CurlHandle $ch, $data): int
     {
+        $dataLength = strlen($data);
+
         try {
             $result = $this->writeChannel->push($data, timeout: 60);
+
             if ($result === false) {
                 $this->curlError = 'Channel push timeout: consumer not reading data';
                 $this->curlErrorCode = CURLE_WRITE_ERROR;
+                $this->log('推送数据到Channel超时', [
+                    'data_length' => $dataLength,
+                    'data_preview' => substr($data, 0, 200),
+                ]);
                 return 0;
             }
-            return strlen($data);
+
+            return $dataLength;
         } catch (Throwable $e) {
             $this->curlError = 'Channel push error: ' . $e->getMessage();
             $this->curlErrorCode = CURLE_WRITE_ERROR;
+            $this->log('推送数据到Channel异常', [
+                'data_length' => $dataLength,
+                'data_preview' => substr($data, 0, 200),
+                'error' => $e->getMessage(),
+                'code' => $e->getCode(),
+            ]);
             return 0;
         }
     }
@@ -336,5 +403,27 @@ class SimpleCURLClient
         }
 
         return $metadata;
+    }
+
+    /**
+     * Log stream activity for debugging.
+     *
+     * @param string $message Log message
+     * @param array $context Additional context data
+     */
+    private function log(string $message, array $context = []): void
+    {
+        try {
+            $logger = LogUtil::getHyperfLogger();
+            if ($logger === null) {
+                return;
+            }
+
+            $context['stream_class'] = self::class;
+            $context['coroutine_id'] = Coroutine::id();
+            $logger->info('[SimpleCURLClient] ' . $message, $context);
+        } catch (Throwable $e) {
+            // Silently fail if logging fails to prevent disrupting stream operations
+        }
     }
 }

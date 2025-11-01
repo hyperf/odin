@@ -13,9 +13,11 @@ declare(strict_types=1);
 namespace Hyperf\Odin\Api\Providers\AwsBedrock;
 
 use Generator;
+use Hyperf\Odin\Utils\LogUtil;
 use InvalidArgumentException;
 use IteratorAggregate;
 use RuntimeException;
+use Throwable;
 
 /**
  * AWS Event Stream Parser.
@@ -56,27 +58,49 @@ class AwsEventStreamParser implements IteratorAggregate
      */
     public function getIterator(): Generator
     {
+        $messageCount = 0;
+        $this->log('开始解析EventStream', [
+            'feof' => feof($this->stream),
+        ]);
+
         while (! feof($this->stream)) {
             $length = $this->readExactly(4);
             if ($length === null) {
+                // Normal EOF
+                $this->log('流正常结束', [
+                    'total_messages' => $messageCount,
+                    'feof' => feof($this->stream),
+                ]);
                 break;
             }
-            
+
             $lengthUnpacked = unpack('N', $length);
             $toRead = $lengthUnpacked[1] - 4;
-            
+
             $body = $this->readExactly($toRead);
             if ($body === null) {
+                $this->log('读取消息体失败', [
+                    'message_count' => $messageCount,
+                    'to_read' => $toRead,
+                    'buffer_preview' => substr($this->buffer, 0, 200),
+                ]);
                 throw new RuntimeException('Failed to read message body from stream');
             }
-            
+
             $chunk = $length . $body;
             $this->buffer .= $chunk;
 
             while (($message = $this->parseNextMessage()) !== null) {
+                ++$messageCount;
                 yield $message;
             }
         }
+
+        $this->log('EventStream解析完成', [
+            'total_messages' => $messageCount,
+            'feof' => feof($this->stream),
+            'remaining_buffer' => strlen($this->buffer),
+        ]);
     }
 
     /**
@@ -94,19 +118,31 @@ class AwsEventStreamParser implements IteratorAggregate
 
         while ($remaining > 0 && ! feof($this->stream)) {
             $chunk = fread($this->stream, $remaining);
-            
+
             if ($chunk === false) {
+                $this->log('fread返回false', [
+                    'remaining' => $remaining,
+                    'data_read_so_far' => strlen($data),
+                    'data_preview' => substr($data, 0, 200),
+                ]);
                 throw new RuntimeException('Failed to read from stream');
             }
-            
+
             if ($chunk === '') {
                 if (++$attempt > $maxAttempts) {
+                    $this->log('fread超过最大重试次数', [
+                        'total_attempts' => $attempt,
+                        'data_read_so_far' => strlen($data),
+                        'remaining' => $remaining,
+                        'requested_length' => $length,
+                        'data_preview' => substr($data, 0, 200),
+                    ]);
                     throw new RuntimeException("Failed to read {$length} bytes after {$maxAttempts} attempts");
                 }
                 usleep(10000);
                 continue;
             }
-            
+
             $data .= $chunk;
             $remaining -= strlen($chunk);
             $attempt = 0;
@@ -114,9 +150,16 @@ class AwsEventStreamParser implements IteratorAggregate
 
         if ($remaining > 0) {
             if ($data === '') {
+                // Normal EOF, no log needed
                 return null;
             }
-            throw new RuntimeException("Unexpected EOF: read " . strlen($data) . " bytes, expected {$length}");
+            $this->log('意外的EOF，数据不完整', [
+                'data_read' => strlen($data),
+                'expected' => $length,
+                'remaining' => $remaining,
+                'data_preview' => substr($data, 0, 200),
+            ]);
+            throw new RuntimeException('Unexpected EOF: read ' . strlen($data) . " bytes, expected {$length}");
         }
 
         return $data;
@@ -315,5 +358,26 @@ class AwsEventStreamParser implements IteratorAggregate
         // Fallback to PHP's crc32 (note: this uses different polynomial)
         // For production, should use proper CRC32C implementation
         return crc32($data) & 0xFFFFFFFF;
+    }
+
+    /**
+     * Log parser activity for debugging.
+     *
+     * @param string $message Log message
+     * @param array $context Additional context data
+     */
+    private function log(string $message, array $context = []): void
+    {
+        try {
+            $logger = LogUtil::getHyperfLogger();
+            if ($logger === null) {
+                return;
+            }
+
+            $context['parser_class'] = self::class;
+            $logger->info('[AwsEventStreamParser] ' . $message, $context);
+        } catch (Throwable $e) {
+            // Silently fail if logging fails to prevent disrupting parser operations
+        }
     }
 }
