@@ -441,8 +441,8 @@ class ConverseCustomClient extends AbstractClient
         $message = $exception->getMessage();
         $code = (int) $exception->getCode();
 
-        // Check for timeout
-        if (str_contains($message, 'timed out')) {
+        // Check for timeout-related errors (fallback, as OdinSimpleCurl should handle most cases)
+        if (str_contains($message, 'timed out') || str_contains($message, 'timeout')) {
             return new LLMReadTimeoutException($message, $exception);
         }
 

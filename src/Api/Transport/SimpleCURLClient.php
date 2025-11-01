@@ -15,6 +15,8 @@ namespace Hyperf\Odin\Api\Transport;
 use CurlHandle;
 use Hyperf\Engine\Channel;
 use Hyperf\Engine\Coroutine;
+use Hyperf\Odin\Exception\LLMException\Network\LLMConnectionTimeoutException;
+use Hyperf\Odin\Exception\LLMException\Network\LLMReadTimeoutException;
 use RuntimeException;
 use Throwable;
 
@@ -50,6 +52,8 @@ class SimpleCURLClient
     private ?string $curlError = null;
 
     private int $curlErrorCode = 0;
+
+    private bool $headersReceived = false;
 
     public function __construct()
     {
@@ -133,22 +137,28 @@ class SimpleCURLClient
                     $this->curlErrorCode = curl_errno($this->ch);
 
                     // Send error signal to waiting consumer
-                    $this->headerChannel->push(false);
+                    if (! $this->headersReceived) {
+                        $this->headerChannel->push(false);
+                    }
                 } else {
-                    // Even if curl_exec succeeded, check if statusCode was set
-                    // If not, there might be an issue with header parsing
-                    if ($this->statusCode === 0) {
-                        $this->curlError = 'No HTTP response received (status code is 0)';
+                    // curl_exec succeeded, but check if we received complete headers
+                    // This handles cases where connection succeeds but no HTTP response is received
+                    // (e.g., proxy CONNECT succeeded but real request timed out)
+                    if (! $this->headersReceived) {
+                        $this->curlError = 'No HTTP response received (headers incomplete)';
                         $this->curlErrorCode = 0;
                         $this->headerChannel->push(false);
                     }
                 }
+                
                 $this->writeChannel->push(null);
             } catch (Throwable $e) {
                 // Catch any unexpected errors
                 $this->curlError = $e->getMessage();
                 $this->curlErrorCode = $e->getCode();
-                $this->headerChannel->push(false);
+                if (! $this->headersReceived) {
+                    $this->headerChannel->push(false);
+                }
                 $this->writeChannel->push(null);
             } finally {
                 $this->eof = true;
@@ -167,9 +177,30 @@ class SimpleCURLClient
             $this->stream_close();
             // Connection failed or timeout
             if ($this->curlError) {
-                throw new RuntimeException("cURL error ({$this->curlErrorCode}): {$this->curlError}");
+                $curlCode = $this->curlErrorCode;
+                $errorMessage = $this->curlError;
+                
+                // Map cURL error codes to appropriate LLM exceptions
+                // 28: Operation timeout
+                if ($curlCode === 28) {
+                    throw new LLMReadTimeoutException(
+                        "Connection timeout: {$errorMessage}",
+                        new RuntimeException($errorMessage, $curlCode)
+                    );
+                }
+                
+                // For other cURL errors, throw connection timeout exception
+                throw new LLMConnectionTimeoutException(
+                    "cURL error ({$curlCode}): {$errorMessage}",
+                    new RuntimeException($errorMessage, $curlCode)
+                );
             }
-            throw new RuntimeException('Failed to receive HTTP headers within timeout');
+            
+            throw new LLMConnectionTimeoutException(
+                'Connection timeout: Failed to receive HTTP headers within 10 seconds',
+                new RuntimeException('Failed to receive HTTP headers within timeout'),
+                10.0
+            );
         }
 
         return true;
@@ -254,6 +285,7 @@ class SimpleCURLClient
             // Only signal header completion if we have a valid HTTP status code
             // Ignore proxy CONNECT responses (status code 0)
             if ($this->statusCode > 0) {
+                $this->headersReceived = true;
                 $this->headerChannel->push(true);
             } else {
                 // This is a proxy CONNECT response, reset headers and wait for real response

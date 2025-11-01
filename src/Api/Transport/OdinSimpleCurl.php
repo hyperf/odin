@@ -13,6 +13,11 @@ declare(strict_types=1);
 namespace Hyperf\Odin\Api\Transport;
 
 use GuzzleHttp\Psr7\Response;
+use Hyperf\Odin\Exception\LLMException\Api\LLMInvalidRequestException;
+use Hyperf\Odin\Exception\LLMException\LLMApiException;
+use Hyperf\Odin\Exception\LLMException\LLMNetworkException;
+use Hyperf\Odin\Exception\LLMException\Network\LLMConnectionTimeoutException;
+use Hyperf\Odin\Exception\LLMException\Network\LLMReadTimeoutException;
 use RuntimeException;
 
 class OdinSimpleCurl
@@ -24,7 +29,12 @@ class OdinSimpleCurl
      * @param array $options Request options (headers, json, timeout, etc.)
      * @param bool $skipContentTypeCheck Skip Content-Type validation (for non-SSE streams like AWS EventStream)
      * @return Response Returns Response with stream as body
-     * @throws RuntimeException If stream creation fails or connection error occurs
+     * @throws LLMConnectionTimeoutException If connection timeout or no valid HTTP response
+     * @throws LLMReadTimeoutException If operation timeout
+     * @throws LLMNetworkException If network connection error
+     * @throws LLMInvalidRequestException If HTTP 4xx client error or invalid content-type
+     * @throws LLMApiException If HTTP 5xx server error
+     * @throws RuntimeException If stream creation fails
      */
     public static function send(string $url, array $options, bool $skipContentTypeCheck = false): Response
     {
@@ -55,15 +65,59 @@ class OdinSimpleCurl
         // Check for cURL errors
         if (isset($metadataInfo['error'])) {
             fclose($stream);
-            throw new RuntimeException(
-                "HTTP request failed: {$metadataInfo['error']} (code: {$metadataInfo['error_code']})"
+            $curlCode = $metadataInfo['error_code'] ?? 0;
+            $errorMessage = $metadataInfo['error'];
+            
+            // Map cURL error codes to appropriate LLM exceptions
+            // Common cURL error codes:
+            // 6: Could not resolve host
+            // 7: Failed to connect
+            // 28: Operation timeout
+            // 35: SSL/TLS connection error
+            // 52: Empty reply from server
+            // 56: Failure in receiving network data
+            
+            if ($curlCode === 28) {
+                // Operation timeout
+                throw new LLMReadTimeoutException(
+                    "Connection timeout: {$errorMessage}",
+                    new RuntimeException($errorMessage, $curlCode)
+                );
+            }
+            
+            if (in_array($curlCode, [6, 7, 52, 56])) {
+                // Connection or network errors
+                throw new LLMNetworkException(
+                    "Network connection error: {$errorMessage}",
+                    $curlCode,
+                    new RuntimeException($errorMessage, $curlCode)
+                );
+            }
+            
+            if ($curlCode === 35) {
+                // SSL/TLS error
+                throw new LLMNetworkException(
+                    "SSL/TLS error: {$errorMessage}",
+                    $curlCode,
+                    new RuntimeException($errorMessage, $curlCode)
+                );
+            }
+            
+            // Default to network exception for other cURL errors
+            throw new LLMNetworkException(
+                "HTTP request failed: {$errorMessage} (code: {$curlCode})",
+                $curlCode,
+                new RuntimeException($errorMessage, $curlCode)
             );
         }
 
         // Validate HTTP status code
         if ($statusCode === 0) {
             fclose($stream);
-            throw new RuntimeException('Invalid HTTP status code: connection may have failed');
+            throw new LLMConnectionTimeoutException(
+                'Connection error: No valid HTTP response received from server',
+                new RuntimeException('Invalid HTTP status code: 0')
+            );
         }
 
         // Check for HTTP error status codes (4xx, 5xx)
@@ -93,7 +147,24 @@ class OdinSimpleCurl
                 }
             }
 
-            throw new RuntimeException($errorMessage);
+            // Map HTTP status codes to appropriate LLM exceptions
+            if ($statusCode >= 500) {
+                // Server errors (5xx)
+                throw new LLMApiException(
+                    $errorMessage,
+                    $statusCode,
+                    new RuntimeException($errorMessage, $statusCode),
+                    0,
+                    $statusCode
+                );
+            }
+            
+            // Client errors (4xx)
+            throw new LLMInvalidRequestException(
+                $errorMessage,
+                new RuntimeException($errorMessage, $statusCode),
+                $statusCode
+            );
         }
 
         // Verify content-type for streaming response (skip for special formats like AWS EventStream)
@@ -104,9 +175,13 @@ class OdinSimpleCurl
                 $body = stream_get_contents($stream);
                 fclose($stream);
 
-                throw new RuntimeException(
-                    "Expected 'text/event-stream' response but got '{$contentType}'. Response: "
-                    . (strlen($body) > 200 ? substr($body, 0, 200) . '...' : $body)
+                $errorMessage = "Expected 'text/event-stream' response but got '{$contentType}'. Response: "
+                    . (strlen($body) > 200 ? substr($body, 0, 200) . '...' : $body);
+                
+                throw new LLMInvalidRequestException(
+                    $errorMessage,
+                    new RuntimeException($errorMessage),
+                    400
                 );
             }
         }
