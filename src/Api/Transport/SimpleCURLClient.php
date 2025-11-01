@@ -21,7 +21,6 @@ use Hyperf\Odin\Exception\LLMException\Network\LLMReadTimeoutException;
 use Hyperf\Odin\Exception\RuntimeException;
 use Throwable;
 
-// 注册 stream wrapper
 if (! in_array('OdinSimpleCurl', stream_get_wrappers())) {
     stream_wrapper_register('OdinSimpleCurl', SimpleCURLClient::class);
 }
@@ -58,8 +57,8 @@ class SimpleCURLClient
 
     public function __construct()
     {
-        $this->writeChannel = new Channel(10);
-        $this->headerChannel = new Channel(10);
+        $this->writeChannel = new Channel(100);
+        $this->headerChannel = new Channel(1);
     }
 
     public function __destruct()
@@ -113,10 +112,10 @@ class SimpleCURLClient
             CURLOPT_WRITEFUNCTION => [$this, 'writeFunction'],
             CURLOPT_POSTFIELDS => $postData,
 
-            CURLOPT_CONNECTTIMEOUT => $this->options['connect_timeout'] ?? 10,
-            CURLOPT_TIMEOUT => 0,  // 流式请求不设置总超时
-            CURLOPT_LOW_SPEED_LIMIT => 1,  // 最低速率 1 byte/s
-            CURLOPT_LOW_SPEED_TIME => $this->options['read_timeout'] ?? 30,
+            CURLOPT_CONNECTTIMEOUT => $this->options['connect_timeout'] ?? 30,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_LOW_SPEED_LIMIT => 1,
+            CURLOPT_LOW_SPEED_TIME => $this->options['read_timeout'] ?? 60,
 
             CURLOPT_SSL_VERIFYPEER => $this->options['verify'] ?? true,
             CURLOPT_SSL_VERIFYHOST => $this->options['verify'] ?? 2,
@@ -171,9 +170,7 @@ class SimpleCURLClient
             }
         });
 
-        // Wait for headers to be received with configurable timeout
-        // Default: 30 seconds for first response (more generous for long network latency)
-        $headerTimeout = $this->options['header_timeout'] ?? 30;
+        $headerTimeout = $this->options['header_timeout'] ?? 60;
         $headerReceived = $this->headerChannel->pop($headerTimeout);
 
         if ($headerReceived === false) {
@@ -211,17 +208,14 @@ class SimpleCURLClient
 
     public function stream_read(int $length): false|string
     {
-        // 1. 如果缓冲区有数据，先读取缓冲区
         if ($this->remaining) {
             $ret = substr($this->remaining, 0, $length);
             $this->remaining = substr($this->remaining, $length);
             return $ret;
         }
 
-        // 2. 从 Channel 获取新数据（阻塞等待）
-        $data = $this->writeChannel->pop(
-            timeout: ($this->options['timeout'] ?? 1) * 1000  // 毫秒
-        );
+        $readTimeout = $this->options['read_timeout'] ?? 60;
+        $data = $this->writeChannel->pop(timeout: $readTimeout);
 
         // 3. 处理超时或 EOF
         if ($data === false) {
@@ -265,12 +259,16 @@ class SimpleCURLClient
     public function writeFunction(CurlHandle $ch, $data): int
     {
         try {
-            $result = $this->writeChannel->push($data, timeout: 5);
+            $result = $this->writeChannel->push($data, timeout: 60);
             if ($result === false) {
+                $this->curlError = 'Channel push timeout: consumer not reading data';
+                $this->curlErrorCode = CURLE_WRITE_ERROR;
                 return 0;
             }
             return strlen($data);
         } catch (Throwable $e) {
+            $this->curlError = 'Channel push error: ' . $e->getMessage();
+            $this->curlErrorCode = CURLE_WRITE_ERROR;
             return 0;
         }
     }
@@ -332,7 +330,6 @@ class SimpleCURLClient
             'http_code' => $this->statusCode,
         ];
 
-        // Include error information if present
         if ($this->curlError) {
             $metadata['error'] = $this->curlError;
             $metadata['error_code'] = $this->curlErrorCode;

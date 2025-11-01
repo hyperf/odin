@@ -57,27 +57,69 @@ class AwsEventStreamParser implements IteratorAggregate
     public function getIterator(): Generator
     {
         while (! feof($this->stream)) {
-            $length = fread($this->stream, 4);
-            if ($length === '') {
+            $length = $this->readExactly(4);
+            if ($length === null) {
                 break;
             }
-            if ($length === false) {
-                throw new RuntimeException('Failed to read from stream');
-            }
+            
             $lengthUnpacked = unpack('N', $length);
             $toRead = $lengthUnpacked[1] - 4;
-            $body = fread($this->stream, $toRead);
-            if ($body === false) {
-                throw new RuntimeException('Failed to read from stream');
+            
+            $body = $this->readExactly($toRead);
+            if ($body === null) {
+                throw new RuntimeException('Failed to read message body from stream');
             }
+            
             $chunk = $length . $body;
-
             $this->buffer .= $chunk;
 
             while (($message = $this->parseNextMessage()) !== null) {
                 yield $message;
             }
         }
+    }
+
+    /**
+     * Read exactly N bytes from stream with retry.
+     *
+     * @param int $length Number of bytes to read
+     * @return null|string Returns null on EOF, string of exact length on success
+     */
+    private function readExactly(int $length): ?string
+    {
+        $data = '';
+        $remaining = $length;
+        $maxAttempts = 100;
+        $attempt = 0;
+
+        while ($remaining > 0 && ! feof($this->stream)) {
+            $chunk = fread($this->stream, $remaining);
+            
+            if ($chunk === false) {
+                throw new RuntimeException('Failed to read from stream');
+            }
+            
+            if ($chunk === '') {
+                if (++$attempt > $maxAttempts) {
+                    throw new RuntimeException("Failed to read {$length} bytes after {$maxAttempts} attempts");
+                }
+                usleep(10000);
+                continue;
+            }
+            
+            $data .= $chunk;
+            $remaining -= strlen($chunk);
+            $attempt = 0;
+        }
+
+        if ($remaining > 0) {
+            if ($data === '') {
+                return null;
+            }
+            throw new RuntimeException("Unexpected EOF: read " . strlen($data) . " bytes, expected {$length}");
+        }
+
+        return $data;
     }
 
     /**
