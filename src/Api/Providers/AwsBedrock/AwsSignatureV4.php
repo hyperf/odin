@@ -241,6 +241,7 @@ class AwsSignatureV4
         // For HTTPS streaming requests, can use UNSIGNED-PAYLOAD
         // For regular requests, compute SHA256 hash of body
         $body = (string) $request->getBody();
+        $request->getBody()->rewind();
         return hash('sha256', $body);
     }
 

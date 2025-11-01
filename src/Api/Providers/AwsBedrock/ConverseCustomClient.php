@@ -15,6 +15,7 @@ namespace Hyperf\Odin\Api\Providers\AwsBedrock;
 use GuzzleHttp\Exception\BadResponseException;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Psr7\Request;
+use Hyperf\Engine\Coroutine;
 use Hyperf\Odin\Api\Providers\AbstractClient;
 use Hyperf\Odin\Api\Providers\AwsBedrock\Cache\AutoCacheConfig;
 use Hyperf\Odin\Api\Providers\AwsBedrock\Cache\AwsBedrockCachePointManager;
@@ -24,6 +25,7 @@ use Hyperf\Odin\Api\RequestOptions\ApiOptions;
 use Hyperf\Odin\Api\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\Response\ChatCompletionStreamResponse;
 use Hyperf\Odin\Api\Response\EmbeddingResponse;
+use Hyperf\Odin\Api\Transport\OdinSimpleCurl;
 use Hyperf\Odin\Contract\Message\MessageInterface;
 use Hyperf\Odin\Event\AfterChatCompletionsEvent;
 use Hyperf\Odin\Event\AfterChatCompletionsStreamEvent;
@@ -198,6 +200,9 @@ class ConverseCustomClient extends AbstractClient
             // Convert binary bytes to base64 for JSON encoding
             $requestBodyForJson = $this->prepareBytesForJsonEncoding($requestBody);
 
+            // Encode body to JSON string (save it before signing, as signing will consume the stream)
+            $bodyJson = json_encode($requestBodyForJson, JSON_UNESCAPED_UNICODE);
+
             // Create PSR-7 request for streaming
             $request = new Request(
                 'POST',
@@ -206,7 +211,7 @@ class ConverseCustomClient extends AbstractClient
                     'Content-Type' => 'application/json',
                     'Accept' => 'application/vnd.amazon.eventstream',
                 ],
-                json_encode($requestBodyForJson, JSON_UNESCAPED_UNICODE)
+                $bodyJson
             );
 
             // Sign the request
@@ -221,8 +226,35 @@ class ConverseCustomClient extends AbstractClient
                 'token_estimate' => $chatRequest->getTokenEstimateDetail(),
             ], $this->requestOptions));
 
-            // Send streaming request
-            $response = $this->client->send($signedRequest, $this->getGuzzleOptions(true));
+            // Send streaming request using OdinSimpleCurl in coroutine environment or Guzzle otherwise
+            if (Coroutine::id()) {
+                // In coroutine environment, use OdinSimpleCurl
+                // Extract headers from signed request
+                $headers = array_map(function ($values) {
+                    return implode(', ', $values);
+                }, $signedRequest->getHeaders());
+
+                // Prepare options for OdinSimpleCurl
+                // Use saved $bodyJson instead of reading from stream (which was consumed during signing)
+                $options = [
+                    'headers' => $headers,
+                    'body' => $bodyJson,  // Use pre-encoded and saved body for signature compatibility
+                    'connect_timeout' => $this->requestOptions->getConnectionTimeout(),
+                    'read_timeout' => $this->requestOptions->getStreamChunkTimeout(),
+                    'timeout' => $this->requestOptions->getStreamChunkTimeout(),
+                    'verify' => true,
+                ];
+
+                if ($proxy = $this->requestOptions->getProxy()) {
+                    $options['proxy'] = $proxy;
+                }
+
+                // Use skipContentTypeCheck=true for AWS EventStream (not SSE format)
+                $response = OdinSimpleCurl::send($url, $options, true);
+            } else {
+                // In non-coroutine environment, use Guzzle
+                $response = $this->client->send($signedRequest, $this->getGuzzleOptions(true));
+            }
 
             $firstResponseTime = microtime(true);
             $firstResponseDuration = round(($firstResponseTime - $startTime) * 1000); // milliseconds
@@ -255,6 +287,9 @@ class ConverseCustomClient extends AbstractClient
             );
 
             return $chatCompletionStreamResponse;
+        } catch (RuntimeException $e) {
+            // Handle exceptions from OdinSimpleCurl
+            throw $this->convertException($e);
         } catch (GuzzleException $e) {
             throw $this->convertGuzzleException($e);
         } catch (Throwable $e) {

@@ -76,15 +76,28 @@ class SimpleCURLClient
         // Build headers array
         $headers = [];
         $hasContentType = false;
-        foreach ($this->options['headers'] as $key => $value) {
-            $headers[] = $key . ': ' . $value;
-            if (strtolower($key) === 'content-type') {
-                $hasContentType = true;
+        if (isset($this->options['headers']) && is_array($this->options['headers'])) {
+            foreach ($this->options['headers'] as $key => $value) {
+                $headers[] = $key . ': ' . $value;
+                if (strtolower($key) === 'content-type') {
+                    $hasContentType = true;
+                }
             }
         }
 
         if (! $hasContentType) {
             $headers[] = 'Content-Type: application/json';
+        }
+
+        // Support both pre-encoded body and json array
+        // If 'body' is provided (for AWS signature compatibility), use it directly
+        // Otherwise, encode the 'json' array
+        if (isset($this->options['body'])) {
+            $postData = $this->options['body'];
+        } elseif (isset($this->options['json'])) {
+            $postData = json_encode($this->options['json']);
+        } else {
+            $postData = '';
         }
 
         curl_setopt_array($this->ch, [
@@ -93,7 +106,7 @@ class SimpleCURLClient
             CURLOPT_BUFFERSIZE => 0,
             CURLOPT_HEADERFUNCTION => [$this, 'headerFunction'],
             CURLOPT_WRITEFUNCTION => [$this, 'writeFunction'],
-            CURLOPT_POSTFIELDS => json_encode($this->options['json']),
+            CURLOPT_POSTFIELDS => $postData,
 
             CURLOPT_CONNECTTIMEOUT => $this->options['connect_timeout'] ?? 10,
             CURLOPT_TIMEOUT => 0,  // 流式请求不设置总超时
@@ -121,6 +134,14 @@ class SimpleCURLClient
 
                     // Send error signal to waiting consumer
                     $this->headerChannel->push(false);
+                } else {
+                    // Even if curl_exec succeeded, check if statusCode was set
+                    // If not, there might be an issue with header parsing
+                    if ($this->statusCode === 0) {
+                        $this->curlError = 'No HTTP response received (status code is 0)';
+                        $this->curlErrorCode = 0;
+                        $this->headerChannel->push(false);
+                    }
                 }
                 $this->writeChannel->push(null);
             } catch (Throwable $e) {
@@ -229,7 +250,15 @@ class SimpleCURLClient
         if (empty($trimmed)) {
             // Headers are complete, get status code and signal ready
             $this->statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $this->headerChannel->push(true);
+            
+            // Only signal header completion if we have a valid HTTP status code
+            // Ignore proxy CONNECT responses (status code 0)
+            if ($this->statusCode > 0) {
+                $this->headerChannel->push(true);
+            } else {
+                // This is a proxy CONNECT response, reset headers and wait for real response
+                $this->responseHeaders = [];
+            }
         } else {
             $headerParts = explode(':', $header, 2);
             if (count($headerParts) === 2) {
