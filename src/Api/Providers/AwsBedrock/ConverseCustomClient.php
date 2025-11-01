@@ -242,6 +242,7 @@ class ConverseCustomClient extends AbstractClient
                     'connect_timeout' => $this->requestOptions->getConnectionTimeout(),
                     'read_timeout' => $this->requestOptions->getStreamChunkTimeout(),
                     'timeout' => $this->requestOptions->getStreamChunkTimeout(),
+                    'header_timeout' => $this->requestOptions->getStreamFirstChunkTimeout(),  // Timeout for receiving HTTP headers
                     'verify' => true,
                 ];
 

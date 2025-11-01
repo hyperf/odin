@@ -120,6 +120,8 @@ class Client extends AbstractClient
                 foreach ($this->getHeaders() as $key => $value) {
                     $options['headers'][$key] = $value;
                 }
+                // Add header timeout for SimpleCURLClient
+                $options['header_timeout'] = $this->requestOptions->getStreamFirstChunkTimeout();
                 $response = OdinSimpleCurl::send($url, $options);
             } else {
                 $response = $this->client->post($url, $options);

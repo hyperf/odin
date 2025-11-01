@@ -170,8 +170,10 @@ class SimpleCURLClient
             }
         });
 
-        // Wait for headers to be received (10 seconds timeout)
-        $headerReceived = $this->headerChannel->pop(10);
+        // Wait for headers to be received with configurable timeout
+        // Default: 30 seconds for first response (more generous for long network latency)
+        $headerTimeout = $this->options['header_timeout'] ?? 30;
+        $headerReceived = $this->headerChannel->pop($headerTimeout);
 
         if ($headerReceived === false) {
             $this->stream_close();
@@ -197,9 +199,9 @@ class SimpleCURLClient
             }
             
             throw new LLMConnectionTimeoutException(
-                'Connection timeout: Failed to receive HTTP headers within 10 seconds',
+                "Connection timeout: Failed to receive HTTP headers within {$headerTimeout} seconds",
                 new RuntimeException('Failed to receive HTTP headers within timeout'),
-                10.0
+                (float) $headerTimeout
             );
         }
 
