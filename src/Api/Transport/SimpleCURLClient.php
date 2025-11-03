@@ -56,7 +56,7 @@ class SimpleCURLClient
 
     private bool $headersReceived = false;
 
-    private bool|string|null $lastRead = null;
+    private array $lastRead = [];
 
     public function __construct()
     {
@@ -71,11 +71,20 @@ class SimpleCURLClient
         }
         $this->stream_close();
 
+        // Format last read data before logging
+        $lastReadPreview = [];
+        try {
+            $lastReadPreview = $this->formatLastReadForLog();
+        } catch (Throwable $e) {
+            $lastReadPreview = ['error' => $e->getMessage()];
+        }
+
         $this->log('SimpleCURLClient::__destruct', [
             'url' => $this->options['url'] ?? 'unknown',
             'eof' => $this->eof,
             'closed' => $this->closed,
-            'last_read' => $this->lastRead,
+            'last_read_count' => count($this->lastRead),
+            'last_read_preview' => $lastReadPreview,
         ]);
     }
 
@@ -254,7 +263,7 @@ class SimpleCURLClient
         if ($this->remaining) {
             $ret = substr($this->remaining, 0, $length);
             $this->remaining = substr($this->remaining, $length);
-            $this->lastRead = $ret;
+            $this->recordLastRead($ret);
             return $ret;
         }
 
@@ -273,7 +282,7 @@ class SimpleCURLClient
                 'eof' => $this->eof,
                 'remaining_buffer' => substr($this->remaining, 0, 200),
             ]);
-            $this->lastRead = false;
+            $this->recordLastRead(false);
             return false;
         }
 
@@ -284,7 +293,7 @@ class SimpleCURLClient
                 'elapsed' => $elapsed,
             ]);
 
-            $this->lastRead = '';
+            $this->recordLastRead('');
             return '';
         }
 
@@ -304,7 +313,7 @@ class SimpleCURLClient
         $ret = substr($data, 0, $length);
         $this->remaining = substr($data, $length);
 
-        $this->lastRead = $ret;
+        $this->recordLastRead($ret);
         return $ret;
     }
 
@@ -421,6 +430,39 @@ class SimpleCURLClient
     }
 
     /**
+     * Record last read data, keeping only the last 5 chunks.
+     *
+     * @param bool|string $data The data that was read
+     */
+    private function recordLastRead(bool|string $data): void
+    {
+        $this->lastRead[] = $data;
+        // Keep only last 5 chunks
+        if (count($this->lastRead) > 5) {
+            array_shift($this->lastRead);
+        }
+    }
+
+    /**
+     * Format last read data for logging.
+     *
+     * @return array Formatted preview of last read chunks
+     */
+    private function formatLastReadForLog(): array
+    {
+        $preview = [];
+        foreach ($this->lastRead as $data) {
+            // Keep original data as-is, but convert non-UTF-8 binary data to hex for JSON safety
+            if (is_string($data) && !mb_check_encoding($data, 'UTF-8')) {
+                $preview[] = bin2hex($data);
+            } else {
+                $preview[] = $data;
+            }
+        }
+        return $preview;
+    }
+
+    /**
      * Log stream activity for debugging.
      *
      * @param string $message Log message
@@ -430,15 +472,26 @@ class SimpleCURLClient
     {
         try {
             $logger = LogUtil::getHyperfLogger();
+            $context['coroutine_id'] = Coroutine::id();
+            
             if ($logger === null) {
+                // Fallback to error_log if logger is not available (e.g., during shutdown)
+                error_log(sprintf(
+                    '[SimpleCURLClient] %s %s',
+                    $message,
+                    json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+                ));
                 return;
             }
 
-            $context['stream_class'] = self::class;
-            $context['coroutine_id'] = Coroutine::id();
             $logger->info('[SimpleCURLClient] ' . $message, $context);
         } catch (Throwable $e) {
-            // Silently fail if logging fails to prevent disrupting stream operations
+            // Last resort: output to error_log
+            error_log(sprintf(
+                '[SimpleCURLClient] Failed to log: %s (original message: %s)',
+                $e->getMessage(),
+                $message
+            ));
         }
     }
 }
