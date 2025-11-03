@@ -56,6 +56,8 @@ class SimpleCURLClient
 
     private bool $headersReceived = false;
 
+    private bool|string|null $lastRead = null;
+
     public function __construct()
     {
         $this->writeChannel = new Channel(100);
@@ -68,6 +70,13 @@ class SimpleCURLClient
             curl_close($this->ch);
         }
         $this->stream_close();
+
+        $this->log('SimpleCURLClient::__destruct', [
+            'url' => $this->options['url'] ?? 'unknown',
+            'eof' => $this->eof,
+            'closed' => $this->closed,
+            'last_read' => $this->lastRead,
+        ]);
     }
 
     public function stream_open(string $path, string $mode, int $options, ?string &$opened_path): bool
@@ -245,6 +254,7 @@ class SimpleCURLClient
         if ($this->remaining) {
             $ret = substr($this->remaining, 0, $length);
             $this->remaining = substr($this->remaining, $length);
+            $this->lastRead = $ret;
             return $ret;
         }
 
@@ -263,6 +273,7 @@ class SimpleCURLClient
                 'eof' => $this->eof,
                 'remaining_buffer' => substr($this->remaining, 0, 200),
             ]);
+            $this->lastRead = false;
             return false;
         }
 
@@ -272,6 +283,8 @@ class SimpleCURLClient
             $this->log('收到EOF信号，流正常结束', [
                 'elapsed' => $elapsed,
             ]);
+
+            $this->lastRead = '';
             return '';
         }
 
@@ -291,6 +304,7 @@ class SimpleCURLClient
         $ret = substr($data, 0, $length);
         $this->remaining = substr($data, $length);
 
+        $this->lastRead = $ret;
         return $ret;
     }
 
@@ -395,6 +409,7 @@ class SimpleCURLClient
         $metadata = [
             'headers' => $this->responseHeaders,
             'http_code' => $this->statusCode,
+            'last_read' => $this->lastRead,
         ];
 
         if ($this->curlError) {
