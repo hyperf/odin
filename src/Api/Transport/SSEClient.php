@@ -120,17 +120,6 @@ class SSEClient implements IteratorAggregate
 
                 ++$chunkCounter;
 
-                // 检查流是否仍然有效
-                if (! is_resource($this->stream) || feof($this->stream)) {
-                    $this->logger?->info('[SSEClient] 流无效或已EOF，退出循环', [
-                        'total_chunks' => $chunkCounter,
-                        'is_resource' => is_resource($this->stream),
-                        'feof' => feof($this->stream),
-                        'last_chunk_preview' => substr($chunk, 0, 200),
-                    ]);
-                    break;
-                }
-
                 $eventData = $this->parseEvent($chunk);
                 $event = SSEEvent::fromArray($eventData);
 
@@ -163,11 +152,21 @@ class SSEClient implements IteratorAggregate
                 $this->exceptionDetector?->onChunkReceived($chunkInfo);
 
                 yield $event;
+
+                // check stream status after yielding the current chunk
+                if (! is_resource($this->stream) || feof($this->stream)) {
+                    $this->logger?->info('[SSEClient] 流无效或已EOF，退出循环', [
+                        'total_chunks' => $chunkCounter,
+                        'is_resource' => is_resource($this->stream),
+                        'feof' => feof($this->stream),
+                    ]);
+                    break;
+                }
             }
         } finally {
             $this->logger?->info('[SSEClient] SSE流处理完成', [
                 'total_chunks' => $chunkCounter,
-                'feof' => is_resource($this->stream) ? feof($this->stream) : true,
+                'feof' => ! is_resource($this->stream) || feof($this->stream),
                 'should_close' => $this->shouldClose,
             ]);
 
