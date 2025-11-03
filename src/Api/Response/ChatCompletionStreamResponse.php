@@ -594,7 +594,7 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
         }
 
         // Set duration and create completion response
-        $this->afterChatCompletionsStreamEvent->setDuration(microtime(true) - $startTime);
+        $this->afterChatCompletionsStreamEvent->setDuration(TimeUtil::calculateDurationMs($startTime));
 
         // Create and set the completed ChatCompletionResponse
         $completionResponse = $this->createChatCompletionResponse();
