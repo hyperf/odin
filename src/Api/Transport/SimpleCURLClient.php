@@ -66,9 +66,6 @@ class SimpleCURLClient
 
     public function __destruct()
     {
-        if (isset($this->ch) && ! $this->closed) {
-            curl_close($this->ch);
-        }
         $this->stream_close();
 
         $this->log('SimpleCURLClient::__destruct', [
@@ -272,18 +269,12 @@ class SimpleCURLClient
                 'eof' => $this->eof,
                 'remaining_buffer' => substr($this->remaining, 0, 200),
             ]);
-            $this->recordLastRead(false);
+            $this->recordLastRead('false');
             return false;
         }
 
         if ($data === null) {
-            // EOF signal
-            $this->eof = true;
-            $this->log('收到EOF信号，流正常结束', [
-                'elapsed' => $elapsed,
-            ]);
-
-            $this->recordLastRead('');
+            $this->recordLastRead('null');
             return '';
         }
 
@@ -443,7 +434,7 @@ class SimpleCURLClient
         $preview = [];
         foreach ($this->lastRead as $data) {
             // Keep original data as-is, but convert non-UTF-8 binary data to hex for JSON safety
-            if (is_string($data) && !mb_check_encoding($data, 'UTF-8')) {
+            if (is_string($data) && ! mb_check_encoding($data, 'UTF-8')) {
                 $preview[] = bin2hex($data);
             } else {
                 $preview[] = $data;
@@ -463,7 +454,7 @@ class SimpleCURLClient
         try {
             $logger = LogUtil::getHyperfLogger();
             $context['coroutine_id'] = Coroutine::id();
-            
+
             if ($logger === null) {
                 // Fallback to error_log if logger is not available (e.g., during shutdown)
                 error_log(sprintf(
