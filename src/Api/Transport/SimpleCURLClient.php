@@ -132,7 +132,6 @@ class SimpleCURLClient
         }
 
         Coroutine::run(function () {
-            $this->eof = false;
             $this->log('curl_exec协程已启动', [
                 'url' => $this->options['url'],
             ]);
@@ -197,7 +196,6 @@ class SimpleCURLClient
                 }
                 $this->writeChannel->push(null);
             } finally {
-                $this->eof = true;
                 $this->log('curl_exec协程结束，设置EOF标志', [
                     'eof' => $this->eof,
                 ]);
@@ -274,6 +272,7 @@ class SimpleCURLClient
         }
 
         if ($data === null) {
+            $this->eof = true;
             $this->recordLastRead('null');
             return '';
         }
