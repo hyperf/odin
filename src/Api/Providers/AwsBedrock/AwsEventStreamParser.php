@@ -13,6 +13,7 @@ declare(strict_types=1);
 namespace Hyperf\Odin\Api\Providers\AwsBedrock;
 
 use Generator;
+use Hyperf\Odin\Api\Transport\SimpleCURLClient;
 use Hyperf\Odin\Utils\LogUtil;
 use InvalidArgumentException;
 use IteratorAggregate;
@@ -376,7 +377,7 @@ class AwsEventStreamParser implements IteratorAggregate
             $wrapper = $metadata['wrapper_data'] ?? null;
 
             // Check if it's a SimpleCURLClient instance
-            if (! $wrapper instanceof \Hyperf\Odin\Api\Transport\SimpleCURLClient) {
+            if (! $wrapper instanceof SimpleCURLClient) {
                 return;
             }
 

@@ -28,7 +28,7 @@ if (! in_array('OdinSimpleCurl', stream_get_wrappers())) {
 
 class SimpleCURLClient
 {
-    private const MAX_BUFFER_SIZE = 1024 * 1024; // 1MB
+    private const MAX_BUFFER_SIZE = 1024 * 1024;
 
     public $context;
 
@@ -46,8 +46,6 @@ class SimpleCURLClient
 
     private array $responseHeaders = [];
 
-    private bool $closed = false;
-
     private int $statusCode = 0;
 
     private ?string $curlError = null;
@@ -55,8 +53,6 @@ class SimpleCURLClient
     private int $curlErrorCode = 0;
 
     private bool $headersReceived = false;
-
-    private array $lastRead = [];
 
     public function __construct()
     {
@@ -67,23 +63,15 @@ class SimpleCURLClient
     public function __destruct()
     {
         $this->stream_close();
-
-        $this->log('SimpleCURLClient::__destruct', [
-            'url' => $this->options['url'] ?? 'unknown',
-            'eof' => $this->eof,
-            'closed' => $this->closed,
-        ]);
     }
 
     public function stream_open(string $path, string $mode, int $options, ?string &$opened_path): bool
     {
-        // 解析参数：从 "OdinSimpleCurl://{JSON}" 中提取 JSON
         $optionsStr = substr($path, strlen('OdinSimpleCurl://'));
         $this->options = json_decode($optionsStr, true);
 
         $this->ch = curl_init($this->options['url']);
 
-        // Build headers array
         $headers = [];
         $hasContentType = false;
         if (isset($this->options['headers']) && is_array($this->options['headers'])) {
@@ -99,9 +87,6 @@ class SimpleCURLClient
             $headers[] = 'Content-Type: application/json';
         }
 
-        // Support both pre-encoded body and json array
-        // If 'body' is provided (for AWS signature compatibility), use it directly
-        // Otherwise, encode the 'json' array
         if (isset($this->options['body'])) {
             $postData = $this->options['body'];
         } elseif (isset($this->options['json'])) {
@@ -121,7 +106,7 @@ class SimpleCURLClient
             CURLOPT_CONNECTTIMEOUT => $this->options['connect_timeout'] ?? 30,
             CURLOPT_TIMEOUT => 0,
             CURLOPT_LOW_SPEED_LIMIT => 1,
-            CURLOPT_LOW_SPEED_TIME => $this->options['read_timeout'] ?? 60,
+            CURLOPT_LOW_SPEED_TIME => $this->options['stream_chunk'] ?? 120,
 
             CURLOPT_SSL_VERIFYPEER => $this->options['verify'] ?? true,
             CURLOPT_SSL_VERIFYHOST => $this->options['verify'] ?? 2,
@@ -132,21 +117,11 @@ class SimpleCURLClient
         }
 
         Coroutine::run(function () {
-            $this->log('curl_exec协程已启动', [
-                'url' => $this->options['url'],
-            ]);
-
             try {
                 $startTime = microtime(true);
                 $result = curl_exec($this->ch);
                 $elapsed = microtime(true) - $startTime;
 
-                $this->log('curl_exec执行完成', [
-                    'result' => $result === false ? 'false' : 'true',
-                    'elapsed' => $elapsed,
-                ]);
-
-                // Check for cURL errors
                 if ($result === false) {
                     $this->curlError = curl_error($this->ch);
                     $this->curlErrorCode = curl_errno($this->ch);
@@ -157,14 +132,10 @@ class SimpleCURLClient
                         'elapsed' => $elapsed,
                     ]);
 
-                    // Send error signal to waiting consumer
                     if (! $this->headersReceived) {
                         $this->headerChannel->push(false);
                     }
                 } else {
-                    // curl_exec succeeded, but check if we received complete headers
-                    // This handles cases where connection succeeds but no HTTP response is received
-                    // (e.g., proxy CONNECT succeeded but real request timed out)
                     if (! $this->headersReceived) {
                         $this->curlError = 'No HTTP response received (headers incomplete)';
                         $this->curlErrorCode = 0;
@@ -172,18 +143,11 @@ class SimpleCURLClient
                             'elapsed' => $elapsed,
                         ]);
                         $this->headerChannel->push(false);
-                    } else {
-                        $this->log('curl_exec成功且响应头完整', [
-                            'elapsed' => $elapsed,
-                            'status_code' => $this->statusCode,
-                        ]);
                     }
                 }
 
-                $this->log('向Channel发送EOF信号', []);
                 $this->writeChannel->push(null);
             } catch (Throwable $e) {
-                // Catch any unexpected errors
                 $this->curlError = $e->getMessage();
                 $this->curlErrorCode = $e->getCode();
                 $this->log('curl_exec协程异常', [
@@ -196,13 +160,8 @@ class SimpleCURLClient
                 }
                 $this->writeChannel->push(null);
             } finally {
-                $this->log('curl_exec协程结束，设置EOF标志', [
-                    'eof' => $this->eof,
-                ]);
-
                 if (isset($this->ch)) {
                     curl_close($this->ch);
-                    $this->closed = true;
                 }
             }
         });
@@ -212,13 +171,10 @@ class SimpleCURLClient
 
         if ($headerReceived === false) {
             $this->stream_close();
-            // Connection failed or timeout
             if ($this->curlError) {
                 $curlCode = $this->curlErrorCode;
                 $errorMessage = $this->curlError;
 
-                // Map cURL error codes to appropriate LLM exceptions
-                // 28: Operation timeout
                 if ($curlCode === 28) {
                     throw new LLMReadTimeoutException(
                         "Connection timeout: {$errorMessage}",
@@ -226,7 +182,6 @@ class SimpleCURLClient
                     );
                 }
 
-                // For other cURL errors, throw connection timeout exception
                 throw new LLMConnectionTimeoutException(
                     "cURL error ({$curlCode}): {$errorMessage}",
                     new RuntimeException($errorMessage, $curlCode)
@@ -248,38 +203,32 @@ class SimpleCURLClient
         if ($this->remaining) {
             $ret = substr($this->remaining, 0, $length);
             $this->remaining = substr($this->remaining, $length);
-            $this->recordLastRead($ret);
             return $ret;
         }
 
-        $readTimeout = $this->options['read_timeout'] ?? 60;
+        $chunkTimeout = $this->options['stream_chunk'] ?? 120;
         $startTime = microtime(true);
-        $data = $this->writeChannel->pop(timeout: $readTimeout);
+        $data = $this->writeChannel->pop(timeout: $chunkTimeout);
         $elapsed = microtime(true) - $startTime;
 
-        // 3. 处理超时或 EOF
         if ($data === false) {
-            // Channel pop 超时
             $this->log('Channel读取超时', [
                 'requested_length' => $length,
-                'timeout' => $readTimeout,
+                'timeout' => $chunkTimeout,
                 'elapsed' => $elapsed,
                 'eof' => $this->eof,
                 'remaining_buffer' => substr($this->remaining, 0, 200),
             ]);
-            $this->recordLastRead('false');
             return false;
         }
 
         if ($data === null) {
             $this->eof = true;
-            $this->recordLastRead('null');
             return '';
         }
 
         $dataLength = strlen($data);
 
-        // 4. 检查缓冲区溢出
         if ($dataLength > self::MAX_BUFFER_SIZE) {
             $this->log('缓冲区溢出', [
                 'received_length' => $dataLength,
@@ -289,11 +238,9 @@ class SimpleCURLClient
             throw new LLMNetworkException('Buffer overflow: received chunk larger than MAX_BUFFER_SIZE');
         }
 
-        // 5. 读取指定长度的数据
         $ret = substr($data, 0, $length);
         $this->remaining = substr($data, $length);
 
-        $this->recordLastRead($ret);
         return $ret;
     }
 
@@ -348,18 +295,13 @@ class SimpleCURLClient
         $len = strlen($header);
         $trimmed = trim($header);
 
-        // Check if this is an empty line (end of headers)
         if (empty($trimmed)) {
-            // Headers are complete, get status code and signal ready
             $this->statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-            // Only signal header completion if we have a valid HTTP status code
-            // Ignore proxy CONNECT responses (status code 0)
             if ($this->statusCode > 0) {
                 $this->headersReceived = true;
                 $this->headerChannel->push(true);
             } else {
-                // This is a proxy CONNECT response, reset headers and wait for real response
                 $this->responseHeaders = [];
             }
         } else {
@@ -375,11 +317,10 @@ class SimpleCURLClient
 
     public function stream_stat(): array|false
     {
-        // Return dummy stat info compatible with fstat()
         return [
             'dev' => 0,
             'ino' => 0,
-            'mode' => 33206,  // 0100666 (regular file, readable/writable)
+            'mode' => 33206,
             'nlink' => 0,
             'uid' => 0,
             'gid' => 0,
@@ -398,7 +339,6 @@ class SimpleCURLClient
         $metadata = [
             'headers' => $this->responseHeaders,
             'http_code' => $this->statusCode,
-            'last_read' => $this->lastRead,
         ];
 
         if ($this->curlError) {
@@ -409,69 +349,14 @@ class SimpleCURLClient
         return $metadata;
     }
 
-    /**
-     * Record last read data, keeping only the last 5 chunks.
-     *
-     * @param bool|string $data The data that was read
-     */
-    private function recordLastRead(bool|string $data): void
-    {
-        $this->lastRead[] = $data;
-        // Keep only last 5 chunks
-        if (count($this->lastRead) > 5) {
-            array_shift($this->lastRead);
-        }
-    }
-
-    /**
-     * Format last read data for logging.
-     *
-     * @return array Formatted preview of last read chunks
-     */
-    private function formatLastReadForLog(): array
-    {
-        $preview = [];
-        foreach ($this->lastRead as $data) {
-            // Keep original data as-is, but convert non-UTF-8 binary data to hex for JSON safety
-            if (is_string($data) && ! mb_check_encoding($data, 'UTF-8')) {
-                $preview[] = bin2hex($data);
-            } else {
-                $preview[] = $data;
-            }
-        }
-        return $preview;
-    }
-
-    /**
-     * Log stream activity for debugging.
-     *
-     * @param string $message Log message
-     * @param array $context Additional context data
-     */
     private function log(string $message, array $context = []): void
     {
-        try {
-            $logger = LogUtil::getHyperfLogger();
-            $context['coroutine_id'] = Coroutine::id();
-
-            if ($logger === null) {
-                // Fallback to error_log if logger is not available (e.g., during shutdown)
-                error_log(sprintf(
-                    '[SimpleCURLClient] %s %s',
-                    $message,
-                    json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
-                ));
-                return;
-            }
-
-            $logger->info('[SimpleCURLClient] ' . $message, $context);
-        } catch (Throwable $e) {
-            // Last resort: output to error_log
-            error_log(sprintf(
-                '[SimpleCURLClient] Failed to log: %s (original message: %s)',
-                $e->getMessage(),
-                $message
-            ));
+        $logger = LogUtil::getHyperfLogger();
+        if (! $logger) {
+            return;
         }
+
+        $context['coroutine_id'] = Coroutine::id();
+        $logger->info('[SimpleCURLClient] ' . $message, $context);
     }
 }

@@ -118,7 +118,6 @@ class ConverseCustomClient extends AbstractClient
             // Sign the request
             $signedRequest = $this->signer->signRequest($request);
 
-            // Log request
             $this->logger?->info('AwsBedrockConverseCustomRequest', LoggingConfigHelper::filterAndFormatLogData([
                 'request_id' => $requestId,
                 'model_id' => $modelId,
@@ -146,28 +145,13 @@ class ConverseCustomClient extends AbstractClient
 
             $performanceFlag = LogUtil::getPerformanceFlag($duration);
 
-            // Get message for logging
-            $firstMessage = $chatCompletionResponse->getFirstChoice()?->getMessage();
-            $messageContent = $firstMessage?->getContent();
-            $reasoningContent = null;
-            if ($firstMessage instanceof AssistantMessage) {
-                $reasoningContent = $firstMessage->getReasoningContent();
-            }
-
-            $logData = [
+            $this->logger?->info('AwsBedrockConverseCustomResponse', LoggingConfigHelper::filterAndFormatLogData([
                 'request_id' => $requestId,
                 'model_id' => $modelId,
                 'duration_ms' => $duration,
-                'usage' => $responseBody['usage'] ?? [],
-                'converted_usage' => $chatCompletionResponse->getUsage()->toArray(),
-                'cache_hit_rate' => $chatCompletionResponse->getUsage()->getCacheHitRatePercentage(),
-                'message_content' => $messageContent,  // 只记录消息内容，不是整个响应
-                'reasoning_content' => $reasoningContent,  // 记录思考内容
-                'response_headers' => $response->getHeaders(),
+                'usage' => $chatCompletionResponse->getUsage()->toArray(),
                 'performance_flag' => $performanceFlag,
-            ];
-
-            $this->logger?->info('AwsBedrockConverseCustomResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
+            ], $this->requestOptions));
 
             EventUtil::dispatch(new AfterChatCompletionsEvent($chatRequest, $chatCompletionResponse, $duration));
 
@@ -217,7 +201,6 @@ class ConverseCustomClient extends AbstractClient
             // Sign the request
             $signedRequest = $this->signer->signRequest($request);
 
-            // Log request
             $this->logger?->info('AwsBedrockConverseCustomStreamRequest', LoggingConfigHelper::filterAndFormatLogData([
                 'request_id' => $requestId,
                 'model_id' => $modelId,
@@ -240,9 +223,8 @@ class ConverseCustomClient extends AbstractClient
                     'headers' => $headers,
                     'body' => $bodyJson,  // Use pre-encoded and saved body for signature compatibility
                     'connect_timeout' => $this->requestOptions->getConnectionTimeout(),
-                    'read_timeout' => $this->requestOptions->getStreamChunkTimeout(),
-                    'timeout' => $this->requestOptions->getStreamChunkTimeout(),
-                    'header_timeout' => $this->requestOptions->getStreamFirstChunkTimeout(),  // Timeout for receiving HTTP headers
+                    'stream_chunk' => $this->requestOptions->getStreamChunkTimeout(),
+                    'header_timeout' => $this->requestOptions->getStreamFirstChunkTimeout(),
                     'verify' => true,
                 ];
 
@@ -258,19 +240,16 @@ class ConverseCustomClient extends AbstractClient
             }
 
             $firstResponseTime = microtime(true);
-            $firstResponseDuration = round(($firstResponseTime - $startTime) * 1000); // milliseconds
+            $firstResponseDuration = round(($firstResponseTime - $startTime) * 1000);
 
-            // Log first response
             $performanceFlag = LogUtil::getPerformanceFlag($firstResponseDuration);
-            $logData = [
+            $this->logger?->info('AwsBedrockConverseCustomStreamFirstResponse', LoggingConfigHelper::filterAndFormatLogData([
                 'request_id' => $requestId,
                 'model_id' => $modelId,
                 'first_response_ms' => $firstResponseDuration,
                 'response_headers' => $response->getHeaders(),
                 'performance_flag' => $performanceFlag,
-            ];
-
-            $this->logger?->info('AwsBedrockConverseCustomStreamFirstResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
+            ], $this->requestOptions));
 
             $streamConverter = new CustomConverseStreamConverter(
                 $response,
