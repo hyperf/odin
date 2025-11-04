@@ -63,44 +63,49 @@ class AwsEventStreamParser implements IteratorAggregate
             'feof' => feof($this->stream),
         ]);
 
-        while (! feof($this->stream)) {
-            $length = $this->readExactly(4);
-            if ($length === null) {
-                // Normal EOF
-                $this->log('流正常结束', [
-                    'total_messages' => $messageCount,
-                    'feof' => feof($this->stream),
-                ]);
-                break;
+        try {
+            while (! feof($this->stream)) {
+                $length = $this->readExactly(4);
+                if ($length === null) {
+                    // Normal EOF
+                    $this->log('流正常结束', [
+                        'total_messages' => $messageCount,
+                        'feof' => feof($this->stream),
+                    ]);
+                    break;
+                }
+
+                $lengthUnpacked = unpack('N', $length);
+                $toRead = $lengthUnpacked[1] - 4;
+
+                $body = $this->readExactly($toRead);
+                if ($body === null) {
+                    $this->log('读取消息体失败', [
+                        'message_count' => $messageCount,
+                        'to_read' => $toRead,
+                        'buffer_preview' => substr($this->buffer, 0, 200),
+                    ]);
+                    throw new RuntimeException('Failed to read message body from stream');
+                }
+
+                $chunk = $length . $body;
+                $this->buffer .= $chunk;
+
+                while (($message = $this->parseNextMessage()) !== null) {
+                    ++$messageCount;
+                    yield $message;
+                }
             }
+        } finally {
+            $this->log('EventStream解析完成', [
+                'total_messages' => $messageCount,
+                'feof' => feof($this->stream),
+                'remaining_buffer' => strlen($this->buffer),
+            ]);
 
-            $lengthUnpacked = unpack('N', $length);
-            $toRead = $lengthUnpacked[1] - 4;
-
-            $body = $this->readExactly($toRead);
-            if ($body === null) {
-                $this->log('读取消息体失败', [
-                    'message_count' => $messageCount,
-                    'to_read' => $toRead,
-                    'buffer_preview' => substr($this->buffer, 0, 200),
-                ]);
-                throw new RuntimeException('Failed to read message body from stream');
-            }
-
-            $chunk = $length . $body;
-            $this->buffer .= $chunk;
-
-            while (($message = $this->parseNextMessage()) !== null) {
-                ++$messageCount;
-                yield $message;
-            }
+            // Log last read chunks from SimpleCURLClient if available
+            $this->logLastReadChunks();
         }
-
-        $this->log('EventStream解析完成', [
-            'total_messages' => $messageCount,
-            'feof' => feof($this->stream),
-            'remaining_buffer' => strlen($this->buffer),
-        ]);
     }
 
     /**
@@ -358,6 +363,54 @@ class AwsEventStreamParser implements IteratorAggregate
         // Fallback to PHP's crc32 (note: this uses different polynomial)
         // For production, should use proper CRC32C implementation
         return crc32($data) & 0xFFFFFFFF;
+    }
+
+    /**
+     * Log last read chunks from the underlying SimpleCURLClient stream.
+     */
+    private function logLastReadChunks(): void
+    {
+        try {
+            // Get stream metadata which includes wrapper_data
+            $metadata = stream_get_meta_data($this->stream);
+            $wrapper = $metadata['wrapper_data'] ?? null;
+
+            // Check if it's a SimpleCURLClient instance
+            if (! $wrapper instanceof \Hyperf\Odin\Api\Transport\SimpleCURLClient) {
+                return;
+            }
+
+            // Get custom metadata from SimpleCURLClient
+            $customMetadata = $wrapper->stream_metadata();
+            if (! isset($customMetadata['last_read']) || ! is_array($customMetadata['last_read'])) {
+                return;
+            }
+
+            // Format last read data for logging
+            $lastReadPreview = [];
+            foreach ($customMetadata['last_read'] as $data) {
+                // Keep original data as-is, but convert non-UTF-8 binary data to hex for JSON safety
+                if (is_string($data) && ! mb_check_encoding($data, 'UTF-8')) {
+                    $lastReadPreview[] = bin2hex($data);
+                } else {
+                    $lastReadPreview[] = $data;
+                }
+            }
+
+            $logger = LogUtil::getHyperfLogger();
+            if ($logger !== null) {
+                $logger->info('SimpleCURLClientStreamCompleted', [
+                    'last_read_count' => count($customMetadata['last_read']),
+                    'last_read_preview' => $lastReadPreview,
+                ]);
+            }
+        } catch (Throwable $e) {
+            // Silently fail if logging fails to prevent disrupting parser operations
+            $logger = LogUtil::getHyperfLogger();
+            $logger?->warning('Failed to log last read chunks', [
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
