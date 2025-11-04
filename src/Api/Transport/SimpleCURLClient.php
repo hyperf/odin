@@ -71,20 +71,10 @@ class SimpleCURLClient
         }
         $this->stream_close();
 
-        // Format last read data before logging
-        $lastReadPreview = [];
-        try {
-            $lastReadPreview = $this->formatLastReadForLog();
-        } catch (Throwable $e) {
-            $lastReadPreview = ['error' => $e->getMessage()];
-        }
-
         $this->log('SimpleCURLClient::__destruct', [
             'url' => $this->options['url'] ?? 'unknown',
             'eof' => $this->eof,
             'closed' => $this->closed,
-            'last_read_count' => count($this->lastRead),
-            'last_read_preview' => $lastReadPreview,
         ]);
     }
 

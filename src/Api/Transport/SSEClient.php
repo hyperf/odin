@@ -17,6 +17,7 @@ use Hyperf\Odin\Exception\InvalidArgumentException;
 use IteratorAggregate;
 use JsonException;
 use Psr\Log\LoggerInterface;
+use Throwable;
 
 class SSEClient implements IteratorAggregate
 {
@@ -166,9 +167,14 @@ class SSEClient implements IteratorAggregate
         } finally {
             $this->logger?->info('[SSEClient] SSE流处理完成', [
                 'total_chunks' => $chunkCounter,
-                'feof' => ! is_resource($this->stream) || feof($this->stream),
+                'resource' => is_resource($this->stream),
+                'feof' => feof($this->stream),
                 'should_close' => $this->shouldClose,
             ]);
+
+            if (is_resource($this->stream)) {
+                $this->logLastReadChunks($this->stream);
+            }
 
             if ($this->autoClose && is_resource($this->stream)) {
                 $this->logger?->info('[SSEClient] 关闭流资源');
@@ -286,6 +292,51 @@ class SSEClient implements IteratorAggregate
         }
 
         return $result;
+    }
+
+    /**
+     * Log last read chunks from the underlying SimpleCURLClient stream.
+     *
+     * @param resource $stream Stream resource
+     */
+    private function logLastReadChunks($stream): void
+    {
+        try {
+            // Get stream metadata which includes wrapper_data
+            $metadata = stream_get_meta_data($stream);
+            $wrapper = $metadata['wrapper_data'] ?? null;
+
+            // Check if it's a SimpleCURLClient instance
+            if (! $wrapper instanceof SimpleCURLClient) {
+                return;
+            }
+
+            // Get custom metadata from SimpleCURLClient
+            $customMetadata = $wrapper->stream_metadata();
+            if (! isset($customMetadata['last_read']) || ! is_array($customMetadata['last_read'])) {
+                return;
+            }
+
+            // Format last read data for logging
+            $lastReadPreview = [];
+            foreach ($customMetadata['last_read'] as $data) {
+                // Keep original data as-is, but convert non-UTF-8 binary data to hex for JSON safety
+                if (is_string($data) && ! mb_check_encoding($data, 'UTF-8')) {
+                    $lastReadPreview[] = bin2hex($data);
+                } else {
+                    $lastReadPreview[] = $data;
+                }
+            }
+
+            $this->logger?->info('SimpleCURLClientStreamCompleted', [
+                'last_read_count' => count($customMetadata['last_read']),
+                'last_read_preview' => $lastReadPreview,
+            ]);
+        } catch (Throwable $e) {
+            $this->logger?->warning('Failed to log last read chunks', [
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
