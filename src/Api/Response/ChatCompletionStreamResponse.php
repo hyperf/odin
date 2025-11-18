@@ -20,6 +20,7 @@ use Hyperf\Odin\Event\AfterChatCompletionsStreamEvent;
 use Hyperf\Odin\Exception\LLMException;
 use Hyperf\Odin\Message\AssistantMessage;
 use Hyperf\Odin\Utils\EventUtil;
+use Hyperf\Odin\Utils\LoggingConfigHelper;
 use Hyperf\Odin\Utils\TimeUtil;
 use IteratorAggregate;
 use JsonException;
@@ -599,6 +600,12 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
         // Create and set the completed ChatCompletionResponse
         $completionResponse = $this->createChatCompletionResponse();
         $this->afterChatCompletionsStreamEvent->setCompletionResponse($completionResponse);
+
+        $logData = [
+            'content' => $completionResponse->getFirstChoice()?->getMessage()?->toArray(),
+            'usage' => $completionResponse->getUsage()?->toArray(),
+        ];
+        $this->logger?->info('ChatCompletionsStreamResponse', LoggingConfigHelper::filterAndFormatLogData($logData));
 
         EventUtil::dispatch($this->afterChatCompletionsStreamEvent);
     }
