@@ -122,6 +122,8 @@ return [
                 ],
                 // 是否启用字段白名单过滤，默认true（启用过滤）
                 'enable_whitelist' => env('ODIN_LOG_WHITELIST_ENABLED', true),
+                // 最大字符串长度限制，超过此长度的字符串将被替换为 [Long Text]，设置为 0 表示不限制
+                'max_text_length' => env('ODIN_LOG_MAX_TEXT_LENGTH', 2000),
             ],
             'network_retry_count' => 0,
         ],

@@ -61,6 +61,25 @@ class LoggingConfigHelper
     }
 
     /**
+     * 从API选项中获取最大文本长度限制.
+     */
+    public static function getMaxTextLength(?ApiOptions $apiOptions = null): int
+    {
+        if ($apiOptions) {
+            return $apiOptions->getLoggingMaxTextLength();
+        }
+
+        // 如果没有提供ApiOptions，尝试从全局配置获取
+        try {
+            $config = self::getConfig();
+            return (int) $config->get('odin.llm.general_api_options.logging.max_text_length', 2000);
+        } catch (Throwable $e) {
+            // 如果获取配置失败，使用默认值
+            return 2000;
+        }
+    }
+
+    /**
      * 应用白名单过滤并格式化日志数据.
      *
      * @param array $logData 原始日志数据
@@ -71,8 +90,9 @@ class LoggingConfigHelper
     {
         $whitelistFields = self::getWhitelistFields($apiOptions);
         $enableWhitelist = self::isWhitelistEnabled($apiOptions);
+        $maxTextLength = self::getMaxTextLength($apiOptions);
 
-        return LogUtil::filterAndFormatLogData($logData, $whitelistFields, $enableWhitelist);
+        return LogUtil::filterAndFormatLogData($logData, $whitelistFields, $enableWhitelist, $maxTextLength);
     }
 
     /**

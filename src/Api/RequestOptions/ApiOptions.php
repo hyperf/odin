@@ -53,6 +53,7 @@ class ApiOptions
     protected array $logging = [
         'enable_whitelist' => false,
         'whitelist_fields' => [],
+        'max_text_length' => 2000,
     ];
 
     protected int $networkRetryCount = 0;
@@ -247,6 +248,14 @@ class ApiOptions
     public function isLoggingWhitelistEnabled(): bool
     {
         return (bool) ($this->logging['enable_whitelist'] ?? false);
+    }
+
+    /**
+     * 获取日志最大文本长度限制.
+     */
+    public function getLoggingMaxTextLength(): int
+    {
+        return (int) ($this->logging['max_text_length'] ?? 2000);
     }
 
     /**
