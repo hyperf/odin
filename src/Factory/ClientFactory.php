@@ -195,7 +195,7 @@ class ClientFactory
     {
         // 验证必要的配置参数
         $apiKey = $config['api_key'] ?? '';
-        $baseUrl = $config['base_url'] ?? 'https://generativelanguage.googleapis.com/v1beta/openai';
+        $baseUrl = $config['base_url'] ?? 'https://generativelanguage.googleapis.com/v1beta';
         $skipApiKeyValidation = (bool) ($config['skip_api_key_validation'] ?? false);
 
         // 创建配置对象

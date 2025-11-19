@@ -20,7 +20,7 @@ class GeminiModel extends AbstractModel
     protected bool $streamIncludeUsage = true;
 
     /**
-     * Get client instance
+     * Get client instance.
      */
     protected function getClient(): ClientInterface
     {
@@ -39,7 +39,7 @@ class GeminiModel extends AbstractModel
 
     /**
      * Get API version path
-     * Gemini uses OpenAI-compatible API, so no version path is needed
+     * Gemini uses OpenAI-compatible API, so no version path is needed.
      */
     protected function getApiVersionPath(): string
     {

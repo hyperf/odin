@@ -21,13 +21,13 @@ class GeminiConfig implements ConfigInterface
     public string $apiKey;
 
     /**
-     * Whether to skip API Key validation
+     * Whether to skip API Key validation.
      */
     protected bool $skipApiKeyValidation = false;
 
     public function __construct(
         string $apiKey,
-        string $baseUrl = 'https://generativelanguage.googleapis.com/v1beta/openai',
+        string $baseUrl = 'https://generativelanguage.googleapis.com/v1beta',
         bool $skipApiKeyValidation = false,
     ) {
         $this->apiKey = $apiKey;
@@ -54,7 +54,7 @@ class GeminiConfig implements ConfigInterface
     {
         return new self(
             $config['api_key'] ?? '',
-            $config['base_url'] ?? 'https://generativelanguage.googleapis.com/v1beta/openai',
+            $config['base_url'] ?? 'https://generativelanguage.googleapis.com/v1beta',
             $config['skip_api_key_validation'] ?? false,
         );
     }
