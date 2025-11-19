@@ -21,6 +21,8 @@ use Hyperf\Odin\Api\Providers\AzureOpenAI\AzureOpenAIConfig;
 use Hyperf\Odin\Api\Providers\DashScope\Cache\DashScopeAutoCacheConfig;
 use Hyperf\Odin\Api\Providers\DashScope\DashScope;
 use Hyperf\Odin\Api\Providers\DashScope\DashScopeConfig;
+use Hyperf\Odin\Api\Providers\Gemini\Gemini;
+use Hyperf\Odin\Api\Providers\Gemini\GeminiConfig;
 use Hyperf\Odin\Api\Providers\OpenAI\OpenAI;
 use Hyperf\Odin\Api\Providers\OpenAI\OpenAIConfig;
 use Hyperf\Odin\Api\RequestOptions\ApiOptions;
@@ -183,9 +185,37 @@ class ClientFactory
     }
 
     /**
+     * 创建Gemini客户端.
+     *
+     * @param array $config 配置参数
+     * @param null|ApiOptions $apiOptions API请求选项
+     * @param null|LoggerInterface $logger 日志记录器
+     */
+    public static function createGeminiClient(array $config, ?ApiOptions $apiOptions = null, ?LoggerInterface $logger = null): ClientInterface
+    {
+        // 验证必要的配置参数
+        $apiKey = $config['api_key'] ?? '';
+        $baseUrl = $config['base_url'] ?? 'https://generativelanguage.googleapis.com/v1beta/openai';
+        $skipApiKeyValidation = (bool) ($config['skip_api_key_validation'] ?? false);
+
+        // 创建配置对象
+        $clientConfig = new GeminiConfig(
+            apiKey: $apiKey,
+            baseUrl: $baseUrl,
+            skipApiKeyValidation: $skipApiKeyValidation
+        );
+
+        // 创建API实例
+        $gemini = new Gemini();
+
+        // 创建客户端
+        return $gemini->getClient($clientConfig, $apiOptions, $logger);
+    }
+
+    /**
      * 根据提供商类型创建客户端.
      *
-     * @param string $provider 提供商类型 (openai, azure_openai, aws_bedrock, dashscope)
+     * @param string $provider 提供商类型 (openai, azure_openai, aws_bedrock, dashscope, gemini)
      * @param array $config 配置参数
      * @param null|ApiOptions $apiOptions API请求选项
      * @param null|LoggerInterface $logger 日志记录器
@@ -197,6 +227,7 @@ class ClientFactory
             'azure_openai' => self::createAzureOpenAIClient($config, $apiOptions, $logger),
             'aws_bedrock' => self::createAwsBedrockClient($config, $apiOptions, $logger),
             'dashscope' => self::createDashScopeClient($config, $apiOptions, $logger),
+            'gemini' => self::createGeminiClient($config, $apiOptions, $logger),
             default => throw new InvalidArgumentException(sprintf('Unsupported provider: %s', $provider)),
         };
     }

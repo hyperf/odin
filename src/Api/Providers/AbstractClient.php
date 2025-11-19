@@ -125,6 +125,9 @@ abstract class AbstractClient implements ClientInterface
                 $options['connect_timeout'] = $this->requestOptions->getConnectionTimeout();
                 $options['stream_chunk'] = $this->requestOptions->getStreamChunkTimeout();
                 $options['header_timeout'] = $this->requestOptions->getStreamFirstChunkTimeout();
+                if ($proxy = $this->requestOptions->getProxy()) {
+                    $options['proxy'] = $proxy;
+                }
                 $response = OdinSimpleCurl::send($url, $options);
             } else {
                 $response = $this->client->post($url, $options);
