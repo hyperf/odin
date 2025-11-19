@@ -39,6 +39,7 @@ class RequestHandler
 
         // Convert messages to contents and extract system instructions
         $result = self::convertMessages($request->getMessages());
+
         $geminiRequest['contents'] = $result['contents'];
 
         // Add system instruction if present
@@ -65,11 +66,97 @@ class RequestHandler
     }
 
     /**
+     * Convert UserMessage to Gemini format.
+     * Made public for use in GeminiCacheManager.
+     */
+    public static function convertUserMessage(UserMessage $message): array
+    {
+        $parts = [];
+
+        // Handle multimodal content (text + images)
+        if ($message->getContents() !== null) {
+            foreach ($message->getContents() as $content) {
+                // Use object methods directly
+                $type = $content->getType();
+
+                if ($type === UserMessageContent::TEXT) {
+                    $parts[] = ['text' => $content->getText()];
+                } elseif ($type === UserMessageContent::IMAGE_URL) {
+                    // Auto-detect URL format and convert accordingly:
+                    // - data:image/...;base64,... -> inline_data
+                    // - https://generativelanguage.googleapis.com/v1beta/files/... -> file_data
+                    // - other HTTP URLs -> text placeholder
+                    $imageUrl = $content->getImageUrl();
+                    $parts[] = self::convertImageUrl($imageUrl);
+                }
+            }
+        } else {
+            // Simple text content
+            $parts[] = ['text' => $message->getContent()];
+        }
+
+        return [
+            'role' => 'user',
+            'parts' => $parts,
+        ];
+    }
+
+    /**
+     * Convert tools from OpenAI format to Gemini FunctionDeclaration format.
+     * Made public for use in GeminiCacheManager.
+     */
+    public static function convertTools(array $tools): array
+    {
+        $functionDeclarations = [];
+
+        foreach ($tools as $tool) {
+            if ($tool instanceof ToolInterface) {
+                $tool = $tool->toToolDefinition();
+            }
+
+            if (! $tool instanceof ToolDefinition) {
+                continue;
+            }
+
+            $declaration = [
+                'name' => $tool->getName(),
+                'description' => $tool->getDescription(),
+            ];
+
+            // Add parameters if present
+            $parameters = $tool->getParameters();
+            if ($parameters !== null) {
+                $declaration['parameters'] = $parameters->toArray();
+            } else {
+                // Provide empty parameters schema
+                $declaration['parameters'] = [
+                    'type' => 'object',
+                    'properties' => new stdClass(),
+                ];
+            }
+
+            $functionDeclarations[] = $declaration;
+        }
+
+        if (empty($functionDeclarations)) {
+            return [];
+        }
+
+        // Gemini expects tools array with functionDeclarations
+        return [
+            [
+                'functionDeclarations' => $functionDeclarations,
+            ],
+        ];
+    }
+
+    /**
      * Convert messages array from OpenAI format to Gemini contents format.
+     * Made public for use in DynamicCacheStrategy.
      *
      * @return array{contents: array, system_instruction: null|array}
      */
-    private static function convertMessages(array $messages): array
+    public static function convertMessages(array $messages): array
     {
         $contents = [];
         $systemInstructions = [];
@@ -114,41 +201,6 @@ class RequestHandler
         return [
             'contents' => $contents,
             'system_instruction' => $systemInstruction,
-        ];
-    }
-
-    /**
-     * Convert UserMessage to Gemini format.
-     */
-    private static function convertUserMessage(UserMessage $message): array
-    {
-        $parts = [];
-
-        // Handle multimodal content (text + images)
-        if ($message->getContents() !== null) {
-            foreach ($message->getContents() as $content) {
-                // Use object methods directly
-                $type = $content->getType();
-
-                if ($type === UserMessageContent::TEXT) {
-                    $parts[] = ['text' => $content->getText()];
-                } elseif ($type === UserMessageContent::IMAGE_URL) {
-                    // Auto-detect URL format and convert accordingly:
-                    // - data:image/...;base64,... -> inline_data
-                    // - https://generativelanguage.googleapis.com/v1beta/files/... -> file_data
-                    // - other HTTP URLs -> text placeholder
-                    $imageUrl = $content->getImageUrl();
-                    $parts[] = self::convertImageUrl($imageUrl);
-                }
-            }
-        } else {
-            // Simple text content
-            $parts[] = ['text' => $message->getContent()];
-        }
-
-        return [
-            'role' => 'user',
-            'parts' => $parts,
         ];
     }
 
@@ -313,54 +365,6 @@ class RequestHandler
         }
 
         return $config;
-    }
-
-    /**
-     * Convert tools from OpenAI format to Gemini FunctionDeclaration format.
-     */
-    private static function convertTools(array $tools): array
-    {
-        $functionDeclarations = [];
-
-        foreach ($tools as $tool) {
-            if ($tool instanceof ToolInterface) {
-                $tool = $tool->toToolDefinition();
-            }
-
-            if (! $tool instanceof ToolDefinition) {
-                continue;
-            }
-
-            $declaration = [
-                'name' => $tool->getName(),
-                'description' => $tool->getDescription(),
-            ];
-
-            // Add parameters if present
-            $parameters = $tool->getParameters();
-            if ($parameters !== null) {
-                $declaration['parameters'] = $parameters->toArray();
-            } else {
-                // Provide empty parameters schema
-                $declaration['parameters'] = [
-                    'type' => 'object',
-                    'properties' => new stdClass(),
-                ];
-            }
-
-            $functionDeclarations[] = $declaration;
-        }
-
-        if (empty($functionDeclarations)) {
-            return [];
-        }
-
-        // Gemini expects tools array with functionDeclarations
-        return [
-            [
-                'functionDeclarations' => $functionDeclarations,
-            ],
-        ];
     }
 
     /**

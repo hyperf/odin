@@ -152,14 +152,18 @@ class ChatCompletionRequest implements RequestInterface
     /**
      * 为所有消息和工具计算token估算
      * 对于已经有估算的消息不会重新计算.
+     * 优先使用实际返回的 tokens（如果已设置），否则使用估算值.
      *
      * @return int 所有消息和工具的总token数量
      */
     public function calculateTokenEstimates(): int
     {
-        if ($this->totalTokenEstimate) {
+        // 如果已经有实际的 tokens（从 usage 中获取），直接返回
+        if ($this->totalTokenEstimate !== null) {
             return $this->totalTokenEstimate;
         }
+
+        // 否则进行估算
         $estimator = new TokenEstimator($this->model);
         $totalTokens = 0;
 
@@ -188,6 +192,24 @@ class ChatCompletionRequest implements RequestInterface
         $this->totalTokenEstimate = $totalTokens;
 
         return $totalTokens;
+    }
+
+    /**
+     * 使用实际的 tokens 更新估算值（从 API 返回的 usage 中获取）.
+     * 优先使用实际的 tokens，比估算值更准确.
+     *
+     * @param int $promptTokens 实际的 prompt tokens（输入 tokens）
+     * @param null|int $toolsTokens 实际的 tools tokens（如果有单独统计）
+     */
+    public function updateTokenEstimateFromUsage(int $promptTokens, ?int $toolsTokens = null): void
+    {
+        // 使用实际的 prompt tokens 更新总估算值
+        $this->totalTokenEstimate = $promptTokens;
+
+        // 如果提供了 tools tokens，更新 tools 估算值
+        if ($toolsTokens !== null) {
+            $this->toolsTokenEstimate = $toolsTokens;
+        }
     }
 
     public function setModel(string $model): void

@@ -607,6 +607,7 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
         ];
         $this->logger?->info('ChatCompletionsStreamResponse', LoggingConfigHelper::filterAndFormatLogData($logData));
 
+        // Event listener will execute callbacks
         EventUtil::dispatch($this->afterChatCompletionsStreamEvent);
     }
 

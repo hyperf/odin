@@ -39,6 +39,7 @@
         "hyperf/di": "~2.2.0 || 3.0.* || 3.1.*",
         "hyperf/logger": "~2.2.0 || 3.0.* || 3.1.*",
         "hyperf/retry": "~2.2.0 || 3.0.* || 3.1.*",
+        "hyperf/event": "~2.2.0 || 3.0.* || 3.1.*",
         "hyperf/qdrant-client": "*",
         "justinrainbow/json-schema": "^6.3",
         "yethee/tiktoken": "^0.1.2"

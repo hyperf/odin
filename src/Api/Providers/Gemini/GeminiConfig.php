@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Api\Providers\Gemini;
 
+use Hyperf\Odin\Api\Providers\Gemini\Cache\GeminiCacheConfig;
 use Hyperf\Odin\Contract\Api\ConfigInterface;
 
 class GeminiConfig implements ConfigInterface
@@ -24,6 +25,11 @@ class GeminiConfig implements ConfigInterface
      * Whether to skip API Key validation.
      */
     protected bool $skipApiKeyValidation = false;
+
+    /**
+     * Cache configuration.
+     */
+    protected ?GeminiCacheConfig $cacheConfig = null;
 
     public function __construct(
         string $apiKey,
@@ -66,5 +72,20 @@ class GeminiConfig implements ConfigInterface
             'base_url' => $this->baseUrl,
             'skip_api_key_validation' => $this->skipApiKeyValidation,
         ];
+    }
+
+    public function isAutoCache(): bool
+    {
+        return $this->cacheConfig !== null && $this->cacheConfig->isEnableAutoCache();
+    }
+
+    public function getCacheConfig(): ?GeminiCacheConfig
+    {
+        return $this->cacheConfig;
+    }
+
+    public function setCacheConfig(GeminiCacheConfig $cacheConfig): void
+    {
+        $this->cacheConfig = $cacheConfig;
     }
 }

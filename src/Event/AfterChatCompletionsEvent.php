@@ -23,6 +23,11 @@ class AfterChatCompletionsEvent
 
     public float $duration;
 
+    /**
+     * @var callable[]
+     */
+    private array $callbacks = [];
+
     public function __construct(
         ChatCompletionRequest $completionRequest,
         ?ChatCompletionResponse $completionResponse,
@@ -31,6 +36,24 @@ class AfterChatCompletionsEvent
         $this->setCompletionRequest($completionRequest);
         $this->setCompletionResponse($completionResponse);
         $this->duration = $duration;
+    }
+
+    /**
+     * 添加回调函数.
+     */
+    public function addCallback(callable $callback): void
+    {
+        $this->callbacks[] = $callback;
+    }
+
+    /**
+     * 获取所有回调函数.
+     *
+     * @return callable[]
+     */
+    public function getCallbacks(): array
+    {
+        return $this->callbacks;
     }
 
     public function getCompletionRequest(): ChatCompletionRequest
