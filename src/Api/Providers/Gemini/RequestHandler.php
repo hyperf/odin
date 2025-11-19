@@ -22,6 +22,7 @@ use Hyperf\Odin\Message\ToolMessage;
 use Hyperf\Odin\Message\UserMessage;
 use Hyperf\Odin\Message\UserMessageContent;
 use Hyperf\Odin\Tool\Definition\ToolDefinition;
+use Hyperf\Odin\Utils\ImageDownloader;
 use stdClass;
 
 /**
@@ -180,7 +181,7 @@ class RequestHandler
 
                 // Only add args if there are actual arguments
                 // Gemini API doesn't accept empty args field, so omit it when empty
-                if (!empty($arguments) && !(is_array($arguments) && array_is_list($arguments))) {
+                if (! empty($arguments) && ! (is_array($arguments) && array_is_list($arguments))) {
                     // Convert associative array to object for JSON encoding
                     $functionCall['args'] = (object) $arguments;
                 }
@@ -226,9 +227,15 @@ class RequestHandler
     /**
      * Convert image URL to Gemini format.
      * Supports both inline_data (base64) and file_data (file URI) formats.
+     * For remote URLs, downloads and converts to base64 format first.
      */
     private static function convertImageUrl(string $imageUrl): array
     {
+        // If it's a remote URL, download and convert to base64 first
+        if (ImageDownloader::isRemoteImageUrl($imageUrl)) {
+            $imageUrl = ImageDownloader::downloadAndConvertToBase64($imageUrl);
+        }
+
         // Check if it's a data URL (base64 encoded)
         if (str_starts_with($imageUrl, 'data:')) {
             // Extract mime type and base64 data
@@ -247,46 +254,10 @@ class RequestHandler
             // If data URL but not an image, fall through to text
         }
 
-        // Check if it's an image URL by extension
-        if (self::isImageUrl($imageUrl)) {
-            // For image URLs, use file_data format
-            $mimeType = self::inferMimeTypeFromUrl($imageUrl);
-
-            return [
-                'file_data' => [
-                    'file_uri' => $imageUrl,
-                    'mime_type' => $mimeType,
-                ],
-            ];
-        }
-
         // For non-image URLs, return as text
         return [
             'text' => "[Image: {$imageUrl}]",
         ];
-    }
-
-    /**
-     * Check if URL is an image URL based on file extension.
-     * Only supports Gemini supported formats: PNG, JPEG, WEBP, HEIC, HEIF.
-     */
-    private static function isImageUrl(string $url): bool
-    {
-        $path = parse_url($url, PHP_URL_PATH);
-        if ($path === null) {
-            return false;
-        }
-
-        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-
-        // Gemini supported image extensions only
-        return in_array($extension, [
-            'jpg', 'jpeg', // JPEG
-            'png',         // PNG
-            'webp',       // WEBP
-            'heic',       // HEIC
-            'heif',       // HEIF
-        ], true);
     }
 
     /**
@@ -304,31 +275,6 @@ class RequestHandler
         ];
 
         return in_array(strtolower($mimeType), $supportedMimeTypes, true);
-    }
-
-    /**
-     * Infer MIME type from URL file extension.
-     * Only returns Gemini supported MIME types: image/png, image/jpeg, image/webp, image/heic, image/heif.
-     */
-    private static function inferMimeTypeFromUrl(string $url): string
-    {
-        // Extract file extension
-        $path = parse_url($url, PHP_URL_PATH);
-        if ($path === null) {
-            return 'image/jpeg'; // Default fallback
-        }
-
-        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-
-        // Gemini supported image MIME types only
-        return match ($extension) {
-            'jpg', 'jpeg' => 'image/jpeg',
-            'png' => 'image/png',
-            'webp' => 'image/webp',
-            'heic' => 'image/heic',
-            'heif' => 'image/heif',
-            default => 'image/jpeg', // Default fallback
-        };
     }
 
     /**
