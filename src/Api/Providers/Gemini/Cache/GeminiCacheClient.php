@@ -16,6 +16,7 @@ use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\RequestOptions;
 use Hyperf\Odin\Api\Providers\Gemini\GeminiConfig;
+use Hyperf\Odin\Api\RequestOptions\ApiOptions;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Throwable;
@@ -32,14 +33,24 @@ class GeminiCacheClient
 
     private ?LoggerInterface $logger;
 
-    public function __construct(GeminiConfig $config, ?LoggerInterface $logger = null)
+    public function __construct(GeminiConfig $config, ?ApiOptions $apiOptions = null, ?LoggerInterface $logger = null)
     {
         $this->config = $config;
         $this->logger = $logger;
-        $this->client = new Client([
+        
+        // Build client options from ApiOptions
+        $clientOptions = [
             'base_uri' => $config->getBaseUrl(),
-            'timeout' => 30,
-        ]);
+            'timeout' => $apiOptions?->getTotalTimeout() ?? 30.0,
+            'connect_timeout' => $apiOptions?->getConnectionTimeout() ?? 5.0,
+        ];
+        
+        // Add proxy if configured
+        if ($apiOptions && $apiOptions->hasProxy()) {
+            $clientOptions['proxy'] = $apiOptions->getProxy();
+        }
+        
+        $this->client = new Client($clientOptions);
     }
 
     /**
@@ -53,10 +64,11 @@ class GeminiCacheClient
     public function createCache(string $model, array $config): string
     {
         $url = $this->getBaseUri() . '/cachedContents';
-        $body = [
-            'model' => $model,
-            'config' => $config,
-        ];
+        // Merge config fields directly into body according to Gemini API spec
+        $body = array_merge(
+            ['model' => $model],
+            $config
+        );
 
         $options = [
             RequestOptions::JSON => $body,
@@ -147,63 +159,6 @@ class GeminiCacheClient
             $this->logger?->error('Failed to get Gemini cache', [
                 'error' => $e->getMessage(),
                 'cache_name' => $cacheName,
-            ]);
-            throw $e;
-        }
-    }
-
-    /**
-     * 更新缓存 TTL.
-     *
-     * @param string $cacheName 缓存名称（如 cachedContents/xxx）
-     * @param array $config 更新配置，包含 ttl 或 expire_time
-     * @throws Exception
-     */
-    public function updateCache(string $cacheName, array $config): void
-    {
-        $url = $this->getBaseUri() . '/' . $cacheName;
-
-        $body = [
-            'config' => $config,
-        ];
-
-        $options = [
-            RequestOptions::JSON => $body,
-            RequestOptions::HEADERS => $this->getHeaders(),
-        ];
-
-        try {
-            $this->client->patch($url, $options);
-        } catch (Throwable $e) {
-            $this->logger?->error('Failed to update Gemini cache', [
-                'error' => $e->getMessage(),
-                'cache_name' => $cacheName,
-            ]);
-            throw $e;
-        }
-    }
-
-    /**
-     * 列出所有缓存.
-     *
-     * @return array 缓存列表
-     * @throws Exception
-     */
-    public function listCaches(): array
-    {
-        $url = $this->getBaseUri() . '/cachedContents';
-
-        $options = [
-            RequestOptions::HEADERS => $this->getHeaders(),
-        ];
-
-        try {
-            $response = $this->client->get($url, $options);
-            $responseData = json_decode($response->getBody()->getContents(), true);
-            return $responseData['cachedContents'] ?? [];
-        } catch (Throwable $e) {
-            $this->logger?->error('Failed to list Gemini caches', [
-                'error' => $e->getMessage(),
             ]);
             throw $e;
         }

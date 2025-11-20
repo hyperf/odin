@@ -15,7 +15,11 @@ namespace Hyperf\Odin\Api\Providers\Gemini\Cache;
 use Hyperf\Odin\Api\Providers\Gemini\Cache\Strategy\CacheStrategyInterface;
 use Hyperf\Odin\Api\Providers\Gemini\Cache\Strategy\DynamicCacheStrategy;
 use Hyperf\Odin\Api\Providers\Gemini\Cache\Strategy\NoneCacheStrategy;
+use Hyperf\Odin\Api\Providers\Gemini\GeminiConfig;
 use Hyperf\Odin\Api\Request\ChatCompletionRequest;
+use Hyperf\Odin\Api\RequestOptions\ApiOptions;
+use Psr\Log\LoggerInterface;
+use Psr\SimpleCache\CacheInterface;
 
 use function Hyperf\Support\make;
 
@@ -27,10 +31,22 @@ class GeminiCacheManager
 {
     private GeminiCacheConfig $config;
 
+    private ?ApiOptions $apiOptions;
+
+    private ?GeminiConfig $geminiConfig;
+
+    private ?LoggerInterface $logger;
+
     public function __construct(
-        GeminiCacheConfig $config
+        GeminiCacheConfig $config,
+        ?ApiOptions $apiOptions = null,
+        ?GeminiConfig $geminiConfig = null,
+        ?LoggerInterface $logger = null
     ) {
         $this->config = $config;
+        $this->apiOptions = $apiOptions;
+        $this->geminiConfig = $geminiConfig;
+        $this->logger = $logger;
     }
 
     /**
@@ -38,7 +54,7 @@ class GeminiCacheManager
      * 无需估算 token，直接根据规则检查是否有可用缓存.
      *
      * @param ChatCompletionRequest $request 请求对象
-     * @return null|array 缓存信息，包含 cache_name, has_system, has_tools, has_first_user_message，如果没有缓存则返回 null
+     * @return null|array 缓存信息，包含 cache_name, has_system, has_tools, cached_message_count，如果没有缓存则返回 null
      */
     public function checkCache(ChatCompletionRequest $request): ?array
     {
@@ -91,6 +107,14 @@ class GeminiCacheManager
      */
     private function createStrategy(string $strategyClass): CacheStrategyInterface
     {
+        // If we have apiOptions and geminiConfig, manually create the strategy with proper dependencies
+        if ($this->apiOptions !== null && $this->geminiConfig !== null) {
+            $cache = make(CacheInterface::class);
+            $cacheClient = new GeminiCacheClient($this->geminiConfig, $this->apiOptions, $this->logger);
+            return new $strategyClass($cache, $cacheClient, $this->logger);
+        }
+        
+        // Otherwise, use DI container (will use default ApiOptions if not provided)
         return make($strategyClass);
     }
 }

@@ -234,7 +234,14 @@ class Client extends AbstractClient
         }
 
         try {
-            $cacheManager = new GeminiCacheManager($cacheConfig);
+            /** @var GeminiConfig $geminiConfig */
+            $geminiConfig = $this->config;
+            $cacheManager = new GeminiCacheManager(
+                $cacheConfig,
+                $this->getRequestOptions(),
+                $geminiConfig,
+                $this->logger
+            );
             $cacheInfo = $cacheManager->checkCache($chatRequest);
             if ($cacheInfo) {
                 return $this->applyCacheToRequest($geminiRequest, $cacheInfo, $chatRequest);
@@ -281,7 +288,14 @@ class Client extends AbstractClient
                 }
 
                 // 2. 创建或更新缓存
-                $cacheManager = new GeminiCacheManager($cacheConfig);
+                /** @var GeminiConfig $geminiConfig */
+                $geminiConfig = $this->config;
+                $cacheManager = new GeminiCacheManager(
+                    $cacheConfig,
+                    $this->getRequestOptions(),
+                    $geminiConfig,
+                    $this->logger
+                );
                 $cacheManager->createOrUpdateCacheAfterRequest($chatRequest);
             } catch (Throwable $e) {
                 // Log error but don't fail the request
@@ -294,7 +308,7 @@ class Client extends AbstractClient
 
     /**
      * Apply cache to geminiRequest.
-     * Remove cached content (system_instruction, tools, first user message) and add cached_content.
+     * Remove cached content (system_instruction, tools, cached messages) and add cached_content.
      */
     protected function applyCacheToRequest(array $geminiRequest, array $cacheInfo, ChatCompletionRequest $chatRequest): array
     {
@@ -311,17 +325,11 @@ class Client extends AbstractClient
             unset($geminiRequest['tools']);
         }
 
-        // Remove first user message from contents if cached
-        if ($cacheInfo['has_first_user_message'] && isset($geminiRequest['contents']) && is_array($geminiRequest['contents'])) {
-            // Find and remove the first user message
-            foreach ($geminiRequest['contents'] as $index => $content) {
-                if (isset($content['role']) && $content['role'] === 'user') {
-                    unset($geminiRequest['contents'][$index]);
-                    // Re-index array
-                    $geminiRequest['contents'] = array_values($geminiRequest['contents']);
-                    break;
-                }
-            }
+        // Remove cached messages from contents
+        $cachedMessageCount = $cacheInfo['cached_message_count'] ?? 0;
+        if ($cachedMessageCount > 0 && isset($geminiRequest['contents']) && is_array($geminiRequest['contents'])) {
+            // Remove the first N messages from contents (these are already cached)
+            $geminiRequest['contents'] = array_slice($geminiRequest['contents'], $cachedMessageCount);
         }
 
         return $geminiRequest;

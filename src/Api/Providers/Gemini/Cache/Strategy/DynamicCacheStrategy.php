@@ -21,7 +21,6 @@ use Hyperf\Odin\Message\UserMessage;
 use Hyperf\Odin\Utils\ToolUtil;
 use Psr\Log\LoggerInterface;
 use Psr\SimpleCache\CacheInterface;
-use RuntimeException;
 use Throwable;
 
 /**
@@ -49,7 +48,7 @@ class DynamicCacheStrategy implements CacheStrategyInterface
      * 应用缓存策略（请求前）：检查是否有缓存可以使用.
      * 无需估算 token，直接根据前缀 hash 匹配检查是否有可用缓存.
      *
-     * @return null|array 缓存信息，包含 cache_name, has_system, has_tools, has_first_user_message
+     * @return null|array 缓存信息，包含 cache_name, has_system, has_tools, cached_message_count
      */
     public function apply(GeminiCacheConfig $config, ChatCompletionRequest $request): ?array
     {
@@ -79,7 +78,7 @@ class DynamicCacheStrategy implements CacheStrategyInterface
             $cacheName = $cachedData['cache_name'] ?? null;
             if ($cacheName) {
                 $cachedMessageCount = $cachedData['cached_message_count'] ?? 0;
-                return $this->buildCacheInfo($cacheName, $request, $cachedMessageCount > 0);
+                return $this->buildCacheInfo($cacheName, $request, $cachedMessageCount);
             }
         }
 
@@ -89,6 +88,9 @@ class DynamicCacheStrategy implements CacheStrategyInterface
 
     /**
      * 请求成功后创建或更新缓存.
+     * 简化逻辑：
+     * - 如果前缀匹配（对话连续），检查增量 tokens 是否达到更新阈值，如果达到则创建新缓存
+     * - 如果没有缓存或前缀不匹配，且满足条件则创建新缓存（缓存所有最新消息），并删除旧缓存.
      *
      * @param GeminiCacheConfig $config 缓存配置
      * @param ChatCompletionRequest $request 请求对象
@@ -115,63 +117,76 @@ class DynamicCacheStrategy implements CacheStrategyInterface
         /** @var null|GeminiMessageCacheManager $lastMessageCacheManager */
         $lastMessageCacheManager = $cachedData['message_cache_manager'] ?? null;
 
-        // 5. 判断是否需要创建或移动缓存
+        // 5. 如果前缀匹配（对话连续），检查是否需要更新缓存
         if ($lastMessageCacheManager && $messageCacheManager->isContinuousConversation($lastMessageCacheManager, $request->getModel())) {
-            // 对话连续，检查是否需要移动缓存点
-            $this->processCachePointMovement($config, $request, $cachedData, $messageCacheManager, $cacheKey, $prefixHash);
-        } else {
-            // 对话不连续，检查是否需要创建新缓存
-            $this->processCacheCreation($config, $request, $messageCacheManager, $cacheKey, $prefixHash);
-        }
-    }
-
-    /**
-     * 处理缓存点移动（请求后调用）.
-     * 检查增量 tokens，如果达到阈值则移动缓存点.
-     */
-    private function processCachePointMovement(
-        GeminiCacheConfig $config,
-        ChatCompletionRequest $request,
-        array $cachedData,
-        GeminiMessageCacheManager $messageCacheManager,
-        string $cacheKey,
-        string $prefixHash
-    ): void {
-        $cacheName = $cachedData['cache_name'] ?? null;
-        if (! $cacheName) {
-            // 没有缓存名称，尝试创建新缓存
-            $this->processCacheCreation($config, $request, $messageCacheManager, $cacheKey, $prefixHash);
+            // 检查增量 tokens 是否达到更新阈值
+            if ($this->shouldUpdateCache($config, $request, $cachedData, $messageCacheManager)) {
+                // 达到阈值，删除旧缓存并创建新缓存
+                $this->createCacheIfNeeded($config, $request, $messageCacheManager, $cacheKey, $prefixHash, $cachedData);
+            }
+            // 未达到阈值或已更新，直接返回（Gemini 的前缀缓存会自动匹配）
             return;
         }
 
-        // 计算增量 tokens（从缓存点之后到倒数第二个消息）
-        $cachedMessageCount = $cachedData['cached_message_count'] ?? 0;
-        $startIndex = $cachedMessageCount > 0 ? 3 : 2; // 如果之前缓存了第一个 user message，从索引 3 开始
-        $lastIndex = $messageCacheManager->getLastMessageIndex();
-
-        // 移动缓存点时，需要保留最后一个消息不缓存，所以计算到倒数第二个消息
-        $endIndex = $lastIndex > $startIndex ? $lastIndex - 1 : $lastIndex;
-        $incrementalTokens = $messageCacheManager->calculateTotalTokens($startIndex, $endIndex);
-
-        // 判断是否需要移动缓存点
-        if ($incrementalTokens >= $config->getRefreshPointMinTokens() && $lastIndex > $startIndex) {
-            // 移动缓存点（缓存到倒数第二个消息，最后一个消息正常发送）
-            $this->moveCachePoint($config, $request, $cachedData, $messageCacheManager, $cacheKey, $prefixHash);
-        }
+        // 6. 没有缓存或前缀不匹配，检查是否需要创建新缓存
+        $this->createCacheIfNeeded($config, $request, $messageCacheManager, $cacheKey, $prefixHash, $cachedData);
     }
 
     /**
-     * 处理缓存创建（请求后调用）.
-     * 检查是否满足创建条件，如果满足则创建缓存.
+     * 判断是否需要更新缓存（前缀匹配时）.
+     * 检查增量 tokens 是否达到更新阈值.
      */
-    private function processCacheCreation(
+    private function shouldUpdateCache(
+        GeminiCacheConfig $config,
+        ChatCompletionRequest $request,
+        array $cachedData,
+        GeminiMessageCacheManager $messageCacheManager
+    ): bool {
+        $cacheName = $cachedData['cache_name'] ?? null;
+        if (! $cacheName) {
+            // 没有缓存名称，需要创建新缓存
+            return true;
+        }
+
+        // 获取本次的 total tokens
+        $currentTotalTokens = $request->getTotalTokenEstimate();
+        if ($currentTotalTokens === null) {
+            // 如果没有 total tokens，无法判断，不更新缓存
+            return false;
+        }
+
+        // 获取上次的 total tokens
+        $lastTotalTokens = $cachedData['total_tokens'] ?? null;
+        if ($lastTotalTokens === null) {
+            // 如果没有上次的 total tokens，需要创建新缓存
+            return true;
+        }
+
+        // 计算增量 tokens：本次 total - 上次 total
+        $incrementalTokens = $currentTotalTokens - $lastTotalTokens;
+
+        // 如果增量小于等于 0，不需要更新
+        if ($incrementalTokens <= 0) {
+            return false;
+        }
+
+        // 判断是否达到更新阈值
+        return $incrementalTokens >= $config->getRefreshPointMinTokens();
+    }
+
+    /**
+     * 创建缓存（如果没有缓存或前缀不匹配时调用）.
+     * 检查是否满足创建条件，如果满足则创建新缓存（缓存所有最新消息），并删除旧缓存.
+     */
+    private function createCacheIfNeeded(
         GeminiCacheConfig $config,
         ChatCompletionRequest $request,
         GeminiMessageCacheManager $messageCacheManager,
         string $cacheKey,
-        string $prefixHash
+        string $prefixHash,
+        ?array $oldCachedData
     ): void {
-        // 计算基础前缀 tokens（只包含 system + tools，不包含第一个 user message）
+        // 计算基础前缀 tokens（只包含 system + tools，用于判断是否满足最小缓存阈值）
         $basePrefixTokens = $messageCacheManager->getBasePrefixTokens();
 
         // 获取模型的最小缓存 tokens 阈值
@@ -185,16 +200,50 @@ class DynamicCacheStrategy implements CacheStrategyInterface
             return;
         }
 
-        // 创建缓存（第一次创建只缓存 tools + system，不包含第一个 user message）
+        // 删除旧缓存（如果存在）
+        $oldCacheName = $oldCachedData['cache_name'] ?? null;
+        if ($oldCacheName) {
+            try {
+                $this->cacheClient->deleteCache($oldCacheName);
+                $this->logger?->info('Deleted old Gemini cache before creating new cache', [
+                    'cache_name' => $oldCacheName,
+                    'model' => $request->getModel(),
+                ]);
+            } catch (Throwable $e) {
+                // 记录日志，但不影响后续流程
+                $this->logger?->warning('Failed to delete old Gemini cache', [
+                    'error' => $e->getMessage(),
+                    'cache_name' => $oldCacheName,
+                ]);
+            }
+        }
+
+        // 创建新缓存（缓存当前所有消息）
         try {
-            $cacheName = $this->createCache($config, $request, $messageCacheManager, true);
+            // 构建缓存配置
+            $cacheConfig = $this->buildCacheConfig($config, $request);
+            $model = $request->getModel();
+            $cacheName = $this->cacheClient->createCache($model, $cacheConfig);
+
+            // 计算缓存的消息数量（不包括 system message，因为它是单独处理的）
+            $allMessages = $request->getMessages();
+            $cachedMessageCount = 0;
+            foreach ($allMessages as $message) {
+                if (! $message instanceof SystemMessage) {
+                    ++$cachedMessageCount;
+                }
+            }
+
+            // 获取本次的 total tokens
+            $totalTokens = $request->getTotalTokenEstimate() ?? 0;
 
             // 保存缓存信息
             $this->cache->set($cacheKey, [
                 'message_cache_manager' => $messageCacheManager,
                 'prefix_hash' => $prefixHash,
                 'cache_name' => $cacheName,
-                'cached_message_count' => 0, // 第一次创建缓存，只缓存 tools + system，没有消息
+                'cached_message_count' => $cachedMessageCount,
+                'total_tokens' => $totalTokens,
                 'created_at' => time(),
             ], $config->getTtl());
         } catch (Throwable $e) {
@@ -207,69 +256,11 @@ class DynamicCacheStrategy implements CacheStrategyInterface
     }
 
     /**
-     * 移动缓存点（请求后调用）.
-     * 缓存从旧缓存点之后到倒数第二个消息，最后一个消息正常发送.
+     * 构建缓存配置.
+     * 构建用于创建缓存的配置数组.
      */
-    private function moveCachePoint(
-        GeminiCacheConfig $config,
-        ChatCompletionRequest $request,
-        array $oldCacheData,
-        GeminiMessageCacheManager $messageCacheManager,
-        string $cacheKey,
-        string $prefixHash
-    ): void {
-        // 1. 删除旧缓存
-        $oldCacheName = $oldCacheData['cache_name'] ?? null;
-        if ($oldCacheName) {
-            try {
-                $this->cacheClient->deleteCache($oldCacheName);
-            } catch (Throwable $e) {
-                // 记录日志，但不影响后续流程
-                $this->logger?->warning('Failed to delete old Gemini cache', [
-                    'error' => $e->getMessage(),
-                    'cache_name' => $oldCacheName,
-                ]);
-            }
-        }
-
-        // 2. 创建新缓存（从旧缓存点之后到倒数第二个消息）
-        // 最后一个消息需要正常发送，不缓存
-        try {
-            $newCacheName = $this->createCache($config, $request, $messageCacheManager, false, $oldCacheData);
-
-            // 计算缓存的消息数量
-            $cachedMessageCount = $oldCacheData['cached_message_count'] ?? 0;
-            $startIndex = $cachedMessageCount > 0 ? 3 : 2;
-            $lastIndex = $messageCacheManager->getLastMessageIndex();
-            $endIndex = $lastIndex > $startIndex ? $lastIndex - 1 : $lastIndex;
-            $newCachedMessageCount = max(0, $endIndex - $startIndex + 1);
-
-            // 保存缓存信息
-            $this->cache->set($cacheKey, [
-                'message_cache_manager' => $messageCacheManager,
-                'prefix_hash' => $prefixHash,
-                'cache_name' => $newCacheName,
-                'cached_message_count' => $newCachedMessageCount,
-                'created_at' => time(),
-            ], $config->getTtl());
-        } catch (Throwable $e) {
-            // 创建失败，记录日志但不影响请求
-            $this->logger?->warning('Failed to create new Gemini cache after moving cache point', [
-                'error' => $e->getMessage(),
-                'model' => $request->getModel(),
-            ]);
-        }
-    }
-
-    /**
-     * 创建缓存.
-     *
-     * @param bool $isFirstCache 是否是第一次创建缓存（只缓存 tools + system）
-     * @param null|array $oldCachedData 旧缓存数据（移动缓存点时使用）
-     */
-    private function createCache(GeminiCacheConfig $config, ChatCompletionRequest $request, GeminiMessageCacheManager $messageCacheManager, bool $isFirstCache = false, ?array $oldCachedData = null): string
+    private function buildCacheConfig(GeminiCacheConfig $config, ChatCompletionRequest $request): array
     {
-        $model = $request->getModel();
         $cacheConfig = [];
 
         // 1. 添加 system_instruction（如果存在）
@@ -294,77 +285,30 @@ class DynamicCacheStrategy implements CacheStrategyInterface
             }
         }
 
-        // 3. 添加消息内容
-        if ($isFirstCache) {
-            // 第一次创建缓存：只缓存 tools + system，不包含第一个 user message
-            $cacheConfig['contents'] = [];
-        } else {
-            // 移动缓存点：缓存从旧缓存点之后到倒数第二个消息
-            $cachedMessageCount = $oldCachedData['cached_message_count'] ?? 0;
-            // 第一次创建缓存时 cached_message_count 为 0（只缓存 tools + system）
-            // 如果 cached_message_count > 0，说明之前缓存了第一个 user message，从索引 3 开始
-            // 否则从索引 2 开始（第一个 user message）
-            $startIndex = $cachedMessageCount > 0 ? 3 : 2;
-            $lastIndex = $messageCacheManager->getLastMessageIndex();
-            $endIndex = $lastIndex > $startIndex ? $lastIndex - 1 : $lastIndex; // 倒数第二个消息
-
-            // 从 request 中提取需要缓存的消息范围
-            $allMessages = $request->getMessages();
-            $messagesToCache = [];
-
-            // 跳过 system message（已经在 system_instruction 中）
-            // 需要找到对应索引的消息
-            $cachePointMessages = $messageCacheManager->getCachePointMessages();
-            $messageIndex = 0; // 在 allMessages 中的索引（不包括 system）
-
-            foreach ($allMessages as $message) {
-                if ($message instanceof SystemMessage) {
-                    continue; // 跳过 system message
-                }
-
-                // 找到当前消息在 cachePointMessages 中的索引
-                $cacheIndex = null;
-                for ($i = 2; $i <= $lastIndex; ++$i) {
-                    if (isset($cachePointMessages[$i]) && $cachePointMessages[$i]->getOriginMessage() === $message) {
-                        $cacheIndex = $i;
-                        break;
-                    }
-                }
-
-                if ($cacheIndex !== null && $cacheIndex >= $startIndex && $cacheIndex <= $endIndex) {
-                    $messagesToCache[] = $message;
-                }
-            }
-
-            if (empty($messagesToCache)) {
-                throw new RuntimeException('Cannot create cache: no messages to cache');
-            }
-
-            // 使用 RequestHandler 转换消息
-            $result = RequestHandler::convertMessages($messagesToCache);
-            $cacheConfig['contents'] = $result['contents'];
-        }
+        // 3. 添加消息内容（不包含 system message，system message 已单独处理）
+        $allMessages = $request->getMessages();
+        $result = RequestHandler::convertMessages($allMessages);
+        $cacheConfig['contents'] = $result['contents'];
 
         // 4. 设置 TTL
         $cacheConfig['ttl'] = $config->getTtl() . 's';
 
-        // 5. 调用 API 创建缓存
-        return $this->cacheClient->createCache($model, $cacheConfig);
+        return $cacheConfig;
     }
 
     /**
      * 构建缓存信息.
      *
-     * @param bool $hasFirstUserMessage 是否包含第一个 user message（第一次创建缓存时为 false）
-     * @return array 缓存信息，包含 cache_name, has_system, has_tools, has_first_user_message
+     * @param int $cachedMessageCount 已缓存的消息数量（不包括 system message）
+     * @return array 缓存信息，包含 cache_name, has_system, has_tools, cached_message_count
      */
-    private function buildCacheInfo(string $cacheName, ChatCompletionRequest $request, bool $hasFirstUserMessage = true): array
+    private function buildCacheInfo(string $cacheName, ChatCompletionRequest $request, int $cachedMessageCount): array
     {
         return [
             'cache_name' => $cacheName,
             'has_system' => $this->getSystemMessage($request) !== null,
             'has_tools' => ! empty($request->getTools()),
-            'has_first_user_message' => $hasFirstUserMessage && $this->getFirstUserMessage($request) !== null,
+            'cached_message_count' => $cachedMessageCount,
         ];
     }
 

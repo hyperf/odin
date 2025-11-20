@@ -23,7 +23,7 @@ interface CacheStrategyInterface
      *
      * @param GeminiCacheConfig $config Cache configuration
      * @param ChatCompletionRequest $request Request object
-     * @return null|array Cache info, containing cache_name, has_system, has_tools, has_first_user_message, or null if no cache
+     * @return null|array Cache info, containing cache_name, has_system, has_tools, cached_message_count, or null if no cache
      */
     public function apply(GeminiCacheConfig $config, ChatCompletionRequest $request): ?array;
 
