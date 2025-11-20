@@ -243,6 +243,7 @@ class Client extends AbstractClient
                 $this->logger
             );
             $cacheInfo = $cacheManager->checkCache($chatRequest);
+            var_dump($cacheInfo);
             if ($cacheInfo) {
                 return $this->applyCacheToRequest($geminiRequest, $cacheInfo, $chatRequest);
             }
@@ -275,7 +276,12 @@ class Client extends AbstractClient
         }
 
         // Register callback to handle cache creation after request
-        $event->addCallback(function (AfterChatCompletionsEvent $event) use ($cacheConfig, $chatRequest) {
+        /** @var GeminiConfig $geminiConfig */
+        $geminiConfig = $this->config;
+        $apiOptions = $this->getRequestOptions();
+        $logger = $this->logger;
+
+        $event->addCallback(function (AfterChatCompletionsEvent $event) use ($cacheConfig, $chatRequest, $geminiConfig, $apiOptions, $logger) {
             try {
                 // 1. 更新 request 的实际 tokens（从 response usage 中获取）
                 $response = $event->getCompletionResponse();
@@ -288,18 +294,16 @@ class Client extends AbstractClient
                 }
 
                 // 2. 创建或更新缓存
-                /** @var GeminiConfig $geminiConfig */
-                $geminiConfig = $this->config;
                 $cacheManager = new GeminiCacheManager(
                     $cacheConfig,
-                    $this->getRequestOptions(),
+                    $apiOptions,
                     $geminiConfig,
-                    $this->logger
+                    $logger
                 );
                 $cacheManager->createOrUpdateCacheAfterRequest($chatRequest);
             } catch (Throwable $e) {
                 // Log error but don't fail the request
-                $this->logger?->warning('Failed to handle Gemini cache after request', [
+                $logger?->warning('Failed to handle Gemini cache after request', [
                     'error' => $e->getMessage(),
                 ]);
             }

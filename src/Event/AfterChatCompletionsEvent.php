@@ -56,6 +56,11 @@ class AfterChatCompletionsEvent
         return $this->callbacks;
     }
 
+    public function clearCallbacks(): void
+    {
+        $this->callbacks = [];
+    }
+
     public function getCompletionRequest(): ChatCompletionRequest
     {
         return $this->completionRequest;

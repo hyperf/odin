@@ -31,6 +31,12 @@ class StreamConverter implements IteratorAggregate
 
     private string $model;
 
+    /**
+     * Track tool calls by candidate index and tool call index.
+     * Structure: [candidateIndex => [toolCallIndex => ['id' => string, 'name' => string, 'args' => string]]]
+     */
+    private array $toolCallTracker = [];
+
     public function __construct(
         ResponseInterface $response,
         ?LoggerInterface $logger,
@@ -132,7 +138,7 @@ class StreamConverter implements IteratorAggregate
 
         $choices = [];
         foreach ($candidates as $index => $candidate) {
-            $delta = $this->convertDelta($candidate['content'] ?? []);
+            $delta = $this->convertDelta($candidate['content'] ?? [], $index);
 
             $choice = [
                 'index' => $index,
@@ -142,7 +148,12 @@ class StreamConverter implements IteratorAggregate
 
             // Add finish reason if present
             if (isset($candidate['finishReason'])) {
-                $choice['finish_reason'] = $this->convertFinishReason($candidate['finishReason']);
+                // If there are tool calls, finish_reason should be 'tool_calls'
+                if (! empty($delta['tool_calls'])) {
+                    $choice['finish_reason'] = 'tool_calls';
+                } else {
+                    $choice['finish_reason'] = $this->convertFinishReason($candidate['finishReason']);
+                }
             }
 
             $choices[] = $choice;
@@ -166,11 +177,19 @@ class StreamConverter implements IteratorAggregate
 
     /**
      * Convert Gemini content to OpenAI delta format.
+     *
+     * @param array $content Gemini content
+     * @param int $candidateIndex Candidate index for tracking tool calls
      */
-    private function convertDelta(array $content): array
+    private function convertDelta(array $content, int $candidateIndex): array
     {
         $delta = [];
         $parts = $content['parts'] ?? [];
+
+        // Initialize tracker for this candidate if not exists
+        if (! isset($this->toolCallTracker[$candidateIndex])) {
+            $this->toolCallTracker[$candidateIndex] = [];
+        }
 
         foreach ($parts as $part) {
             // Handle text delta
@@ -184,18 +203,54 @@ class StreamConverter implements IteratorAggregate
             // Handle function call delta
             if (isset($part['functionCall'])) {
                 $functionCall = $part['functionCall'];
+                $functionName = $functionCall['name'] ?? '';
+                $functionArgs = $functionCall['args'] ?? new stdClass();
 
                 if (! isset($delta['tool_calls'])) {
                     $delta['tool_calls'] = [];
                 }
 
+                // Find existing tool call by name (same function call may appear in multiple chunks)
+                // Use name to identify, as Gemini sends complete functionCall in each chunk
+                $toolCallIndex = null;
+                foreach ($this->toolCallTracker[$candidateIndex] as $idx => $tracked) {
+                    if ($tracked['name'] === $functionName) {
+                        $toolCallIndex = $idx;
+                        break;
+                    }
+                }
+
+                // Create new tool call if not found
+                if ($toolCallIndex === null) {
+                    $toolCallIndex = count($this->toolCallTracker[$candidateIndex]);
+                    $this->toolCallTracker[$candidateIndex][$toolCallIndex] = [
+                        'id' => 'call_' . bin2hex(random_bytes(12)),
+                        'name' => $functionName,
+                        'args' => '',
+                    ];
+                }
+
+                // Convert args to JSON string
+                // Gemini sends complete args in each chunk, so we always use the latest args
+                $argsJson = json_encode($functionArgs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                
+                // Always update tracked args with the latest from current chunk
+                // Gemini typically sends complete args, so we use the latest complete args
+                if (! empty($argsJson)) {
+                    $this->toolCallTracker[$candidateIndex][$toolCallIndex]['args'] = $argsJson;
+                }
+
+                // Use the tracked args (which should be the most complete)
+                $finalArgs = $this->toolCallTracker[$candidateIndex][$toolCallIndex]['args'] ?: $argsJson;
+
+                // Add tool call to delta
                 $delta['tool_calls'][] = [
-                    'index' => count($delta['tool_calls']),
-                    'id' => 'call_' . bin2hex(random_bytes(12)),
+                    'index' => $toolCallIndex,
+                    'id' => $this->toolCallTracker[$candidateIndex][$toolCallIndex]['id'],
                     'type' => 'function',
                     'function' => [
-                        'name' => $functionCall['name'] ?? '',
-                        'arguments' => json_encode($functionCall['args'] ?? new stdClass()),
+                        'name' => $functionName,
+                        'arguments' => $finalArgs ?: '{}',
                     ],
                 ];
             }

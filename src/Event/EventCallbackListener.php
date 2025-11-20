@@ -23,7 +23,7 @@ use Throwable;
  * 监听请求完成事件，执行事件中注册的回调函数.
  * 支持所有提供商的功能扩展（缓存、统计等）.
  */
-#[Listener]
+#[Listener(priority: 1000)]
 class EventCallbackListener implements ListenerInterface
 {
     protected LoggerInterface $logger;
@@ -64,5 +64,7 @@ class EventCallbackListener implements ListenerInterface
                 continue;
             }
         }
+        // 清理
+        $event->clearCallbacks();
     }
 }
