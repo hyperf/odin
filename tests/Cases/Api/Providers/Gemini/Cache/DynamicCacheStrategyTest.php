@@ -100,7 +100,7 @@ class DynamicCacheStrategyTest extends AbstractTestCase
         );
 
         // Set empty cache data
-        $cacheKey = 'gemini_cache:' . md5('test-model' . '' . '' . '');
+        $cacheKey = 'gemini_cache:' . md5('test-model');
         $this->cache->set($cacheKey, []);
 
         $result = $strategy->apply($config, $request);
@@ -272,7 +272,7 @@ class DynamicCacheStrategyTest extends AbstractTestCase
         $this->cacheClient->shouldReceive('createCache')->never();
 
         $strategy->createOrUpdateCache($config, $request);
-        
+
         // Verify no cache was created
         $messageCacheManager = $this->callNonpublicMethod($strategy, 'createMessageCacheManager', $request);
         $cacheKey = $messageCacheManager->getCacheKey('test-model');
@@ -494,7 +494,7 @@ class DynamicCacheStrategyTest extends AbstractTestCase
 
         // Should create new cache (old cache won't be accessed because cacheKey is different)
         $this->cacheClient->shouldReceive('deleteCache')->never();
-        
+
         $newCacheName = 'cachedContents/new-cache-456';
         $this->cacheClient->shouldReceive('createCache')
             ->once()
@@ -510,7 +510,7 @@ class DynamicCacheStrategyTest extends AbstractTestCase
         $this->assertEquals($newCacheName, $newCachedData['cache_name']);
         // cached_message_count should be 1 (only userMessage2, system message is handled separately)
         $this->assertEquals(1, $newCachedData['cached_message_count']);
-        
+
         // Verify old cache still exists (different cacheKey)
         $oldCachedData = $this->cache->get($oldCacheKey);
         $this->assertNotNull($oldCachedData);

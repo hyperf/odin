@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Api\Providers\Gemini\Cache;
 
+use Hyperf\Context\ApplicationContext;
 use Hyperf\Odin\Api\Providers\Gemini\Cache\Strategy\CacheStrategyInterface;
 use Hyperf\Odin\Api\Providers\Gemini\Cache\Strategy\DynamicCacheStrategy;
 use Hyperf\Odin\Api\Providers\Gemini\Cache\Strategy\NoneCacheStrategy;
@@ -109,11 +110,11 @@ class GeminiCacheManager
     {
         // If we have apiOptions and geminiConfig, manually create the strategy with proper dependencies
         if ($this->apiOptions !== null && $this->geminiConfig !== null) {
-            $cache = make(CacheInterface::class);
+            $cache = ApplicationContext::getContainer()->get(CacheInterface::class);
             $cacheClient = new GeminiCacheClient($this->geminiConfig, $this->apiOptions, $this->logger);
             return new $strategyClass($cache, $cacheClient, $this->logger);
         }
-        
+
         // Otherwise, use DI container (will use default ApiOptions if not provided)
         return make($strategyClass);
     }

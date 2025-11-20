@@ -79,7 +79,7 @@ class Client extends AbstractClient
             $chatResponse = new ChatCompletionResponse($standardResponse, $this->logger);
 
             $this->logResponse('GeminiChatResponse', $requestId, $duration, [
-                'content' => $chatResponse->getContent(),
+                'content' => $chatResponse->getFirstChoice()?->getMessage()?->toArray(),
                 'usage' => $chatResponse->getUsage()?->toArray(),
                 'response_headers' => $response->getHeaders(),
             ]);

@@ -37,19 +37,19 @@ class GeminiCacheClient
     {
         $this->config = $config;
         $this->logger = $logger;
-        
+
         // Build client options from ApiOptions
         $clientOptions = [
             'base_uri' => $config->getBaseUrl(),
             'timeout' => $apiOptions?->getTotalTimeout() ?? 30.0,
             'connect_timeout' => $apiOptions?->getConnectionTimeout() ?? 5.0,
         ];
-        
+
         // Add proxy if configured
         if ($apiOptions && $apiOptions->hasProxy()) {
             $clientOptions['proxy'] = $apiOptions->getProxy();
         }
-        
+
         $this->client = new Client($clientOptions);
     }
 

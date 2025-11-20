@@ -21,6 +21,7 @@ use Hyperf\Odin\Api\Providers\AzureOpenAI\AzureOpenAIConfig;
 use Hyperf\Odin\Api\Providers\DashScope\Cache\DashScopeAutoCacheConfig;
 use Hyperf\Odin\Api\Providers\DashScope\DashScope;
 use Hyperf\Odin\Api\Providers\DashScope\DashScopeConfig;
+use Hyperf\Odin\Api\Providers\Gemini\Cache\GeminiCacheConfig;
 use Hyperf\Odin\Api\Providers\Gemini\Gemini;
 use Hyperf\Odin\Api\Providers\Gemini\GeminiConfig;
 use Hyperf\Odin\Api\Providers\OpenAI\OpenAI;
@@ -198,12 +199,28 @@ class ClientFactory
         $baseUrl = $config['base_url'] ?? 'https://generativelanguage.googleapis.com/v1beta';
         $skipApiKeyValidation = (bool) ($config['skip_api_key_validation'] ?? false);
 
+        // 处理自动缓存配置
+        $cacheConfig = null;
+        if (isset($config['auto_cache_config'])) {
+            $cacheConfig = new GeminiCacheConfig(
+                minCacheTokens: $config['auto_cache_config']['min_cache_tokens'] ?? 1024,
+                refreshPointMinTokens: $config['auto_cache_config']['refresh_point_min_tokens'] ?? 5000,
+                ttl: $config['auto_cache_config']['ttl'] ?? 600,
+                enableAutoCache: (bool) ($config['auto_cache_config']['auto_enabled'] ?? false)
+            );
+        }
+
         // 创建配置对象
         $clientConfig = new GeminiConfig(
             apiKey: $apiKey,
             baseUrl: $baseUrl,
             skipApiKeyValidation: $skipApiKeyValidation
         );
+
+        // 设置缓存配置
+        if ($cacheConfig) {
+            $clientConfig->setCacheConfig($cacheConfig);
+        }
 
         // 创建API实例
         $gemini = new Gemini();
