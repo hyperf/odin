@@ -73,14 +73,29 @@ class GeminiCacheConfig
 
     /**
      * 根据模型名称获取最小缓存 tokens 阈值.
+     * 根据官方文档要求：
+     * - Gemini 2.5 Flash / 2.0 Flash / 3.0 Flash: 2048 tokens
+     * - Gemini 2.5 Pro / 2.0 Pro / 3.0 Pro: 4096 tokens.
      */
     public static function getMinCacheTokensByModel(string $model): int
     {
+        $modelLower = strtolower($model);
+
         return match (true) {
-            str_contains($model, '2.5-flash') || str_contains($model, 'flash') => 1024,
-            str_contains($model, '2.5-pro') || str_contains($model, 'pro') => 4096,
-            str_contains($model, '3-pro-preview') || str_contains($model, '3-pro') => 2048,
-            default => 4096, // 默认使用最大值（2.5 Pro 的阈值）
+            // Gemini 2.5 Flash
+            str_contains($modelLower, 'gemini-2.5-flash')
+            || str_contains($modelLower, 'gemini-2-flash')
+            || str_contains($modelLower, 'gemini-3-flash')
+            || str_contains($modelLower, 'gemini-3.0-flash') => 2048,
+
+            // Gemini 2.5 Pro / 2.0 Pro / 3.0 Pro
+            str_contains($modelLower, 'gemini-2.5-pro')
+            || str_contains($modelLower, 'gemini-2-pro')
+            || str_contains($modelLower, 'gemini-3-pro')
+            || str_contains($modelLower, 'gemini-3.0-pro') => 4096,
+
+            // Default: use highest threshold to be safe
+            default => 4096,
         };
     }
 }

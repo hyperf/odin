@@ -200,39 +200,16 @@ class DynamicCacheStrategy implements CacheStrategyInterface
             return;
         }
 
-        // 删除旧缓存（如果存在）
-        $oldCacheName = $oldCachedData['cache_name'] ?? null;
-        if ($oldCacheName) {
-            try {
-                $this->cacheClient->deleteCache($oldCacheName);
-                $this->logger?->info('Deleted old Gemini cache before creating new cache', [
-                    'cache_name' => $oldCacheName,
-                    'model' => $request->getModel(),
-                ]);
-            } catch (Throwable $e) {
-                // 记录日志，但不影响后续流程
-                $this->logger?->warning('Failed to delete old Gemini cache', [
-                    'error' => $e->getMessage(),
-                    'cache_name' => $oldCacheName,
-                ]);
-            }
-        }
-
-        // 创建新缓存（缓存当前所有消息）
+        // 创建新缓存（先创建再删除旧缓存，避免短暂无缓存的情况）
+        $newCacheName = null;
         try {
             // 构建缓存配置
             $cacheConfig = $this->buildCacheConfig($config, $request);
             $model = $request->getModel();
-            $cacheName = $this->cacheClient->createCache($model, $cacheConfig);
+            $newCacheName = $this->cacheClient->createCache($model, $cacheConfig);
 
-            // 计算缓存的消息数量（不包括 system message，因为它是单独处理的）
-            $allMessages = $request->getMessages();
-            $cachedMessageCount = 0;
-            foreach ($allMessages as $message) {
-                if (! $message instanceof SystemMessage) {
-                    ++$cachedMessageCount;
-                }
-            }
+            // 计算缓存的消息数量（只缓存了第一个 user message）
+            $cachedMessageCount = 1; // 只缓存一个示例消息
 
             // 获取本次的 total tokens
             $totalTokens = $request->getTotalTokenEstimate() ?? 0;
@@ -241,11 +218,30 @@ class DynamicCacheStrategy implements CacheStrategyInterface
             $this->cache->set($cacheKey, [
                 'message_cache_manager' => $messageCacheManager,
                 'prefix_hash' => $prefixHash,
-                'cache_name' => $cacheName,
+                'cache_name' => $newCacheName,
                 'cached_message_count' => $cachedMessageCount,
                 'total_tokens' => $totalTokens,
                 'created_at' => time(),
             ], $config->getTtl());
+
+            // 删除旧缓存（在新缓存创建成功后）
+            $oldCacheName = $oldCachedData['cache_name'] ?? null;
+            if ($oldCacheName && $oldCacheName !== $newCacheName) {
+                try {
+                    $this->cacheClient->deleteCache($oldCacheName);
+                    $this->logger?->info('Deleted old Gemini cache after creating new cache', [
+                        'old_cache_name' => $oldCacheName,
+                        'new_cache_name' => $newCacheName,
+                        'model' => $request->getModel(),
+                    ]);
+                } catch (Throwable $e) {
+                    // 记录日志，但不影响主流程（旧缓存会自动过期）
+                    $this->logger?->warning('Failed to delete old Gemini cache', [
+                        'error' => $e->getMessage(),
+                        'cache_name' => $oldCacheName,
+                    ]);
+                }
+            }
         } catch (Throwable $e) {
             // 缓存创建失败，记录日志但不影响请求
             $this->logger?->warning('Failed to create Gemini cache after request', [
@@ -258,6 +254,13 @@ class DynamicCacheStrategy implements CacheStrategyInterface
     /**
      * 构建缓存配置.
      * 构建用于创建缓存的配置数组.
+     *
+     * 注意：根据 Gemini Context Caching 最佳实践，应该只缓存稳定的上下文内容：
+     * - system_instruction: 系统提示词
+     * - tools: 工具定义
+     * - contents: 只包含初始的示例消息（如果有）
+     *
+     * 不应该缓存会话历史，会话历史应通过正常的 contents 参数传递.
      */
     private function buildCacheConfig(GeminiCacheConfig $config, ChatCompletionRequest $request): array
     {
@@ -285,13 +288,29 @@ class DynamicCacheStrategy implements CacheStrategyInterface
             }
         }
 
-        // 3. 添加消息内容（不包含 system message，system message 已单独处理）
-        $allMessages = $request->getMessages();
-        $result = RequestHandler::convertMessages($allMessages);
-        $cacheConfig['contents'] = $result['contents'];
+        // 3. 添加最小必要的 contents（只包含第一个 user message 作为示例）
+        // 注意：根据 Gemini API 要求，缓存必须包含至少一个 content
+        $firstUserMessage = $this->getFirstUserMessage($request);
+        if ($firstUserMessage) {
+            $convertedMessage = RequestHandler::convertUserMessage($firstUserMessage);
+            $cacheConfig['contents'] = [$convertedMessage];
+        } else {
+            // 如果没有 user message，使用一个占位符
+            $cacheConfig['contents'] = [
+                [
+                    'role' => 'user',
+                    'parts' => [
+                        ['text' => 'Hello'],
+                    ],
+                ],
+            ];
+        }
 
-        // 4. 设置 TTL
-        $cacheConfig['ttl'] = $config->getTtl() . 's';
+        // 4. 设置 TTL（验证范围：60s - 86400s）
+        $ttl = $config->getTtl();
+        // Ensure TTL is within valid range (60 seconds to 24 hours)
+        $ttl = max(60, min(86400, $ttl));
+        $cacheConfig['ttl'] = $ttl . 's';
 
         return $cacheConfig;
     }

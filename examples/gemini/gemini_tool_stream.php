@@ -184,4 +184,3 @@ if ($completeMessage instanceof AssistantMessage) {
 }
 
 echo PHP_EOL . '耗时' . (microtime(true) - $start) . '秒' . PHP_EOL;
-

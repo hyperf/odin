@@ -13,6 +13,7 @@ declare(strict_types=1);
 namespace Hyperf\Odin\Api\Providers\Gemini;
 
 use GuzzleHttp\RequestOptions;
+use Hyperf\Context\ApplicationContext;
 use Hyperf\Engine\Coroutine;
 use Hyperf\Odin\Api\Providers\AbstractClient;
 use Hyperf\Odin\Api\Providers\Gemini\Cache\GeminiCacheManager;
@@ -23,18 +24,33 @@ use Hyperf\Odin\Api\Response\ChatCompletionStreamResponse;
 use Hyperf\Odin\Api\Transport\OdinSimpleCurl;
 use Hyperf\Odin\Event\AfterChatCompletionsEvent;
 use Hyperf\Odin\Event\AfterChatCompletionsStreamEvent;
+use Hyperf\Odin\Message\AssistantMessage;
 use Hyperf\Odin\Utils\EventUtil;
 use Psr\Log\LoggerInterface;
+use Psr\SimpleCache\CacheInterface;
 use Throwable;
 
 class Client extends AbstractClient
 {
+    private ThoughtSignatureCache $thoughtSignatureCache;
+
     public function __construct(GeminiConfig $config, ?ApiOptions $requestOptions = null, ?LoggerInterface $logger = null)
     {
         if (! $requestOptions) {
             $requestOptions = new ApiOptions();
         }
         parent::__construct($config, $requestOptions, $logger);
+
+        // Initialize thought signature cache
+        $cache = null;
+        if (ApplicationContext::hasContainer()) {
+            try {
+                $cache = ApplicationContext::getContainer()->get(CacheInterface::class);
+            } catch (Throwable) {
+                // Cache not available, continue without it
+            }
+        }
+        $this->thoughtSignatureCache = new ThoughtSignatureCache($cache);
     }
 
     /**
@@ -49,7 +65,7 @@ class Client extends AbstractClient
             $model = $chatRequest->getModel();
 
             // Convert request to Gemini native format
-            $geminiRequest = RequestHandler::convertRequest($chatRequest, $model);
+            $geminiRequest = RequestHandler::convertRequest($chatRequest, $model, $this->thoughtSignatureCache);
 
             // Check and apply cache if available
             $geminiRequest = $this->checkAndApplyCache($geminiRequest, $chatRequest);
@@ -77,6 +93,9 @@ class Client extends AbstractClient
             // Convert to OpenAI format
             $standardResponse = ResponseHandler::convertResponse($geminiResponse, $model);
             $chatResponse = new ChatCompletionResponse($standardResponse, $this->logger);
+
+            // Cache thought signatures from tool calls
+            $this->cacheThoughtSignatures($chatResponse);
 
             $this->logResponse('GeminiChatResponse', $requestId, $duration, [
                 'content' => $chatResponse->getFirstChoice()?->getMessage()?->toArray(),
@@ -109,7 +128,7 @@ class Client extends AbstractClient
             $model = $chatRequest->getModel();
 
             // Convert request to Gemini native format
-            $geminiRequest = RequestHandler::convertRequest($chatRequest, $model);
+            $geminiRequest = RequestHandler::convertRequest($chatRequest, $model, $this->thoughtSignatureCache);
 
             // Check and apply cache if available
             $geminiRequest = $this->checkAndApplyCache($geminiRequest, $chatRequest);
@@ -147,7 +166,7 @@ class Client extends AbstractClient
             $firstResponseDuration = $this->calculateDuration($startTime);
 
             // Create stream converter
-            $streamConverter = new StreamConverter($response, $this->logger, $model);
+            $streamConverter = new StreamConverter($response, $this->logger, $model, $this->thoughtSignatureCache);
 
             $chatCompletionStreamResponse = new ChatCompletionStreamResponse(
                 logger: $this->logger,
@@ -243,8 +262,13 @@ class Client extends AbstractClient
                 $this->logger
             );
             $cacheInfo = $cacheManager->checkCache($chatRequest);
-            var_dump($cacheInfo);
             if ($cacheInfo) {
+                $this->logger?->debug('Gemini cache found', [
+                    'cache_name' => $cacheInfo['cache_name'] ?? null,
+                    'has_system' => $cacheInfo['has_system'] ?? false,
+                    'has_tools' => $cacheInfo['has_tools'] ?? false,
+                    'cached_message_count' => $cacheInfo['cached_message_count'] ?? 0,
+                ]);
                 return $this->applyCacheToRequest($geminiRequest, $cacheInfo, $chatRequest);
             }
         } catch (Throwable $e) {
@@ -312,7 +336,14 @@ class Client extends AbstractClient
 
     /**
      * Apply cache to geminiRequest.
-     * Remove cached content (system_instruction, tools, cached messages) and add cached_content.
+     * Remove cached content (system_instruction, tools, first user message) and add cached_content.
+     *
+     * 注意：根据新的缓存策略，缓存只包含：
+     * - system_instruction
+     * - tools
+     * - 第一个 user message（作为示例）
+     *
+     * 因此需要从请求中移除这些内容，并用 cached_content 引用替代.
      */
     protected function applyCacheToRequest(array $geminiRequest, array $cacheInfo, ChatCompletionRequest $chatRequest): array
     {
@@ -329,11 +360,20 @@ class Client extends AbstractClient
             unset($geminiRequest['tools']);
         }
 
-        // Remove cached messages from contents
+        // Remove the first user message from contents (it's already in cache)
+        // cachedMessageCount is always 1 (the first user message)
         $cachedMessageCount = $cacheInfo['cached_message_count'] ?? 0;
         if ($cachedMessageCount > 0 && isset($geminiRequest['contents']) && is_array($geminiRequest['contents'])) {
             // Remove the first N messages from contents (these are already cached)
             $geminiRequest['contents'] = array_slice($geminiRequest['contents'], $cachedMessageCount);
+
+            // If no messages left after removing cached ones, add an empty array
+            if (empty($geminiRequest['contents'])) {
+                $this->logger?->warning('No messages left after applying cache', [
+                    'cache_name' => $cacheInfo['cache_name'],
+                    'cached_message_count' => $cachedMessageCount,
+                ]);
+            }
         }
 
         return $geminiRequest;
@@ -356,5 +396,37 @@ class Client extends AbstractClient
         }
 
         return $url;
+    }
+
+    /**
+     * Cache thought signatures from tool calls in the response.
+     */
+    private function cacheThoughtSignatures(ChatCompletionResponse $response): void
+    {
+        if (! $this->thoughtSignatureCache->isAvailable()) {
+            return;
+        }
+
+        $firstChoice = $response->getFirstChoice();
+        if ($firstChoice === null) {
+            return;
+        }
+
+        $message = $firstChoice->getMessage();
+        if (! $message instanceof AssistantMessage) {
+            return;
+        }
+
+        $toolCalls = $message->getToolCalls();
+        if (empty($toolCalls)) {
+            return;
+        }
+
+        foreach ($toolCalls as $toolCall) {
+            $thoughtSignature = $toolCall->getMetadata('thought_signature');
+            if ($thoughtSignature !== null) {
+                $this->thoughtSignatureCache->store($toolCall->getId(), $thoughtSignature);
+            }
+        }
     }
 }

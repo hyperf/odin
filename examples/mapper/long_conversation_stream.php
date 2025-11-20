@@ -481,7 +481,7 @@ if ($inputTokens1 > 0 && ($inputTokens2 > 0 || $inputTokens3 > 0)) {
         } else {
             echo "第二轮缓存命中: 未命中\n";
         }
-        
+
         if ($cacheReadTokens3 !== null && $cacheReadTokens3 > 0) {
             echo "第三轮缓存命中: {$cacheReadTokens3} tokens 从缓存读取\n";
         } else {
@@ -495,17 +495,17 @@ if ($inputTokens1 > 0 && ($inputTokens2 > 0 || $inputTokens3 > 0)) {
                 $savedTokens2 = $inputTokens1 - $inputTokens2;
                 echo "第二轮缓存命中: 通过 Input Tokens 减少判断，节省了 {$savedTokens2} tokens (" . number_format($reduction2, 2) . "%)\n";
             } else {
-                echo "第二轮缓存命中: 未命中（Input Tokens 变化: " . number_format($reduction2, 2) . "%）\n";
+                echo '第二轮缓存命中: 未命中（Input Tokens 变化: ' . number_format($reduction2, 2) . "%）\n";
             }
         }
-        
+
         if ($inputTokens1 > 0 && $inputTokens3 > 0) {
             $reduction3 = (($inputTokens1 - $inputTokens3) / $inputTokens1) * 100;
             if ($inputTokens3 < $inputTokens1 * 0.8) {
                 $savedTokens3 = $inputTokens1 - $inputTokens3;
                 echo "第三轮缓存命中: 通过 Input Tokens 减少判断，节省了 {$savedTokens3} tokens (" . number_format($reduction3, 2) . "%)\n";
             } else {
-                echo "第三轮缓存命中: 未命中（Input Tokens 变化: " . number_format($reduction3, 2) . "%）\n";
+                echo '第三轮缓存命中: 未命中（Input Tokens 变化: ' . number_format($reduction3, 2) . "%）\n";
             }
         }
     }

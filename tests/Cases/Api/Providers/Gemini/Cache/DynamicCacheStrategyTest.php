@@ -161,11 +161,13 @@ class DynamicCacheStrategyTest extends AbstractTestCase
             'test-model'
         );
 
-        // Create message cache manager with different user message
+        // Create message cache manager with DIFFERENT SYSTEM MESSAGE (this makes conversation discontinuous)
+        // Note: After our fix, different user messages do NOT break continuity,
+        // only different system messages or tools do
         $cachedCachePointMessages = [
             0 => new CachePointMessage([], 0),
-            1 => new CachePointMessage($systemMessage, 50),
-            2 => new CachePointMessage(new UserMessage('different message'), 30),
+            1 => new CachePointMessage(new SystemMessage('different system'), 50), // Different system!
+            2 => new CachePointMessage(new UserMessage('some message'), 30),
         ];
         $lastMessageCacheManager = new GeminiMessageCacheManager($cachedCachePointMessages);
 
@@ -175,10 +177,11 @@ class DynamicCacheStrategyTest extends AbstractTestCase
             'cached_message_count' => 0,
         ];
 
-        // Set cache data
+        // Set cache data with the OLD cache key (based on different system message)
         $cacheKey = $lastMessageCacheManager->getCacheKey('test-model');
         $this->cache->set($cacheKey, $cachedData);
 
+        // Request with different system message won't find the cache (different cacheKey)
         $result = $strategy->apply($config, $request);
         $this->assertNull($result);
     }
@@ -206,21 +209,21 @@ class DynamicCacheStrategyTest extends AbstractTestCase
         $systemMessage = new SystemMessage('system instruction');
         $userMessage = new UserMessage('user message');
 
-        // Use a model with lower threshold for testing
+        // Use Flash model which requires minimum 2048 tokens
         $request = new ChatCompletionRequest(
             [$systemMessage, $userMessage],
-            'gemini-2.5-flash' // This model has minCacheTokens = 1024
+            'gemini-2.5-flash' // This model has minCacheTokens = 2048
         );
         $request->calculateTokenEstimates();
 
         // Set token estimates to meet threshold
-        // basePrefixTokens = systemTokens (1500) + toolsTokens (0) = 1500
-        // minCacheTokens = max(1024, 100) = 1024
-        // 1500 >= 1024, so cache should be created
-        $this->setNonpublicPropertyValue($systemMessage, 'tokenEstimate', 1500);
-        $this->setNonpublicPropertyValue($request, 'systemTokenEstimate', 1500);
+        // basePrefixTokens = systemTokens (2500) + toolsTokens (0) = 2500
+        // minCacheTokens = max(2048, 100) = 2048
+        // 2500 >= 2048, so cache should be created
+        $this->setNonpublicPropertyValue($systemMessage, 'tokenEstimate', 2500);
+        $this->setNonpublicPropertyValue($request, 'systemTokenEstimate', 2500);
         $this->setNonpublicPropertyValue($request, 'toolsTokenEstimate', 0);
-        $this->setNonpublicPropertyValue($request, 'totalTokenEstimate', 2000);
+        $this->setNonpublicPropertyValue($request, 'totalTokenEstimate', 3000);
 
         // Cache is empty initially
         $this->cacheClient->shouldReceive('createCache')
@@ -237,7 +240,7 @@ class DynamicCacheStrategyTest extends AbstractTestCase
         $cachedData = $this->cache->get($cacheKey);
         $this->assertNotNull($cachedData);
         $this->assertEquals('cachedContents/new-cache-123', $cachedData['cache_name']);
-        // cached_message_count should be 1 (only user message, system message is handled separately)
+        // cached_message_count is always 1 (only first user message is cached)
         $this->assertEquals(1, $cachedData['cached_message_count']);
     }
 
@@ -302,32 +305,32 @@ class DynamicCacheStrategyTest extends AbstractTestCase
         );
         $request->calculateTokenEstimates();
 
-        // Set token estimates
+        // Set token estimates (Flash requires minimum 2048 tokens)
         // incrementalTokens = assistantMessage (40) + userMessage2 (35) = 75 < 100 (threshold)
-        $this->setNonpublicPropertyValue($systemMessage, 'tokenEstimate', 1500);
+        $this->setNonpublicPropertyValue($systemMessage, 'tokenEstimate', 2500);
         $this->setNonpublicPropertyValue($userMessage1, 'tokenEstimate', 30);
         $this->setNonpublicPropertyValue($assistantMessage, 'tokenEstimate', 40);
         $this->setNonpublicPropertyValue($userMessage2, 'tokenEstimate', 35);
-        $this->setNonpublicPropertyValue($request, 'systemTokenEstimate', 1500);
+        $this->setNonpublicPropertyValue($request, 'systemTokenEstimate', 2500);
         $this->setNonpublicPropertyValue($request, 'toolsTokenEstimate', 0);
-        $this->setNonpublicPropertyValue($request, 'totalTokenEstimate', 1605);
+        $this->setNonpublicPropertyValue($request, 'totalTokenEstimate', 2605);
 
         // Create cached data with continuous conversation (same prefix hash)
         // cached_message_count = 1 (only userMessage1, system message is handled separately)
         $cachedCachePointMessages = [
             0 => new CachePointMessage([], 0),
-            1 => new CachePointMessage($systemMessage, 1500),
+            1 => new CachePointMessage($systemMessage, 2500),
             2 => new CachePointMessage($userMessage1, 30),
         ];
         $lastMessageCacheManager = new GeminiMessageCacheManager($cachedCachePointMessages);
 
         $oldCacheName = 'cachedContents/old-cache-123';
-        // Last total tokens: system (1500) + userMessage1 (30) = 1530
+        // Last total tokens: system (2500) + userMessage1 (30) = 2530
         $cachedData = [
             'message_cache_manager' => $lastMessageCacheManager,
             'cache_name' => $oldCacheName,
             'cached_message_count' => 1, // only userMessage1
-            'total_tokens' => 1530, // system (1500) + userMessage1 (30)
+            'total_tokens' => 2530, // system (2500) + userMessage1 (30)
         ];
 
         // Set cached data
@@ -335,7 +338,7 @@ class DynamicCacheStrategyTest extends AbstractTestCase
         $this->cache->set($cacheKey, $cachedData);
 
         // When conversation is continuous but tokens below threshold, cache should not be updated
-        // Current total tokens: 1605, Last total tokens: 1530, incrementalTokens = 1605 - 1530 = 75 < 100 (threshold)
+        // Current total tokens: 2605, Last total tokens: 2530, incrementalTokens = 2605 - 2530 = 75 < 100 (threshold)
         $this->cacheClient->shouldReceive('deleteCache')->never();
         $this->cacheClient->shouldReceive('createCache')->never();
 
@@ -372,32 +375,32 @@ class DynamicCacheStrategyTest extends AbstractTestCase
         );
         $request->calculateTokenEstimates();
 
-        // Set token estimates
+        // Set token estimates (Flash requires minimum 2048 tokens)
         // incrementalTokens = assistantMessage (index 3, 40) + userMessage2 (index 4, 35) = 75 >= 50 (threshold)
-        $this->setNonpublicPropertyValue($systemMessage, 'tokenEstimate', 1500);
+        $this->setNonpublicPropertyValue($systemMessage, 'tokenEstimate', 2500);
         $this->setNonpublicPropertyValue($userMessage1, 'tokenEstimate', 30);
         $this->setNonpublicPropertyValue($assistantMessage, 'tokenEstimate', 40);
         $this->setNonpublicPropertyValue($userMessage2, 'tokenEstimate', 35);
-        $this->setNonpublicPropertyValue($request, 'systemTokenEstimate', 1500);
+        $this->setNonpublicPropertyValue($request, 'systemTokenEstimate', 2500);
         $this->setNonpublicPropertyValue($request, 'toolsTokenEstimate', 0);
-        $this->setNonpublicPropertyValue($request, 'totalTokenEstimate', 1605);
+        $this->setNonpublicPropertyValue($request, 'totalTokenEstimate', 2605);
 
         // Create cached data with continuous conversation (same prefix hash)
         // cached_message_count = 1 (only userMessage1)
         $cachedCachePointMessages = [
             0 => new CachePointMessage([], 0),
-            1 => new CachePointMessage($systemMessage, 1500),
+            1 => new CachePointMessage($systemMessage, 2500),
             2 => new CachePointMessage($userMessage1, 30),
         ];
         $lastMessageCacheManager = new GeminiMessageCacheManager($cachedCachePointMessages);
 
         $oldCacheName = 'cachedContents/old-cache-123';
-        // Last total tokens: system (1500) + userMessage1 (30) = 1530
+        // Last total tokens: system (2500) + userMessage1 (30) = 2530
         $cachedData = [
             'message_cache_manager' => $lastMessageCacheManager,
             'cache_name' => $oldCacheName,
             'cached_message_count' => 1, // only userMessage1
-            'total_tokens' => 1530, // system (1500) + userMessage1 (30)
+            'total_tokens' => 2530, // system (2500) + userMessage1 (30)
         ];
 
         // Set cached data
@@ -405,7 +408,7 @@ class DynamicCacheStrategyTest extends AbstractTestCase
         $this->cache->set($cacheKey, $cachedData);
 
         // When conversation is continuous and tokens above threshold, cache should be updated
-        // Current total tokens: 1605, Last total tokens: 1530, incrementalTokens = 1605 - 1530 = 75 >= 50 (threshold)
+        // Current total tokens: 2605, Last total tokens: 2530, incrementalTokens = 2605 - 2530 = 75 >= 50 (threshold)
         $this->cacheClient->shouldReceive('deleteCache')
             ->once()
             ->with($oldCacheName)
@@ -419,9 +422,10 @@ class DynamicCacheStrategyTest extends AbstractTestCase
         $this->logger->shouldReceive('info')
             ->once()
             ->with(
-                'Deleted old Gemini cache before creating new cache',
-                Mockery::on(function ($context) use ($oldCacheName) {
-                    return isset($context['cache_name']) && $context['cache_name'] === $oldCacheName;
+                'Deleted old Gemini cache after creating new cache',
+                Mockery::on(function ($context) use ($oldCacheName, $newCacheName) {
+                    return isset($context['old_cache_name']) && $context['old_cache_name'] === $oldCacheName
+                        && isset($context['new_cache_name']) && $context['new_cache_name'] === $newCacheName;
                 })
             );
 
@@ -431,8 +435,8 @@ class DynamicCacheStrategyTest extends AbstractTestCase
         $newCachedData = $this->cache->get($cacheKey);
         $this->assertNotNull($newCachedData);
         $this->assertEquals($newCacheName, $newCachedData['cache_name']);
-        // cached_message_count should be 3 (userMessage1 + assistantMessage + userMessage2, system is handled separately)
-        $this->assertEquals(3, $newCachedData['cached_message_count']);
+        // cached_message_count is always 1 (only first user message is cached)
+        $this->assertEquals(1, $newCachedData['cached_message_count']);
     }
 
     public function testCreateOrUpdateCacheCreatesNewCacheWhenConversationIsDiscontinuous()
@@ -455,15 +459,15 @@ class DynamicCacheStrategyTest extends AbstractTestCase
         );
         $oldRequest->calculateTokenEstimates();
 
-        $this->setNonpublicPropertyValue($systemMessage1, 'tokenEstimate', 1500);
+        $this->setNonpublicPropertyValue($systemMessage1, 'tokenEstimate', 2500);
         $this->setNonpublicPropertyValue($userMessage1, 'tokenEstimate', 30);
-        $this->setNonpublicPropertyValue($oldRequest, 'systemTokenEstimate', 1500);
+        $this->setNonpublicPropertyValue($oldRequest, 'systemTokenEstimate', 2500);
         $this->setNonpublicPropertyValue($oldRequest, 'toolsTokenEstimate', 0);
-        $this->setNonpublicPropertyValue($oldRequest, 'totalTokenEstimate', 1530);
+        $this->setNonpublicPropertyValue($oldRequest, 'totalTokenEstimate', 2530);
 
         $oldCachePointMessages = [
             0 => new CachePointMessage([], 0),
-            1 => new CachePointMessage($systemMessage1, 1500),
+            1 => new CachePointMessage($systemMessage1, 2500),
             2 => new CachePointMessage($userMessage1, 30),
         ];
         $oldMessageCacheManager = new GeminiMessageCacheManager($oldCachePointMessages);
@@ -486,11 +490,11 @@ class DynamicCacheStrategyTest extends AbstractTestCase
         );
         $newRequest->calculateTokenEstimates();
 
-        $this->setNonpublicPropertyValue($systemMessage2, 'tokenEstimate', 1500);
+        $this->setNonpublicPropertyValue($systemMessage2, 'tokenEstimate', 2500);
         $this->setNonpublicPropertyValue($userMessage2, 'tokenEstimate', 30);
-        $this->setNonpublicPropertyValue($newRequest, 'systemTokenEstimate', 1500);
+        $this->setNonpublicPropertyValue($newRequest, 'systemTokenEstimate', 2500);
         $this->setNonpublicPropertyValue($newRequest, 'toolsTokenEstimate', 0);
-        $this->setNonpublicPropertyValue($newRequest, 'totalTokenEstimate', 1530);
+        $this->setNonpublicPropertyValue($newRequest, 'totalTokenEstimate', 2530);
 
         // Should create new cache (old cache won't be accessed because cacheKey is different)
         $this->cacheClient->shouldReceive('deleteCache')->never();
@@ -508,7 +512,7 @@ class DynamicCacheStrategyTest extends AbstractTestCase
         $newCachedData = $this->cache->get($newCacheKey);
         $this->assertNotNull($newCachedData);
         $this->assertEquals($newCacheName, $newCachedData['cache_name']);
-        // cached_message_count should be 1 (only userMessage2, system message is handled separately)
+        // cached_message_count is always 1 (only first user message is cached)
         $this->assertEquals(1, $newCachedData['cached_message_count']);
 
         // Verify old cache still exists (different cacheKey)
@@ -537,10 +541,10 @@ class DynamicCacheStrategyTest extends AbstractTestCase
         );
         $request->calculateTokenEstimates();
 
-        $this->setNonpublicPropertyValue($systemMessage, 'tokenEstimate', 1500);
-        $this->setNonpublicPropertyValue($request, 'systemTokenEstimate', 1500);
+        $this->setNonpublicPropertyValue($systemMessage, 'tokenEstimate', 2500);
+        $this->setNonpublicPropertyValue($request, 'systemTokenEstimate', 2500);
         $this->setNonpublicPropertyValue($request, 'toolsTokenEstimate', 0);
-        $this->setNonpublicPropertyValue($request, 'totalTokenEstimate', 2000);
+        $this->setNonpublicPropertyValue($request, 'totalTokenEstimate', 3000);
 
         // Cache is empty initially
         $this->cacheClient->shouldReceive('createCache')
@@ -589,11 +593,11 @@ class DynamicCacheStrategyTest extends AbstractTestCase
         );
         $request1->calculateTokenEstimates();
 
-        $this->setNonpublicPropertyValue($systemMessage, 'tokenEstimate', 1500);
+        $this->setNonpublicPropertyValue($systemMessage, 'tokenEstimate', 2500);
         $this->setNonpublicPropertyValue($userMessage1, 'tokenEstimate', 30);
-        $this->setNonpublicPropertyValue($request1, 'systemTokenEstimate', 1500);
+        $this->setNonpublicPropertyValue($request1, 'systemTokenEstimate', 2500);
         $this->setNonpublicPropertyValue($request1, 'toolsTokenEstimate', 0);
-        $this->setNonpublicPropertyValue($request1, 'totalTokenEstimate', 1530);
+        $this->setNonpublicPropertyValue($request1, 'totalTokenEstimate', 2530);
 
         $cacheName1 = 'cachedContents/cache-1';
         $this->cacheClient->shouldReceive('createCache')
@@ -608,7 +612,7 @@ class DynamicCacheStrategyTest extends AbstractTestCase
         $cachedData1 = $this->cache->get($cacheKey);
         $this->assertNotNull($cachedData1);
         $this->assertEquals($cacheName1, $cachedData1['cache_name']);
-        // cached_message_count should be 1 (only userMessage1, system message is handled separately)
+        // cached_message_count is always 1 (only first user message is cached)
         $this->assertEquals(1, $cachedData1['cached_message_count']);
 
         // Step 2: Second request - Hit cache (apply)
@@ -636,9 +640,9 @@ class DynamicCacheStrategyTest extends AbstractTestCase
 
         $this->setNonpublicPropertyValue($assistantMessage, 'tokenEstimate', 40);
         $this->setNonpublicPropertyValue($userMessage2, 'tokenEstimate', 35);
-        $this->setNonpublicPropertyValue($request3, 'systemTokenEstimate', 1500);
+        $this->setNonpublicPropertyValue($request3, 'systemTokenEstimate', 2500);
         $this->setNonpublicPropertyValue($request3, 'toolsTokenEstimate', 0);
-        $this->setNonpublicPropertyValue($request3, 'totalTokenEstimate', 1605);
+        $this->setNonpublicPropertyValue($request3, 'totalTokenEstimate', 2605);
 
         // When conversation is continuous and tokens above threshold, cache should be updated
         $this->cacheClient->shouldReceive('deleteCache')
@@ -648,9 +652,10 @@ class DynamicCacheStrategyTest extends AbstractTestCase
         $this->logger->shouldReceive('info')
             ->once()
             ->with(
-                'Deleted old Gemini cache before creating new cache',
+                'Deleted old Gemini cache after creating new cache',
                 Mockery::on(function ($context) use ($cacheName1) {
-                    return isset($context['cache_name']) && $context['cache_name'] === $cacheName1;
+                    return isset($context['old_cache_name']) && $context['old_cache_name'] === $cacheName1
+                        && isset($context['new_cache_name']);
                 })
             );
 
@@ -665,8 +670,8 @@ class DynamicCacheStrategyTest extends AbstractTestCase
         $cachedData3 = $this->cache->get($cacheKey);
         $this->assertNotNull($cachedData3);
         $this->assertEquals($cacheName2, $cachedData3['cache_name']);
-        // cached_message_count should be 3 (userMessage1 + assistantMessage + userMessage2, system is handled separately)
-        $this->assertEquals(3, $cachedData3['cached_message_count']);
+        // cached_message_count is always 1 (only first user message is cached)
+        $this->assertEquals(1, $cachedData3['cached_message_count']);
 
         // Step 4: Fourth request - Hit cache (apply) - should use new cache
         $request4 = new ChatCompletionRequest(
@@ -678,6 +683,6 @@ class DynamicCacheStrategyTest extends AbstractTestCase
         $this->assertNotNull($result4);
         $this->assertEquals($cacheName2, $result4['cache_name']);
         $this->assertTrue($result4['has_system']);
-        $this->assertEquals(3, $result4['cached_message_count']);
+        $this->assertEquals(1, $result4['cached_message_count']);
     }
 }

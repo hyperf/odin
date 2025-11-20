@@ -37,18 +37,20 @@ class GeminiMessageCacheManager
 
     /**
      * 获取缓存 key（基于 model + tools + system 的 hash）.
+     * 注意：不包含动态内容（user messages），只包含稳定的上下文.
      */
     public function getCacheKey(string $model): string
     {
-        return 'gemini_cache:' . md5($model . $this->getToolsHash() . $this->getSystemMessageHash() . $this->getFirstUserMessageHash());
+        return 'gemini_cache:' . md5($model . $this->getToolsHash() . $this->getSystemMessageHash());
     }
 
     /**
-     * 获取前缀 hash（system + tools + 第一个 user message）.
+     * 获取前缀 hash（system + tools）.
+     * 注意：不包含动态内容（user messages），只包含稳定的上下文.
      */
     public function getPrefixHash(string $model): string
     {
-        return md5($model . $this->getToolsHash() . $this->getSystemMessageHash() . $this->getFirstUserMessageHash());
+        return md5($model . $this->getToolsHash() . $this->getSystemMessageHash());
     }
 
     public function getToolsHash(): string

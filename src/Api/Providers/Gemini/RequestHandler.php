@@ -33,12 +33,12 @@ class RequestHandler
     /**
      * Convert ChatCompletionRequest to Gemini native format.
      */
-    public static function convertRequest(ChatCompletionRequest $request, string $model): array
+    public static function convertRequest(ChatCompletionRequest $request, string $model, ?ThoughtSignatureCache $thoughtSignatureCache = null): array
     {
         $geminiRequest = [];
 
         // Convert messages to contents and extract system instructions
-        $result = self::convertMessages($request->getMessages());
+        $result = self::convertMessages($request->getMessages(), $thoughtSignatureCache);
 
         $geminiRequest['contents'] = $result['contents'];
 
@@ -156,10 +156,15 @@ class RequestHandler
      *
      * @return array{contents: array, system_instruction: null|array}
      */
-    public static function convertMessages(array $messages): array
+    public static function convertMessages(array $messages, ?ThoughtSignatureCache $thoughtSignatureCache = null): array
     {
         $contents = [];
         $systemInstructions = [];
+
+        // Track tool_call_id to function name mapping
+        // This is needed because OpenAI ToolMessage only has tool_call_id,
+        // but Gemini functionResponse requires the function name
+        $toolCallIdToName = [];
 
         foreach ($messages as $message) {
             if (! $message instanceof MessageInterface) {
@@ -175,10 +180,17 @@ class RequestHandler
                 continue;
             }
 
+            // Track tool calls from assistant messages
+            if ($message instanceof AssistantMessage && $message->hasToolCalls()) {
+                foreach ($message->getToolCalls() as $toolCall) {
+                    $toolCallIdToName[$toolCall->getId()] = $toolCall->getName();
+                }
+            }
+
             $content = match (true) {
                 $message instanceof UserMessage => self::convertUserMessage($message),
-                $message instanceof AssistantMessage => self::convertAssistantMessage($message),
-                $message instanceof ToolMessage => self::convertToolMessage($message),
+                $message instanceof AssistantMessage => self::convertAssistantMessage($message, $thoughtSignatureCache),
+                $message instanceof ToolMessage => self::convertToolMessage($message, $toolCallIdToName),
                 default => null,
             };
 
@@ -207,7 +219,7 @@ class RequestHandler
     /**
      * Convert AssistantMessage to Gemini format.
      */
-    private static function convertAssistantMessage(AssistantMessage $message): array
+    private static function convertAssistantMessage(AssistantMessage $message, ?ThoughtSignatureCache $thoughtSignatureCache = null): array
     {
         $parts = [];
 
@@ -238,9 +250,25 @@ class RequestHandler
                     $functionCall['args'] = (object) $arguments;
                 }
 
-                $parts[] = [
+                // Get thought_signature if available (only for Gemini 3 and 2.5 models with thinking mode)
+                // Priority: ToolCall object -> Cache
+                // Note: Only include this field if it has a non-empty value
+                $thoughtSignature = $toolCall->getThoughtSignature();
+                if ($thoughtSignature === null && $thoughtSignatureCache !== null) {
+                    $thoughtSignature = $thoughtSignatureCache->get($toolCall->getId());
+                }
+
+                // Build the part (functionCall + thoughtSignature)
+                // Note: thoughtSignature should be at the same level as functionCall, not inside it
+                $part = [
                     'functionCall' => $functionCall,
                 ];
+
+                if (! empty($thoughtSignature)) {
+                    $part['thoughtSignature'] = $thoughtSignature;
+                }
+
+                $parts[] = $part;
             }
         }
 
@@ -252,8 +280,11 @@ class RequestHandler
 
     /**
      * Convert ToolMessage to Gemini format.
+     *
+     * @param ToolMessage $message The tool message to convert
+     * @param array $toolCallIdToName Mapping of tool_call_id to function name
      */
-    private static function convertToolMessage(ToolMessage $message): array
+    private static function convertToolMessage(ToolMessage $message, array $toolCallIdToName = []): array
     {
         $content = $message->getContent();
         $result = json_decode($content, true);
@@ -263,12 +294,27 @@ class RequestHandler
             $result = ['result' => $content];
         }
 
+        // Get tool name - Gemini requires it to be non-empty
+        // Priority: 1) message.name 2) lookup by tool_call_id 3) fallback
+        $toolName = $message->getName();
+
+        if (empty($toolName)) {
+            // Try to find name by tool_call_id from previous assistant message
+            $toolCallId = $message->getToolCallId();
+            $toolName = $toolCallIdToName[$toolCallId] ?? null;
+
+            if (empty($toolName)) {
+                // Use tool_call_id as last resort fallback
+                $toolName = $toolCallId ?: 'function_response';
+            }
+        }
+
         return [
             'role' => 'user', // Tool responses come back as user role in Gemini
             'parts' => [
                 [
                     'functionResponse' => [
-                        'name' => $message->getName(),
+                        'name' => $toolName,
                         'response' => $result,
                     ],
                 ],
@@ -354,7 +400,6 @@ class RequestHandler
             $config['stopSequences'] = $stop;
         }
 
-        // Add thinking config if present (Gemini 2.5+)
         // According to API docs, thinkingConfig should be inside generationConfig
         $thinking = $request->getThinking();
         if (! empty($thinking)) {

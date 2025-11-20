@@ -145,34 +145,48 @@ class GeminiMessageCacheManagerTest extends AbstractTestCase
     {
         $tools = ['tool1'];
         $systemMessage = new SystemMessage('system');
-        $userMessage = new UserMessage('user message');
+        $userMessage1 = new UserMessage('user message 1');
+        $userMessage2 = new UserMessage('user message 2');
 
         $cachePointMessages1 = [
             0 => new CachePointMessage($tools, 100),
             1 => new CachePointMessage($systemMessage, 50),
-            2 => new CachePointMessage($userMessage, 30),
+            2 => new CachePointMessage($userMessage1, 30),
         ];
 
+        // Continuous conversation: same tools and system, different user message (should still be continuous)
+        // Because prefix hash no longer includes user message
         $cachePointMessages2 = [
             0 => new CachePointMessage($tools, 100),
             1 => new CachePointMessage($systemMessage, 50),
-            2 => new CachePointMessage($userMessage, 30),
+            2 => new CachePointMessage($userMessage2, 30), // Different user message
         ];
 
         $manager1 = new GeminiMessageCacheManager($cachePointMessages1);
         $manager2 = new GeminiMessageCacheManager($cachePointMessages2);
 
+        // Should be continuous because prefix hash only includes tools and system (not user message)
         $this->assertTrue($manager1->isContinuousConversation($manager2, 'test-model'));
 
-        // Different user message
+        // Different system message - should NOT be continuous
         $cachePointMessages3 = [
             0 => new CachePointMessage($tools, 100),
-            1 => new CachePointMessage($systemMessage, 50),
-            2 => new CachePointMessage(new UserMessage('different message'), 30),
+            1 => new CachePointMessage(new SystemMessage('different system'), 50), // Different system
+            2 => new CachePointMessage($userMessage1, 30),
         ];
         $manager3 = new GeminiMessageCacheManager($cachePointMessages3);
 
         $this->assertFalse($manager1->isContinuousConversation($manager3, 'test-model'));
+
+        // Different tools - should NOT be continuous
+        $cachePointMessages4 = [
+            0 => new CachePointMessage(['tool2'], 100), // Different tools
+            1 => new CachePointMessage($systemMessage, 50),
+            2 => new CachePointMessage($userMessage1, 30),
+        ];
+        $manager4 = new GeminiMessageCacheManager($cachePointMessages4);
+
+        $this->assertFalse($manager1->isContinuousConversation($manager4, 'test-model'));
     }
 
     public function testGetFirstUserMessageIndex()

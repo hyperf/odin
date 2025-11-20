@@ -64,6 +64,17 @@ class ResponseHandler
             // Determine finish reason
             // If there are tool calls, finish_reason should be 'tool_calls'
             $finishReason = $candidate['finishReason'] ?? 'STOP';
+
+            // Log error if finishMessage is present (indicates an error occurred)
+            if (isset($candidate['finishMessage'])) {
+                error_log(sprintf(
+                    'Gemini response error [finish_reason=%s, index=%d]: %s',
+                    $finishReason,
+                    $index,
+                    $candidate['finishMessage']
+                ));
+            }
+
             if (! empty($message['tool_calls'])) {
                 $finishReason = 'tool_calls';
             } else {
@@ -107,7 +118,7 @@ class ResponseHandler
                 // Convert args to JSON string (OpenAI format)
                 $argumentsJson = json_encode($args, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-                $toolCalls[] = [
+                $toolCall = [
                     'id' => self::generateToolCallId(),
                     'type' => 'function',
                     'function' => [
@@ -115,6 +126,14 @@ class ResponseHandler
                         'arguments' => $argumentsJson,
                     ],
                 ];
+
+                // Preserve thought signature if present (Gemini-specific)
+                // This is required for Gemini 3 Pro multi-turn function calling
+                if (isset($functionCall['thoughtSignature'])) {
+                    $toolCall['thought_signature'] = $functionCall['thoughtSignature'];
+                }
+
+                $toolCalls[] = $toolCall;
             }
         }
 
@@ -160,8 +179,11 @@ class ResponseHandler
     private static function convertFinishReason(string $finishReason): string
     {
         return match ($finishReason) {
+            'STOP' => 'stop',
             'MAX_TOKENS' => 'length',
             'SAFETY', 'RECITATION' => 'content_filter',
+            'MALFORMED_FUNCTION_CALL' => 'stop', // Tool call format error, treated as stop but logged as error
+            'OTHER' => 'stop',
             default => 'stop',
         };
     }

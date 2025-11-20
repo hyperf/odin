@@ -46,21 +46,20 @@ class GeminiCacheConfigTest extends AbstractTestCase
 
     public function testGetMinCacheTokensByModel()
     {
-        // Test Gemini 2.5 Flash
-        $this->assertEquals(1024, GeminiCacheConfig::getMinCacheTokensByModel('gemini-2.5-flash'));
-        $this->assertEquals(1024, GeminiCacheConfig::getMinCacheTokensByModel('gemini-flash'));
+        // Test Gemini 2.5 Flash (official requirement: 2048 tokens)
+        $this->assertEquals(2048, GeminiCacheConfig::getMinCacheTokensByModel('gemini-2.5-flash'));
+        $this->assertEquals(2048, GeminiCacheConfig::getMinCacheTokensByModel('Gemini-2.5-Flash')); // Case insensitive
+        $this->assertEquals(2048, GeminiCacheConfig::getMinCacheTokensByModel('gemini-2-flash')); // Gemini 2.0 Flash
+        $this->assertEquals(2048, GeminiCacheConfig::getMinCacheTokensByModel('gemini-3-flash')); // Gemini 3.0 Flash
 
-        // Test Gemini 2.5 Pro
+        // Test Gemini 2.5 Pro (official requirement: 4096 tokens)
         $this->assertEquals(4096, GeminiCacheConfig::getMinCacheTokensByModel('gemini-2.5-pro'));
-        $this->assertEquals(4096, GeminiCacheConfig::getMinCacheTokensByModel('gemini-pro'));
+        $this->assertEquals(4096, GeminiCacheConfig::getMinCacheTokensByModel('Gemini-2.5-Pro')); // Case insensitive
+        $this->assertEquals(4096, GeminiCacheConfig::getMinCacheTokensByModel('gemini-2-pro')); // Gemini 2.0 Pro
+        $this->assertEquals(4096, GeminiCacheConfig::getMinCacheTokensByModel('gemini-3-pro')); // Gemini 3.0 Pro
+        $this->assertEquals(4096, GeminiCacheConfig::getMinCacheTokensByModel('gemini-3.0-pro'));
 
-        // Test Gemini 3 Pro Preview
-        // Note: Due to match order, 'gemini-3-pro-preview' contains 'pro', so it matches 'pro' pattern first (4096)
-        // The '3-pro-preview' pattern is never reached because 'pro' comes first
-        $this->assertEquals(4096, GeminiCacheConfig::getMinCacheTokensByModel('gemini-3-pro-preview'));
-        $this->assertEquals(4096, GeminiCacheConfig::getMinCacheTokensByModel('gemini-3-pro'));
-
-        // Test default
+        // Test default (use highest threshold to be safe)
         $this->assertEquals(4096, GeminiCacheConfig::getMinCacheTokensByModel('unknown-model'));
     }
 }
