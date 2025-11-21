@@ -4,7 +4,7 @@ on: [ push, pull_request ]
 
 env:
   SWOOLE_VERSION: '5.1.5'
-  SWOW_VERSION: 'v1.6.1'
+  SWOW_VERSION: 'v1.6.2'
 
 jobs:
   ci:
