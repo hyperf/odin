@@ -116,7 +116,7 @@ class SimpleCURLClient
             curl_setopt($this->ch, CURLOPT_PROXY, $this->options['proxy']);
         }
 
-        Coroutine::run(function () {
+        $curlExecutor = function () {
             try {
                 $startTime = microtime(true);
                 $result = curl_exec($this->ch);
@@ -164,7 +164,15 @@ class SimpleCURLClient
                     curl_close($this->ch);
                 }
             }
-        });
+        };
+
+        // Check if coroutine is available and run method exists
+        if ($this->isCoroutineAvailable()) {
+            Coroutine::run($curlExecutor);
+        } else {
+            // Execute synchronously in non-coroutine environment
+            call_user_func($curlExecutor);
+        }
 
         $headerTimeout = $this->options['header_timeout'] ?? 60;
         $headerReceived = $this->headerChannel->pop($headerTimeout);
@@ -356,7 +364,30 @@ class SimpleCURLClient
             return;
         }
 
-        $context['coroutine_id'] = Coroutine::id();
+        $context['coroutine_id'] = $this->getCurrentCoroutineId();
         $logger->info('[SimpleCURLClient] ' . $message, $context);
+    }
+
+    /**
+     * Check if coroutine is available.
+     *
+     * @return bool Whether coroutine is available
+     */
+    private function isCoroutineAvailable(): bool
+    {
+        return class_exists(Coroutine::class) && method_exists(Coroutine::class, 'run');
+    }
+
+    /**
+     * Get current coroutine ID.
+     *
+     * @return int Current coroutine ID or -1 if not in coroutine environment
+     */
+    private function getCurrentCoroutineId(): int
+    {
+        if (class_exists(Coroutine::class) && method_exists(Coroutine::class, 'id')) {
+            return Coroutine::id();
+        }
+        return -1;
     }
 }
