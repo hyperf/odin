@@ -169,12 +169,24 @@ class ApiOptions
         return $this->timeout['stream_chunk'];
     }
 
+    public function setStreamChunkTimeout(float $timeout): self
+    {
+        $this->timeout['stream_chunk'] = $timeout;
+        return $this;
+    }
+
     /**
      * 获取流式响应首个块超时.
      */
     public function getStreamFirstChunkTimeout(): float
     {
         return $this->timeout['stream_first'];
+    }
+
+    public function setStreamFirstChunkTimeout(float $timeout): self
+    {
+        $this->timeout['stream_first'] = $timeout;
+        return $this;
     }
 
     /**
