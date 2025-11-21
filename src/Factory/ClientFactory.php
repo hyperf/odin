@@ -228,9 +228,11 @@ class ClientFactory
         // 创建API实例
         $gemini = new Gemini();
 
-        // 由于 Gemini 模型的 chunk 是一大片一大片的通常需要更长的响应时间，调整API选项的超时设置
-        $apiOptions->setStreamChunkTimeout($apiOptions->getStreamTotalTimeout());
-        $apiOptions->setStreamFirstChunkTimeout($apiOptions->getStreamTotalTimeout());
+        if ($apiOptions) {
+            // 由于 Gemini 模型的 chunk 是一大片一大片的通常需要更长的响应时间，调整API选项的超时设置
+            $apiOptions->setStreamChunkTimeout($apiOptions->getStreamTotalTimeout());
+            $apiOptions->setStreamFirstChunkTimeout($apiOptions->getStreamTotalTimeout());
+        }
 
         // 创建客户端
         return $gemini->getClient($clientConfig, $apiOptions, $logger);
@@ -246,6 +248,9 @@ class ClientFactory
      */
     public static function createClient(string $provider, array $config, ?ApiOptions $apiOptions = null, ?LoggerInterface $logger = null): ClientInterface
     {
+        if (! $apiOptions) {
+            $apiOptions = new ApiOptions();
+        }
         return match ($provider) {
             'openai' => self::createOpenAIClient($config, $apiOptions, $logger),
             'azure_openai' => self::createAzureOpenAIClient($config, $apiOptions, $logger),
