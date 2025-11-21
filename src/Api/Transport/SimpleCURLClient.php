@@ -166,9 +166,9 @@ class SimpleCURLClient
             }
         };
 
-        // Check if coroutine is available and run method exists
+        // Check if coroutine is available and create method exists
         if ($this->isCoroutineAvailable()) {
-            Coroutine::run($curlExecutor);
+            Coroutine::create($curlExecutor);
         } else {
             // Execute synchronously in non-coroutine environment
             call_user_func($curlExecutor);
@@ -375,7 +375,7 @@ class SimpleCURLClient
      */
     private function isCoroutineAvailable(): bool
     {
-        return class_exists(Coroutine::class) && method_exists(Coroutine::class, 'run');
+        return class_exists(Coroutine::class) && method_exists(Coroutine::class, 'create');
     }
 
     /**
