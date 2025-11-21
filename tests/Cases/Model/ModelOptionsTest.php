@@ -97,6 +97,9 @@ class ModelOptionsTest extends AbstractTestCase
             'function_call' => true,
             'vector_size' => 1536,
             'fixed_temperature' => null, // 未设置时为 null
+            'default_temperature' => null,
+            'max_tokens' => null,
+            'max_output_tokens' => null,
         ];
 
         $this->assertIsArray($array);

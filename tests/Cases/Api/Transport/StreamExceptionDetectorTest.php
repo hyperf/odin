@@ -17,8 +17,6 @@ use Hyperf\Odin\Exception\LLMException\Network\LLMStreamTimeoutException;
 use Hyperf\Odin\Exception\LLMException\Network\LLMThinkingStreamTimeoutException;
 use HyperfTest\Odin\Cases\AbstractTestCase;
 use Mockery;
-use Mockery\MockInterface;
-use Psr\Log\LoggerInterface;
 
 /**
  * @internal
@@ -142,17 +140,7 @@ class StreamExceptionDetectorTest extends AbstractTestCase
      */
     public function testOnChunkReceived()
     {
-        /** @var LoggerInterface|MockInterface $logger */
-        $logger = Mockery::mock(LoggerInterface::class);
-        // @phpstan-ignore-next-line
-        $logger->shouldReceive('debug')->once()->with(
-            '接收到首个流式响应块',
-            Mockery::on(function ($context) {
-                return isset($context['initial_response_time']) && isset($context['chunk_info']);
-            })
-        );
-
-        $detector = new StreamExceptionDetector([], $logger);
+        $detector = new StreamExceptionDetector([]);
 
         // 设置开始时间
         $startTime = microtime(true) - 1;

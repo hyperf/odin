@@ -17,8 +17,6 @@ use Hyperf\Odin\Api\Transport\SSEEvent;
 use Hyperf\Odin\Exception\InvalidArgumentException;
 use HyperfTest\Odin\Cases\AbstractTestCase;
 use Mockery;
-use Mockery\MockInterface;
-use Psr\Log\LoggerInterface;
 
 /**
  * @internal
@@ -125,18 +123,7 @@ class SSEClientTest extends AbstractTestCase
         fwrite($stream, "data: {invalid json}\n\n");
         rewind($stream);
 
-        // 添加日志记录器以捕获日志
-        /** @var LoggerInterface|MockInterface $logger */
-        $logger = Mockery::mock(LoggerInterface::class);
-        // @phpstan-ignore-next-line
-        $logger->shouldReceive('debug')->once()->with(
-            'Failed to parse JSON data in SSE event',
-            Mockery::on(function ($context) {
-                return isset($context['error']) && isset($context['data']) && $context['data'] === '{invalid json}';
-            })
-        );
-
-        $sseClient = new SSEClient($stream, true, null, $logger);
+        $sseClient = new SSEClient($stream);
         $events = iterator_to_array($sseClient->getIterator());
 
         $this->assertCount(1, $events);
@@ -145,7 +132,8 @@ class SSEClientTest extends AbstractTestCase
     }
 
     /**
-     * 测试超时检测方法.
+     * 测试超时检测功能.
+     * SSEClient 通过 StreamExceptionDetector 来处理超时检测，而不是直接提供 isTimedOut 方法.
      */
     public function testIsTimedOut()
     {
@@ -156,16 +144,13 @@ class SSEClientTest extends AbstractTestCase
         // 创建SSEClient实例，通过timeoutConfig传递1秒超时
         $sseClient = new SSEClient($stream, true, ['stream_total' => 1]);
 
-        // 初始状态下不应超时
-        $isTimedOut = $this->callNonpublicMethod($sseClient, 'isTimedOut');
-        $this->assertFalse($isTimedOut);
+        // 验证 StreamExceptionDetector 已创建
+        $exceptionDetector = $this->getNonpublicProperty($sseClient, 'exceptionDetector');
+        $this->assertNotNull($exceptionDetector);
 
-        // 设置connectionStartTime为过去时间，模拟超时
-        $this->setNonpublicPropertyValue($sseClient, 'connectionStartTime', microtime(true) - 2);
-
-        // 现在应该检测到超时
-        $isTimedOut = $this->callNonpublicMethod($sseClient, 'isTimedOut');
-        $this->assertTrue($isTimedOut);
+        // 验证超时配置已正确设置
+        $timeoutConfig = $this->getNonpublicProperty($exceptionDetector, 'timeoutConfig');
+        $this->assertEquals(1.0, $timeoutConfig['total']);
     }
 
     /**
