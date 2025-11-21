@@ -76,7 +76,7 @@ class GeminiConfig implements ConfigInterface
 
     public function isAutoCache(): bool
     {
-        return $this->cacheConfig !== null && $this->cacheConfig->isEnableAutoCache();
+        return $this->cacheConfig !== null && $this->cacheConfig->isEnableCache();
     }
 
     public function getCacheConfig(): ?GeminiCacheConfig

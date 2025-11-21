@@ -212,6 +212,16 @@ class ChatCompletionRequest implements RequestInterface
         }
     }
 
+    public function setFilterMessages(?array $filterMessages): void
+    {
+        $this->filterMessages = $filterMessages;
+    }
+
+    public function setMessages(array $messages): void
+    {
+        $this->messages = $messages;
+    }
+
     public function setModel(string $model): void
     {
         $this->model = $model;
@@ -371,6 +381,11 @@ class ChatCompletionRequest implements RequestInterface
             }, $this->messages),
             'tools' => $this->toolsTokenEstimate,
         ];
+    }
+
+    public function setTools(array $tools): void
+    {
+        $this->tools = $tools;
     }
 
     public function toArray(): array

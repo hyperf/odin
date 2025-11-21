@@ -57,13 +57,19 @@ class GeminiCacheClient
      * 创建缓存.
      *
      * @param string $model 模型名称
-     * @param array $config 缓存配置，包含 system_instruction, tools, contents, ttl
-     * @return string 缓存名称（如 cachedContents/xxx）
+     * @param array $config 缓存配置，包含 systemInstruction, tools, contents, ttl
+     * @return array 缓存响应数据，包含 name 和 usageMetadata
      * @throws Exception
      */
-    public function createCache(string $model, array $config): string
+    public function createCache(string $model, array $config): array
     {
         $url = $this->getBaseUri() . '/cachedContents';
+
+        // Ensure model name has 'models/' prefix (required by Gemini Cache API)
+        if (! str_starts_with($model, 'models/')) {
+            $model = 'models/' . $model;
+        }
+
         // Merge config fields directly into body according to Gemini API spec
         $body = array_merge(
             ['model' => $model],
@@ -79,6 +85,7 @@ class GeminiCacheClient
             $this->logger?->debug('Creating Gemini cache', [
                 'model' => $model,
                 'url' => $url,
+                'request_body' => json_encode($body, JSON_UNESCAPED_UNICODE),
             ]);
 
             $response = $this->client->post($url, $options);
@@ -88,12 +95,42 @@ class GeminiCacheClient
                 throw new RuntimeException('Failed to create cache: missing name in response');
             }
 
-            $this->logger?->info('Gemini cache created successfully', [
-                'cache_name' => $responseData['name'],
+            $cacheName = $responseData['name'];
+
+            // Extract token usage from response if available
+            // If not available in create response, fetch cache metadata
+            $cacheTokens = null;
+            if (isset($responseData['usageMetadata']['totalTokenCount'])) {
+                $cacheTokens = $responseData['usageMetadata']['totalTokenCount'];
+                $this->logger?->debug('Got cache tokens from create response', [
+                    'cache_tokens' => $cacheTokens,
+                ]);
+            } else {
+                // Fetch cache metadata to get usage information
+                try {
+                    $metadata = $this->getCache($cacheName);
+                    if (isset($metadata['usageMetadata']['totalTokenCount'])) {
+                        $cacheTokens = $metadata['usageMetadata']['totalTokenCount'];
+                        $responseData['usageMetadata'] = $metadata['usageMetadata'];
+                        $this->logger?->debug('Got cache tokens from metadata API', [
+                            'cache_tokens' => $cacheTokens,
+                        ]);
+                    }
+                } catch (Throwable $e) {
+                    $this->logger?->warning('Failed to fetch cache metadata', [
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            $this->logger?->info('Gemini cache API response', [
+                'cache_name' => $cacheName,
                 'model' => $model,
+                'cache_tokens' => $cacheTokens,
+                'token_source' => $cacheTokens !== null ? 'api' : 'none',
             ]);
 
-            return $responseData['name'];
+            return $responseData;
         } catch (Throwable $e) {
             $this->logger?->error('Failed to create Gemini cache', [
                 'error' => $e->getMessage(),

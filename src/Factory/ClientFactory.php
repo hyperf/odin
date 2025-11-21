@@ -199,14 +199,17 @@ class ClientFactory
         $baseUrl = $config['base_url'] ?? 'https://generativelanguage.googleapis.com/v1beta';
         $skipApiKeyValidation = (bool) ($config['skip_api_key_validation'] ?? false);
 
-        // 处理自动缓存配置
+        // 处理自动缓存配置（统一缓存策略）
         $cacheConfig = null;
         if (isset($config['auto_cache_config'])) {
+            $autoCacheConfig = $config['auto_cache_config'];
+
             $cacheConfig = new GeminiCacheConfig(
-                minCacheTokens: $config['auto_cache_config']['min_cache_tokens'] ?? 1024,
-                refreshPointMinTokens: $config['auto_cache_config']['refresh_point_min_tokens'] ?? 5000,
-                ttl: $config['auto_cache_config']['ttl'] ?? 600,
-                enableAutoCache: (bool) ($config['auto_cache_config']['auto_enabled'] ?? false)
+                enableCache: (bool) ($autoCacheConfig['enable_cache'] ?? false),
+                minCacheTokens: $autoCacheConfig['min_cache_tokens'] ?? 4096,
+                refreshThreshold: $autoCacheConfig['refresh_threshold'] ?? 8000,
+                cacheTtl: $autoCacheConfig['cache_ttl'] ?? 600,
+                estimationRatio: (float) ($autoCacheConfig['estimation_ratio'] ?? 0.33)
             );
         }
 

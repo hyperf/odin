@@ -59,18 +59,18 @@ class StreamConverter implements IteratorAggregate
      */
     private string $argsStrategy = 'auto';
 
-    private ?ThoughtSignatureCache $thoughtSignatureCache;
+    private int $cacheWriteTokens;
 
     public function __construct(
         ResponseInterface $response,
         ?LoggerInterface $logger,
         string $model,
-        ?ThoughtSignatureCache $thoughtSignatureCache = null
+        int $cacheWriteTokens = 0
     ) {
         $this->response = $response;
         $this->logger = $logger;
         $this->model = $model;
-        $this->thoughtSignatureCache = $thoughtSignatureCache;
+        $this->cacheWriteTokens = $cacheWriteTokens;
     }
 
     /**
@@ -117,7 +117,6 @@ class StreamConverter implements IteratorAggregate
                 if (str_starts_with($line, 'data: ')) {
                     $line = substr($line, 6);
                 }
-                var_dump('[LINE] ' . $line);
 
                 // Check for done signal
                 if ($line === '[DONE]') {
@@ -180,18 +179,28 @@ class StreamConverter implements IteratorAggregate
             if (isset($candidate['finishReason'])) {
                 $finishReason = $candidate['finishReason'];
 
-                // Handle error cases with finishMessage
+                // Check if this candidate has tool calls
+                $hasToolCalls = ! empty($delta['tool_calls']) || ! empty($this->candidateHasToolCalls[$index]);
+
+                // Log warning if finishMessage is present, and it's not the expected tool call message
+                // Note: "Model generated function call(s)." is a normal message when tool calls are present
                 if (isset($candidate['finishMessage'])) {
-                    $this->logger?->warning('GeminiStreamFinishWithError', [
-                        'finish_reason' => $finishReason,
-                        'finish_message' => $candidate['finishMessage'],
-                        'candidate_index' => $index,
-                    ]);
+                    $isNormalToolCallMessage = $hasToolCalls
+                        && $candidate['finishMessage'] === 'Model generated function call(s).';
+
+                    if (! $isNormalToolCallMessage) {
+                        // Only log if it's an unexpected finish message
+                        $this->logger?->warning('GeminiStreamFinishWithError', [
+                            'finish_reason' => $finishReason,
+                            'finish_message' => $candidate['finishMessage'],
+                            'candidate_index' => $index,
+                        ]);
+                    }
                 }
 
                 // If there are tool calls in current delta OR this candidate has had tool calls before,
                 // finish_reason should be 'tool_calls'
-                if (! empty($delta['tool_calls']) || ! empty($this->candidateHasToolCalls[$index])) {
+                if ($hasToolCalls) {
                     $choice['finish_reason'] = 'tool_calls';
                 } else {
                     $choice['finish_reason'] = $this->convertFinishReason($finishReason);
@@ -280,9 +289,24 @@ class StreamConverter implements IteratorAggregate
      */
     private function convertUsage(array $usageMetadata): array
     {
-        $promptTokens = $usageMetadata['promptTokenCount'] ?? 0;
-        $completionTokens = $usageMetadata['candidatesTokenCount'] ?? 0;
-        $totalTokens = $usageMetadata['totalTokenCount'] ?? ($promptTokens + $completionTokens);
+        // Gemini format:
+        // - promptTokenCount: tokens from new input (not from cache)
+        // - cachedContentTokenCount: tokens read from cache
+        $inputTokens = $usageMetadata['promptTokenCount'] ?? 0;
+        $cacheReadTokens = $usageMetadata['cachedContentTokenCount'] ?? 0;
+
+        // OpenAI format: prompt_tokens = total prompt tokens (including cache)
+        // Following AWS Bedrock's implementation for consistency
+        $promptTokens = $inputTokens + $cacheReadTokens + $this->cacheWriteTokens;
+
+        $candidatesTokens = $usageMetadata['candidatesTokenCount'] ?? 0;
+        $thoughtsTokens = $usageMetadata['thoughtsTokenCount'] ?? 0;
+
+        // completion_tokens includes both candidates tokens and thoughts tokens for billing
+        $completionTokens = $candidatesTokens + $thoughtsTokens;
+
+        // total_tokens = prompt_tokens + completion_tokens
+        $totalTokens = $promptTokens + $completionTokens;
 
         $usage = [
             'prompt_tokens' => $promptTokens,
@@ -290,10 +314,30 @@ class StreamConverter implements IteratorAggregate
             'total_tokens' => $totalTokens,
         ];
 
-        // Add cached tokens if present
-        if (isset($usageMetadata['cachedContentTokenCount'])) {
-            $usage['prompt_tokens_details'] = [
-                'cached_tokens' => $usageMetadata['cachedContentTokenCount'],
+        // Build prompt_tokens_details
+        $promptTokensDetails = [];
+
+        // Add cached tokens if present (Gemini Context Caching - cache read)
+        if ($cacheReadTokens > 0) {
+            $promptTokensDetails['cached_tokens'] = $cacheReadTokens;
+            $promptTokensDetails['cache_read_input_tokens'] = $cacheReadTokens;
+        }
+
+        // Add cache write tokens if present (cache created in this request)
+        if ($this->cacheWriteTokens > 0) {
+            $promptTokensDetails['cache_write_input_tokens'] = $this->cacheWriteTokens;
+        }
+
+        // Add prompt_tokens_details if not empty
+        if (! empty($promptTokensDetails)) {
+            $usage['prompt_tokens_details'] = $promptTokensDetails;
+        }
+
+        // Build completion_tokens_details if thoughts tokens are present
+        // Record reasoning tokens separately for transparency (but already included in completion_tokens)
+        if ($thoughtsTokens > 0) {
+            $usage['completion_tokens_details'] = [
+                'reasoning_tokens' => $thoughtsTokens,
             ];
         }
 
@@ -584,14 +628,10 @@ class StreamConverter implements IteratorAggregate
      */
     private function cacheThoughtSignatures(): void
     {
-        if ($this->thoughtSignatureCache === null || ! $this->thoughtSignatureCache->isAvailable()) {
-            return;
-        }
-
         foreach ($this->toolCallTracker as $candidateIndex => $toolCalls) {
             foreach ($toolCalls as $toolCallIndex => $toolCall) {
                 if (isset($toolCall['thought_signature'])) {
-                    $this->thoughtSignatureCache->store($toolCall['id'], $toolCall['thought_signature']);
+                    ThoughtSignatureCache::store($toolCall['id'], $toolCall['thought_signature']);
                 }
             }
         }

@@ -33,12 +33,12 @@ class RequestHandler
     /**
      * Convert ChatCompletionRequest to Gemini native format.
      */
-    public static function convertRequest(ChatCompletionRequest $request, string $model, ?ThoughtSignatureCache $thoughtSignatureCache = null): array
+    public static function convertRequest(ChatCompletionRequest $request): array
     {
         $geminiRequest = [];
 
         // Convert messages to contents and extract system instructions
-        $result = self::convertMessages($request->getMessages(), $thoughtSignatureCache);
+        $result = self::convertMessages($request->getMessages());
 
         $geminiRequest['contents'] = $result['contents'];
 
@@ -152,11 +152,11 @@ class RequestHandler
 
     /**
      * Convert messages array from OpenAI format to Gemini contents format.
-     * Made public for use in DynamicCacheStrategy.
+     * Made public for use in cache strategies (GlobalCacheStrategy, UserCacheStrategy).
      *
      * @return array{contents: array, system_instruction: null|array}
      */
-    public static function convertMessages(array $messages, ?ThoughtSignatureCache $thoughtSignatureCache = null): array
+    public static function convertMessages(array $messages): array
     {
         $contents = [];
         $systemInstructions = [];
@@ -189,7 +189,7 @@ class RequestHandler
 
             $content = match (true) {
                 $message instanceof UserMessage => self::convertUserMessage($message),
-                $message instanceof AssistantMessage => self::convertAssistantMessage($message, $thoughtSignatureCache),
+                $message instanceof AssistantMessage => self::convertAssistantMessage($message),
                 $message instanceof ToolMessage => self::convertToolMessage($message, $toolCallIdToName),
                 default => null,
             };
@@ -219,7 +219,7 @@ class RequestHandler
     /**
      * Convert AssistantMessage to Gemini format.
      */
-    private static function convertAssistantMessage(AssistantMessage $message, ?ThoughtSignatureCache $thoughtSignatureCache = null): array
+    private static function convertAssistantMessage(AssistantMessage $message): array
     {
         $parts = [];
 
@@ -233,11 +233,6 @@ class RequestHandler
             foreach ($message->getToolCalls() as $toolCall) {
                 $arguments = $toolCall->getArguments();
 
-                // Decode JSON string to array if needed
-                if (is_string($arguments)) {
-                    $arguments = json_decode($arguments, true) ?? [];
-                }
-
                 // Build functionCall part
                 $functionCall = [
                     'name' => $toolCall->getName(),
@@ -245,26 +240,24 @@ class RequestHandler
 
                 // Only add args if there are actual arguments
                 // Gemini API doesn't accept empty args field, so omit it when empty
-                if (! empty($arguments) && ! (is_array($arguments) && array_is_list($arguments))) {
+                if (! empty($arguments) && ! array_is_list($arguments)) {
                     // Convert associative array to object for JSON encoding
                     $functionCall['args'] = (object) $arguments;
                 }
 
-                // Get thought_signature if available (only for Gemini 3 and 2.5 models with thinking mode)
-                // Priority: ToolCall object -> Cache
-                // Note: Only include this field if it has a non-empty value
-                $thoughtSignature = $toolCall->getThoughtSignature();
-                if ($thoughtSignature === null && $thoughtSignatureCache !== null) {
-                    $thoughtSignature = $thoughtSignatureCache->get($toolCall->getId());
-                }
-
-                // Build the part (functionCall + thoughtSignature)
-                // Note: thoughtSignature should be at the same level as functionCall, not inside it
                 $part = [
                     'functionCall' => $functionCall,
                 ];
 
-                if (! empty($thoughtSignature)) {
+                // Get thought_signature if available (only for Gemini 3 and 2.5 models with thinking mode)
+                // Priority: ToolCall object -> Cache
+                $thoughtSignature = $toolCall->getThoughtSignature();
+                if (! $thoughtSignature) {
+                    $thoughtSignature = ThoughtSignatureCache::get($toolCall->getId());
+                    $toolCall->setThoughtSignature($thoughtSignature);
+                }
+
+                if ($thoughtSignature) {
                     $part['thoughtSignature'] = $thoughtSignature;
                 }
 

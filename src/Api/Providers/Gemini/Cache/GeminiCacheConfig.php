@@ -12,43 +12,65 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Api\Providers\Gemini\Cache;
 
+/**
+ * Gemini cache configuration.
+ * Unified cache strategy configuration for conversation caching.
+ */
 class GeminiCacheConfig
 {
     /**
-     * 缓存点最小生效 tokens 阈值.
-     * 根据模型不同：
-     * - Gemini 2.5 Flash: 1024
-     * - Gemini 2.5 Pro: 4096
-     * - Gemini 3 Pro Preview: 2048.
+     * Enable cache (master switch).
+     */
+    private bool $enableCache;
+
+    /**
+     * Minimum tokens threshold for creating cache.
+     * For initial cache (system+tools), this is the minimum.
+     * Default: 32768 tokens.
      */
     private int $minCacheTokens;
 
     /**
-     * 刷新缓存点的最小 tokens 阈值.
-     * 达到这个阈值将重新评估缓存点.
+     * Cache refresh threshold (incremental tokens from last cache).
+     * When conversation grows by this many tokens, cache will be updated.
+     * Default: 8000 tokens.
      */
-    private int $refreshPointMinTokens;
+    private int $refreshThreshold;
 
     /**
-     * 缓存过期时间（秒）.
+     * Cache TTL in seconds.
+     * Range: 60s - 86400s (24 hours).
+     * Default: 3600 seconds (1 hour).
      */
-    private int $ttl;
+    private int $cacheTtl;
 
     /**
-     * 是否启用自动缓存.
+     * Estimation ratio for token count adjustment.
+     * This ratio is applied to all token estimations to get more accurate values.
+     * Value range: 0.0 - 1.0 (e.g., 0.33 means actual tokens are typically 33% of estimated).
+     *
+     * Based on real-world data: Gemini actual tokens are typically ~32% of estimated tokens.
+     * We use 0.33 as a slightly conservative value.
      */
-    private bool $enableAutoCache;
+    private float $estimationRatio;
 
     public function __construct(
-        int $minCacheTokens = 1024,
-        int $refreshPointMinTokens = 5000,
-        int $ttl = 600,
-        bool $enableAutoCache = false
+        bool $enableCache = false,
+        int $minCacheTokens = 4096,
+        int $refreshThreshold = 8000,
+        int $cacheTtl = 600,
+        float $estimationRatio = 0.33
     ) {
+        $this->enableCache = $enableCache;
         $this->minCacheTokens = $minCacheTokens;
-        $this->refreshPointMinTokens = $refreshPointMinTokens;
-        $this->ttl = $ttl;
-        $this->enableAutoCache = $enableAutoCache;
+        $this->refreshThreshold = $refreshThreshold;
+        $this->cacheTtl = max(60, min(86400, $cacheTtl)); // Clamp to 60s-86400s
+        $this->estimationRatio = max(0.0, min(1.0, $estimationRatio)); // Clamp to 0.0-1.0
+    }
+
+    public function isEnableCache(): bool
+    {
+        return $this->enableCache;
     }
 
     public function getMinCacheTokens(): int
@@ -56,24 +78,24 @@ class GeminiCacheConfig
         return $this->minCacheTokens;
     }
 
-    public function getRefreshPointMinTokens(): int
+    public function getRefreshThreshold(): int
     {
-        return $this->refreshPointMinTokens;
+        return $this->refreshThreshold;
     }
 
-    public function getTtl(): int
+    public function getCacheTtl(): int
     {
-        return $this->ttl;
+        return $this->cacheTtl;
     }
 
-    public function isEnableAutoCache(): bool
+    public function getEstimationRatio(): float
     {
-        return $this->enableAutoCache;
+        return $this->estimationRatio;
     }
 
     /**
-     * 根据模型名称获取最小缓存 tokens 阈值.
-     * 根据官方文档要求：
+     * Get minimum cache tokens by model name.
+     * Based on official documentation:
      * - Gemini 2.5 Flash / 2.0 Flash / 3.0 Flash: 2048 tokens
      * - Gemini 2.5 Pro / 2.0 Pro / 3.0 Pro: 4096 tokens.
      */
@@ -94,7 +116,7 @@ class GeminiCacheConfig
             || str_contains($modelLower, 'gemini-3-pro')
             || str_contains($modelLower, 'gemini-3.0-pro') => 4096,
 
-            // Default: use highest threshold to be safe
+            // Default: use the highest threshold to be safe
             default => 4096,
         };
     }

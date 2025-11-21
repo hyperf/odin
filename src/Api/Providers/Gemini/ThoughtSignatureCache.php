@@ -12,6 +12,8 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Api\Providers\Gemini;
 
+use Hyperf\Context\ApplicationContext;
+use Hyperf\Odin\Exception\RuntimeException;
 use Psr\SimpleCache\CacheInterface;
 
 /**
@@ -26,11 +28,7 @@ class ThoughtSignatureCache
 {
     private const CACHE_PREFIX = 'gemini:thought_signature:';
 
-    private const CACHE_TTL = 3600; // 1 hour
-
-    public function __construct(
-        private readonly ?CacheInterface $cache = null
-    ) {}
+    private const CACHE_TTL = 3600;
 
     /**
      * Store a thought signature for a tool call.
@@ -38,14 +36,11 @@ class ThoughtSignatureCache
      * @param string $toolCallId The tool call ID
      * @param string $thoughtSignature The thought signature from Gemini response
      */
-    public function store(string $toolCallId, string $thoughtSignature): void
+    public static function store(string $toolCallId, string $thoughtSignature): void
     {
-        if ($this->cache === null || empty($thoughtSignature)) {
-            return;
-        }
-
-        $key = $this->getCacheKey($toolCallId);
-        $this->cache->set($key, $thoughtSignature, self::CACHE_TTL);
+        $cache = self::getCacheDriver();
+        $key = self::getCacheKey($toolCallId);
+        $cache->set($key, $thoughtSignature, self::CACHE_TTL);
     }
 
     /**
@@ -54,15 +49,11 @@ class ThoughtSignatureCache
      * @param string $toolCallId The tool call ID
      * @return null|string The thought signature, or null if not found
      */
-    public function get(string $toolCallId): ?string
+    public static function get(string $toolCallId): ?string
     {
-        if ($this->cache === null) {
-            return null;
-        }
-
-        $key = $this->getCacheKey($toolCallId);
-        $signature = $this->cache->get($key);
-
+        $cache = self::getCacheDriver();
+        $key = self::getCacheKey($toolCallId);
+        $signature = $cache->get($key);
         return is_string($signature) ? $signature : null;
     }
 
@@ -71,29 +62,35 @@ class ThoughtSignatureCache
      *
      * @param string $toolCallId The tool call ID
      */
-    public function delete(string $toolCallId): void
+    public static function delete(string $toolCallId): void
     {
-        if ($this->cache === null) {
-            return;
-        }
-
-        $key = $this->getCacheKey($toolCallId);
-        $this->cache->delete($key);
+        $cache = self::getCacheDriver();
+        $key = self::getCacheKey($toolCallId);
+        $cache->delete($key);
     }
 
     /**
      * Check if cache is available.
      */
-    public function isAvailable(): bool
+    public static function isAvailable(): bool
     {
-        return $this->cache !== null;
+        return self::getCacheDriver() !== null;
     }
 
     /**
      * Get cache key for a tool call ID.
      */
-    private function getCacheKey(string $toolCallId): string
+    private static function getCacheKey(string $toolCallId): string
     {
         return self::CACHE_PREFIX . $toolCallId;
+    }
+
+    private static function getCacheDriver(): CacheInterface
+    {
+        $cache = ApplicationContext::getContainer()->get(CacheInterface::class);
+        if (! $cache instanceof CacheInterface) {
+            throw new RuntimeException('CacheInterface must have a valid cache driver instance.');
+        }
+        return $cache;
     }
 }

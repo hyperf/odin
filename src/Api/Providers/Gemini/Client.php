@@ -13,9 +13,9 @@ declare(strict_types=1);
 namespace Hyperf\Odin\Api\Providers\Gemini;
 
 use GuzzleHttp\RequestOptions;
-use Hyperf\Context\ApplicationContext;
 use Hyperf\Engine\Coroutine;
 use Hyperf\Odin\Api\Providers\AbstractClient;
+use Hyperf\Odin\Api\Providers\Gemini\Cache\CacheInfo;
 use Hyperf\Odin\Api\Providers\Gemini\Cache\GeminiCacheManager;
 use Hyperf\Odin\Api\Request\ChatCompletionRequest;
 use Hyperf\Odin\Api\RequestOptions\ApiOptions;
@@ -27,30 +27,16 @@ use Hyperf\Odin\Event\AfterChatCompletionsStreamEvent;
 use Hyperf\Odin\Message\AssistantMessage;
 use Hyperf\Odin\Utils\EventUtil;
 use Psr\Log\LoggerInterface;
-use Psr\SimpleCache\CacheInterface;
 use Throwable;
 
 class Client extends AbstractClient
 {
-    private ThoughtSignatureCache $thoughtSignatureCache;
-
     public function __construct(GeminiConfig $config, ?ApiOptions $requestOptions = null, ?LoggerInterface $logger = null)
     {
         if (! $requestOptions) {
             $requestOptions = new ApiOptions();
         }
         parent::__construct($config, $requestOptions, $logger);
-
-        // Initialize thought signature cache
-        $cache = null;
-        if (ApplicationContext::hasContainer()) {
-            try {
-                $cache = ApplicationContext::getContainer()->get(CacheInterface::class);
-            } catch (Throwable) {
-                // Cache not available, continue without it
-            }
-        }
-        $this->thoughtSignatureCache = new ThoughtSignatureCache($cache);
     }
 
     /**
@@ -64,11 +50,8 @@ class Client extends AbstractClient
         try {
             $model = $chatRequest->getModel();
 
-            // Convert request to Gemini native format
-            $geminiRequest = RequestHandler::convertRequest($chatRequest, $model, $this->thoughtSignatureCache);
-
-            // Check and apply cache if available
-            $geminiRequest = $this->checkAndApplyCache($geminiRequest, $chatRequest);
+            // Prepare request with cache handling
+            ['geminiRequest' => $geminiRequest, 'cacheWriteTokens' => $cacheWriteTokens] = $this->prepareRequestWithCache($chatRequest, $model);
 
             // Build URL for Gemini native API
             $url = $this->buildGeminiUrl($model, false);
@@ -90,8 +73,8 @@ class Client extends AbstractClient
             // Parse Gemini response
             $geminiResponse = json_decode($response->getBody()->getContents(), true);
 
-            // Convert to OpenAI format
-            $standardResponse = ResponseHandler::convertResponse($geminiResponse, $model);
+            // Convert to OpenAI format with cache write tokens
+            $standardResponse = ResponseHandler::convertResponse($geminiResponse, $model, $cacheWriteTokens);
             $chatResponse = new ChatCompletionResponse($standardResponse, $this->logger);
 
             // Cache thought signatures from tool calls
@@ -101,13 +84,11 @@ class Client extends AbstractClient
                 'content' => $chatResponse->getFirstChoice()?->getMessage()?->toArray(),
                 'usage' => $chatResponse->getUsage()?->toArray(),
                 'response_headers' => $response->getHeaders(),
+                'original_response_usage' => $geminiResponse['usageMetadata'] ?? [],
             ]);
 
-            // Create event and register cache callback
-            $event = new AfterChatCompletionsEvent($chatRequest, $chatResponse, $duration);
-            $this->registerCacheCallback($event, $chatRequest);
-            // Event listener will execute callbacks
-            EventUtil::dispatch($event);
+            // Dispatch event (cache has already been created synchronously if needed)
+            EventUtil::dispatch(new AfterChatCompletionsEvent($chatRequest, $chatResponse, $duration));
 
             return $chatResponse;
         } catch (Throwable $e) {
@@ -127,11 +108,8 @@ class Client extends AbstractClient
         try {
             $model = $chatRequest->getModel();
 
-            // Convert request to Gemini native format
-            $geminiRequest = RequestHandler::convertRequest($chatRequest, $model, $this->thoughtSignatureCache);
-
-            // Check and apply cache if available
-            $geminiRequest = $this->checkAndApplyCache($geminiRequest, $chatRequest);
+            // Prepare request with cache handling
+            ['geminiRequest' => $geminiRequest, 'cacheWriteTokens' => $cacheWriteTokens] = $this->prepareRequestWithCache($chatRequest, $model);
 
             // Build URL for Gemini streaming API
             $url = $this->buildGeminiUrl($model, true);
@@ -165,17 +143,18 @@ class Client extends AbstractClient
 
             $firstResponseDuration = $this->calculateDuration($startTime);
 
-            // Create stream converter
-            $streamConverter = new StreamConverter($response, $this->logger, $model, $this->thoughtSignatureCache);
+            // Create stream converter with cache write tokens
+            $streamConverter = new StreamConverter($response, $this->logger, $model, $cacheWriteTokens);
 
             $chatCompletionStreamResponse = new ChatCompletionStreamResponse(
                 logger: $this->logger,
                 streamIterator: $streamConverter
             );
-            // Create event and register cache callback
-            $streamEvent = new AfterChatCompletionsStreamEvent($chatRequest, $firstResponseDuration);
-            $this->registerCacheCallback($streamEvent, $chatRequest);
-            $chatCompletionStreamResponse->setAfterChatCompletionsStreamEvent($streamEvent);
+
+            // Dispatch event (cache has already been created synchronously if needed)
+            $chatCompletionStreamResponse->setAfterChatCompletionsStreamEvent(
+                new AfterChatCompletionsStreamEvent($chatRequest, $firstResponseDuration)
+            );
 
             $this->logResponse('GeminiChatStreamResponse', $requestId, $firstResponseDuration, [
                 'first_response_ms' => $firstResponseDuration,
@@ -230,26 +209,25 @@ class Client extends AbstractClient
     }
 
     /**
-     * Check and apply cache to geminiRequest if available.
-     * If cache is available, apply it; otherwise return the original request.
+     * Check cache availability and create if needed.
+     * Returns cache info without modifying the request.
      *
-     * @param array $geminiRequest Gemini native format request
      * @param ChatCompletionRequest $chatRequest Original request
-     * @return array Gemini native format request (with cache applied if available)
+     * @return null|CacheInfo Cache information if cache is used/created, null otherwise
      */
-    protected function checkAndApplyCache(array $geminiRequest, ChatCompletionRequest $chatRequest): array
+    protected function checkCache(ChatCompletionRequest $chatRequest): ?CacheInfo
     {
         /** @var GeminiConfig $config */
         $config = $this->config;
 
         // Check if auto cache is enabled
         if (! $config->isAutoCache()) {
-            return $geminiRequest;
+            return null;
         }
 
         $cacheConfig = $config->getCacheConfig();
         if (! $cacheConfig) {
-            return $geminiRequest;
+            return null;
         }
 
         try {
@@ -259,124 +237,93 @@ class Client extends AbstractClient
                 $cacheConfig,
                 $this->getRequestOptions(),
                 $geminiConfig,
-                $this->logger
+                $this->logger,
             );
             $cacheInfo = $cacheManager->checkCache($chatRequest);
             if ($cacheInfo) {
-                $this->logger?->debug('Gemini cache found', [
-                    'cache_name' => $cacheInfo['cache_name'] ?? null,
-                    'has_system' => $cacheInfo['has_system'] ?? false,
-                    'has_tools' => $cacheInfo['has_tools'] ?? false,
-                    'cached_message_count' => $cacheInfo['cached_message_count'] ?? 0,
+                $this->logger?->info('Gemini cache available', [
+                    'cache_name' => $cacheInfo->getCacheName(),
+                    'is_newly_created' => $cacheInfo->isNewlyCreated(),
+                    'cache_write_tokens' => $cacheInfo->getCacheWriteTokens(),
+                    'cached_message_count' => count($cacheInfo->getCachedMessageHashes()),
                 ]);
-                return $this->applyCacheToRequest($geminiRequest, $cacheInfo, $chatRequest);
+                return $cacheInfo;
             }
         } catch (Throwable $e) {
             // Log error but don't fail the request
-            $this->logger?->warning('Failed to check Gemini cache', [
+            $this->logger?->warning('Failed to check or create Gemini cache', [
                 'error' => $e->getMessage(),
             ]);
         }
 
-        return $geminiRequest;
+        return null;
     }
 
     /**
-     * Register cache callback to event.
+     * Prepare ChatCompletionRequest for conversion by filtering cached messages.
+     * Returns a new request with only uncached messages and without cached tools/system if needed.
+     *
+     * @param ChatCompletionRequest $chatRequest Original request
+     * @param null|CacheInfo $cacheInfo Cache information
      */
-    protected function registerCacheCallback(AfterChatCompletionsEvent $event, ChatCompletionRequest $chatRequest): void
+    protected function prepareRequestForCache(ChatCompletionRequest $chatRequest, ?CacheInfo $cacheInfo): void
     {
-        /** @var GeminiConfig $config */
-        $config = $this->config;
-
-        // Check if auto cache is enabled
-        if (! $config->isAutoCache()) {
+        // If no cache, return original request
+        if (! $cacheInfo) {
             return;
         }
 
-        $cacheConfig = $config->getCacheConfig();
-        if (! $cacheConfig) {
-            return;
-        }
+        // Remove system message and filter cached messages
+        $messages = $chatRequest->getMessages();
 
-        // Register callback to handle cache creation after request
-        /** @var GeminiConfig $geminiConfig */
-        $geminiConfig = $this->config;
-        $apiOptions = $this->getRequestOptions();
-        $logger = $this->logger;
-
-        $event->addCallback(function (AfterChatCompletionsEvent $event) use ($cacheConfig, $chatRequest, $geminiConfig, $apiOptions, $logger) {
-            try {
-                // 1. 更新 request 的实际 tokens（从 response usage 中获取）
-                $response = $event->getCompletionResponse();
-                $usage = $response->getUsage();
-                if ($usage) {
-                    // 使用实际的 total tokens 更新估算值
-                    // 在多轮对话中，补全的 tokens 会被应用到下一次对话中，所以应该使用 totalTokens
-                    // totalTokens = promptTokens + completionTokens
-                    $chatRequest->updateTokenEstimateFromUsage($usage->getTotalTokens());
-                }
-
-                // 2. 创建或更新缓存
-                $cacheManager = new GeminiCacheManager(
-                    $cacheConfig,
-                    $apiOptions,
-                    $geminiConfig,
-                    $logger
-                );
-                $cacheManager->createOrUpdateCacheAfterRequest($chatRequest);
-            } catch (Throwable $e) {
-                // Log error but don't fail the request
-                $logger?->warning('Failed to handle Gemini cache after request', [
-                    'error' => $e->getMessage(),
-                ]);
+        // 过滤掉已经在缓存中的 hash 消息值，有缓存代表 system+tools 已经在缓存中了
+        $newMessages = [];
+        foreach ($messages as $message) {
+            $hash = $message->getHash();
+            if (! in_array($hash, $cacheInfo->getCachedMessageHashes(), true)) {
+                $newMessages[] = $message;
             }
-        });
+        }
+
+        $chatRequest->setFilterMessages($newMessages);
+        $chatRequest->setMessages($newMessages);
+        $chatRequest->setTools([]);
     }
 
     /**
-     * Apply cache to geminiRequest.
-     * Remove cached content (system_instruction, tools, first user message) and add cached_content.
+     * Prepare Gemini request with cache handling.
+     * This method consolidates cache checking, request preparation, and cache reference application.
      *
-     * 注意：根据新的缓存策略，缓存只包含：
-     * - system_instruction
-     * - tools
-     * - 第一个 user message（作为示例）
-     *
-     * 因此需要从请求中移除这些内容，并用 cached_content 引用替代.
+     * @param ChatCompletionRequest $chatRequest Original request
+     * @return array{'geminiRequest': array, 'cacheWriteTokens': int}
      */
-    protected function applyCacheToRequest(array $geminiRequest, array $cacheInfo, ChatCompletionRequest $chatRequest): array
+    private function prepareRequestWithCache(ChatCompletionRequest $chatRequest): array
     {
-        // Add cached_content
-        $geminiRequest['cached_content'] = $cacheInfo['cache_name'];
+        $chatRequest->calculateTokenEstimates();
 
-        // Remove system_instruction if cached
-        if ($cacheInfo['has_system'] && isset($geminiRequest['system_instruction'])) {
-            unset($geminiRequest['system_instruction']);
+        // Step 1: Check cache to get cache info
+        $cacheInfo = $this->checkCache($chatRequest);
+        $cacheWriteTokens = 0;
+
+        if ($cacheInfo && $cacheInfo->isNewlyCreated()) {
+            $cacheWriteTokens = $cacheInfo->getCacheWriteTokens();
         }
 
-        // Remove tools if cached
-        if ($cacheInfo['has_tools'] && isset($geminiRequest['tools'])) {
-            unset($geminiRequest['tools']);
+        // Step 2: Prepare request for conversion (filter cached messages if needed)
+        $this->prepareRequestForCache($chatRequest, $cacheInfo);
+
+        // Step 3: Convert to Gemini native format
+        $geminiRequest = RequestHandler::convertRequest($chatRequest);
+
+        // Step 4: Apply cache reference if cache is available
+        if ($cacheInfo) {
+            $geminiRequest['cachedContent'] = $cacheInfo->getCacheName();
         }
 
-        // Remove the first user message from contents (it's already in cache)
-        // cachedMessageCount is always 1 (the first user message)
-        $cachedMessageCount = $cacheInfo['cached_message_count'] ?? 0;
-        if ($cachedMessageCount > 0 && isset($geminiRequest['contents']) && is_array($geminiRequest['contents'])) {
-            // Remove the first N messages from contents (these are already cached)
-            $geminiRequest['contents'] = array_slice($geminiRequest['contents'], $cachedMessageCount);
-
-            // If no messages left after removing cached ones, add an empty array
-            if (empty($geminiRequest['contents'])) {
-                $this->logger?->warning('No messages left after applying cache', [
-                    'cache_name' => $cacheInfo['cache_name'],
-                    'cached_message_count' => $cachedMessageCount,
-                ]);
-            }
-        }
-
-        return $geminiRequest;
+        return [
+            'geminiRequest' => $geminiRequest,
+            'cacheWriteTokens' => $cacheWriteTokens,
+        ];
     }
 
     /**
@@ -403,10 +350,6 @@ class Client extends AbstractClient
      */
     private function cacheThoughtSignatures(ChatCompletionResponse $response): void
     {
-        if (! $this->thoughtSignatureCache->isAvailable()) {
-            return;
-        }
-
         $firstChoice = $response->getFirstChoice();
         if ($firstChoice === null) {
             return;
@@ -425,7 +368,7 @@ class Client extends AbstractClient
         foreach ($toolCalls as $toolCall) {
             $thoughtSignature = $toolCall->getMetadata('thought_signature');
             if ($thoughtSignature !== null) {
-                $this->thoughtSignatureCache->store($toolCall->getId(), $thoughtSignature);
+                ThoughtSignatureCache::store($toolCall->getId(), $thoughtSignature);
             }
         }
     }
