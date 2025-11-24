@@ -56,7 +56,7 @@ class ErrorCodeTest extends AbstractTestCase
 
         // 测试未知错误码
         $unknownMessage = ErrorCode::getMessage(999999);
-        $this->assertEquals('未知错误', $unknownMessage);
+        $this->assertEquals('Unknown error', $unknownMessage);
     }
 
     /**

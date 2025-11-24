@@ -74,3 +74,12 @@ foreach ($streamResponse->getStreamIterator() as $choice) {
 }
 
 echo PHP_EOL . '耗时: ' . round(microtime(true) - $start, 2) . ' 秒' . PHP_EOL;
+
+// Display usage information
+$usage = $streamResponse->getUsage();
+if ($usage) {
+    echo PHP_EOL . '=== Token 使用情况 ===' . PHP_EOL;
+    echo '输入 Tokens: ' . $usage->getPromptTokens() . PHP_EOL;
+    echo '输出 Tokens: ' . $usage->getCompletionTokens() . PHP_EOL;
+    echo '总计 Tokens: ' . $usage->getTotalTokens() . PHP_EOL;
+}

@@ -299,7 +299,17 @@ class Client extends AbstractClient
      */
     protected function getHttpArgs(bool $stream = false, ?string $proxy = null): array
     {
-        $http = [];
+        // For streaming requests, use first chunk timeout to fail fast on network issues
+        // For non-streaming requests, use total timeout
+        $timeout = $stream
+            ? $this->requestOptions->getStreamFirstChunkTimeout()
+            : $this->requestOptions->getTotalTimeout();
+
+        $http = [
+            'timeout' => $timeout,
+            'connect_timeout' => $this->requestOptions->getConnectionTimeout(),
+        ];
+
         if ($stream) {
             $http['stream'] = true;
         }

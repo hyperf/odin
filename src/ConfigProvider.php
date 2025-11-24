@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin;
 
+use Hyperf\Odin\Event\EventCallbackListener;
 use Hyperf\Odin\VectorStore\Qdrant\Qdrant;
 use Hyperf\Odin\VectorStore\Qdrant\QdrantFactory;
 
@@ -30,6 +31,9 @@ class ConfigProvider
             ],
             'dependencies' => [
                 Qdrant::class => QdrantFactory::class,
+            ],
+            'listeners' => [
+                EventCallbackListener::class,
             ],
         ];
     }

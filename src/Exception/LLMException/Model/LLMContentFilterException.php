@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Exception\LLMException\Model;
 
+use Hyperf\Odin\Exception\LLMException\ErrorMessage;
 use Hyperf\Odin\Exception\LLMException\LLMModelException;
 use Throwable;
 
@@ -34,7 +35,7 @@ class LLMContentFilterException extends LLMModelException
      * 创建一个新的内容过滤异常实例.
      */
     public function __construct(
-        string $message = '内容被系统安全过滤',
+        string $message = ErrorMessage::CONTENT_FILTER,
         ?Throwable $previous = null,
         ?string $model = null,
         ?array $contentLabels = null,
@@ -44,7 +45,7 @@ class LLMContentFilterException extends LLMModelException
 
         if (! empty($contentLabels)) {
             $labelsStr = implode(', ', $contentLabels);
-            $message = sprintf('%s，过滤原因: %s', $message, $labelsStr);
+            $message = sprintf('%s, reasons: %s', $message, $labelsStr);
         }
 
         parent::__construct($message, self::ERROR_CODE, $previous, 0, $model, $statusCode);

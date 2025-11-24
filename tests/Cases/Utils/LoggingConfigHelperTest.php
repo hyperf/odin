@@ -163,6 +163,54 @@ class LoggingConfigHelperTest extends TestCase
         $this->assertFalse($enabled);
     }
 
+    public function testGetMaxTextLengthWithCustomValue()
+    {
+        $mockConfig = $this->createMockConfig([
+            'odin.llm.general_api_options.logging.max_text_length' => 5000,
+        ]);
+        $this->setMockContainer($mockConfig);
+
+        $maxLength = LoggingConfigHelper::getMaxTextLength();
+
+        $this->assertEquals(5000, $maxLength);
+    }
+
+    public function testGetMaxTextLengthWithZeroValue()
+    {
+        $mockConfig = $this->createMockConfig([
+            'odin.llm.general_api_options.logging.max_text_length' => 0,
+        ]);
+        $this->setMockContainer($mockConfig);
+
+        $maxLength = LoggingConfigHelper::getMaxTextLength();
+
+        $this->assertEquals(0, $maxLength);
+    }
+
+    public function testGetMaxTextLengthWithDefaultValue()
+    {
+        $mockConfig = $this->createMockConfig([]);
+        $this->setMockContainer($mockConfig);
+
+        $maxLength = LoggingConfigHelper::getMaxTextLength();
+
+        $this->assertEquals(2000, $maxLength);
+    }
+
+    public function testGetMaxTextLengthWithConfigException()
+    {
+        $mockContainer = $this->createMock(ContainerInterface::class);
+        $mockContainer->method('get')
+            ->with(ConfigInterface::class)
+            ->willThrowException(new RuntimeException('Config not available'));
+
+        ApplicationContext::setContainer($mockContainer);
+
+        $maxLength = LoggingConfigHelper::getMaxTextLength();
+
+        $this->assertEquals(2000, $maxLength);
+    }
+
     public function testFilterAndFormatLogDataWithEnabledWhitelist()
     {
         $mockConfig = $this->createMockConfig([
@@ -258,6 +306,55 @@ class LoggingConfigHelperTest extends TestCase
         $this->assertEquals('[Long Text]', $result['long_content']);
         $this->assertArrayNotHasKey('args', $result);
         $this->assertArrayNotHasKey('duration_ms', $result);
+    }
+
+    public function testFilterAndFormatLogDataWithCustomMaxTextLength()
+    {
+        $mockConfig = $this->createMockConfig([
+            'odin.llm.general_api_options.logging.whitelist_fields' => ['model_id', 'short_content', 'long_content'],
+            'odin.llm.general_api_options.logging.enable_whitelist' => true,
+            'odin.llm.general_api_options.logging.max_text_length' => 1000,
+        ]);
+        $this->setMockContainer($mockConfig);
+
+        $text500 = str_repeat('a', 500);
+        $text1500 = str_repeat('b', 1500);
+        $logData = [
+            'model_id' => 'gpt-4o',
+            'short_content' => $text500,
+            'long_content' => $text1500,
+        ];
+
+        $result = LoggingConfigHelper::filterAndFormatLogData($logData);
+
+        $this->assertIsArray($result);
+        $this->assertCount(3, $result);
+        $this->assertEquals('gpt-4o', $result['model_id']);
+        $this->assertEquals($text500, $result['short_content']); // 500 < 1000
+        $this->assertEquals('[Long Text]', $result['long_content']); // 1500 > 1000
+    }
+
+    public function testFilterAndFormatLogDataWithZeroMaxTextLength()
+    {
+        $mockConfig = $this->createMockConfig([
+            'odin.llm.general_api_options.logging.whitelist_fields' => ['model_id', 'content'],
+            'odin.llm.general_api_options.logging.enable_whitelist' => true,
+            'odin.llm.general_api_options.logging.max_text_length' => 0,
+        ]);
+        $this->setMockContainer($mockConfig);
+
+        $veryLongText = str_repeat('x', 10000);
+        $logData = [
+            'model_id' => 'gpt-4o',
+            'content' => $veryLongText,
+        ];
+
+        $result = LoggingConfigHelper::filterAndFormatLogData($logData);
+
+        $this->assertIsArray($result);
+        $this->assertCount(2, $result);
+        $this->assertEquals('gpt-4o', $result['model_id']);
+        $this->assertEquals($veryLongText, $result['content']); // Should keep the full text when max_text_length is 0
     }
 
     public function testFilterAndFormatLogDataWithConfigException()

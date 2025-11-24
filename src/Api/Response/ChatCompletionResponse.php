@@ -65,7 +65,7 @@ class ChatCompletionResponse extends AbstractResponse implements Stringable
         return $this->created;
     }
 
-    public function setCreated(null|int|string $created): self
+    public function setCreated(int|string|null $created): self
     {
         $this->created = (int) $created;
         return $this;

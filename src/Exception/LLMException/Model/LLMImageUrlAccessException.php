@@ -13,6 +13,7 @@ declare(strict_types=1);
 namespace Hyperf\Odin\Exception\LLMException\Model;
 
 use Hyperf\Odin\Exception\LLMException\ErrorCode;
+use Hyperf\Odin\Exception\LLMException\ErrorMessage;
 use Hyperf\Odin\Exception\LLMException\LLMModelException;
 use Throwable;
 
@@ -35,18 +36,19 @@ class LLMImageUrlAccessException extends LLMModelException
      * 创建一个新的图片URL不可访问异常实例.
      */
     public function __construct(
-        string $message = '多模态图片URL不可访问',
+        string $message = ErrorMessage::IMAGE_URL_ACCESS,
         ?Throwable $previous = null,
         ?string $model = null,
-        ?string $imageUrl = null
+        ?string $imageUrl = null,
+        int $statusCode = 400
     ) {
         $this->imageUrl = $imageUrl;
 
         if (! empty($imageUrl)) {
-            $message = sprintf('%s，图片URL: %s', $message, $imageUrl);
+            $message = sprintf('%s, image URL: %s', $message, $imageUrl);
         }
 
-        parent::__construct($message, self::ERROR_CODE, $previous, ErrorCode::MODEL_IMAGE_URL_ACCESS_ERROR, $model);
+        parent::__construct($message, self::ERROR_CODE, $previous, ErrorCode::MODEL_IMAGE_URL_ACCESS_ERROR, $model, $statusCode);
     }
 
     /**

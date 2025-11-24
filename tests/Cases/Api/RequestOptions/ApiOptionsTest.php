@@ -34,7 +34,7 @@ class ApiOptionsTest extends AbstractTestCase
         $this->assertEquals(300.0, $options->getReadTimeout());
         $this->assertEquals(350.0, $options->getTotalTimeout());
         $this->assertEquals(120.0, $options->getThinkingTimeout());
-        $this->assertEquals(30.0, $options->getStreamChunkTimeout());
+        $this->assertEquals(60.0, $options->getStreamChunkTimeout());
         $this->assertEquals(60.0, $options->getStreamFirstChunkTimeout());
 
         // 验证自定义错误映射规则默认为空数组

@@ -14,6 +14,7 @@ namespace Hyperf\Odin\Api\Providers;
 
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\RequestOptions;
+use Hyperf\Engine\Coroutine;
 use Hyperf\Odin\Api\Request\ChatCompletionRequest;
 use Hyperf\Odin\Api\Request\CompletionRequest;
 use Hyperf\Odin\Api\Request\EmbeddingRequest;
@@ -22,6 +23,7 @@ use Hyperf\Odin\Api\Response\ChatCompletionResponse;
 use Hyperf\Odin\Api\Response\ChatCompletionStreamResponse;
 use Hyperf\Odin\Api\Response\EmbeddingResponse;
 use Hyperf\Odin\Api\Response\TextCompletionResponse;
+use Hyperf\Odin\Api\Transport\OdinSimpleCurl;
 use Hyperf\Odin\Api\Transport\SSEClient;
 use Hyperf\Odin\Contract\Api\ClientInterface;
 use Hyperf\Odin\Contract\Api\ConfigInterface;
@@ -35,6 +37,7 @@ use Hyperf\Odin\Exception\LLMException\LLMErrorHandler;
 use Hyperf\Odin\Utils\EventUtil;
 use Hyperf\Odin\Utils\LoggingConfigHelper;
 use Hyperf\Odin\Utils\LogUtil;
+use Hyperf\Odin\Utils\TimeUtil;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -88,6 +91,7 @@ abstract class AbstractClient implements ClientInterface
             $this->logResponse('ChatCompletionsResponse', $requestId, $duration, [
                 'content' => $chatCompletionResponse->getContent(),
                 'response_headers' => $response->getHeaders(),
+                'usage' => $chatCompletionResponse->getUsage()?->toArray(),
             ]);
 
             EventUtil::dispatch(new AfterChatCompletionsEvent($chatRequest, $chatCompletionResponse, $duration));
@@ -110,15 +114,31 @@ abstract class AbstractClient implements ClientInterface
 
         $startTime = microtime(true);
         try {
+            // For streaming requests, use first chunk timeout to fail fast on network issues
             $options[RequestOptions::STREAM] = true;
-            $response = $this->client->post($url, $options);
+            $options[RequestOptions::TIMEOUT] = $this->requestOptions->getStreamFirstChunkTimeout();
+
+            if (Coroutine::id()) {
+                foreach ($this->getHeaders() as $key => $value) {
+                    $options['headers'][$key] = $value;
+                }
+                $options['connect_timeout'] = $this->requestOptions->getConnectionTimeout();
+                $options['stream_chunk'] = $this->requestOptions->getStreamChunkTimeout();
+                $options['header_timeout'] = $this->requestOptions->getStreamFirstChunkTimeout();
+                if ($proxy = $this->requestOptions->getProxy()) {
+                    $options['proxy'] = $proxy;
+                }
+                $response = OdinSimpleCurl::send($url, $options);
+            } else {
+                $response = $this->client->post($url, $options);
+            }
+
             $firstResponseDuration = $this->calculateDuration($startTime);
 
             $stream = $response->getBody()->detach();
             $sseClient = new SSEClient(
                 $stream,
                 true,
-                (int) $this->requestOptions->getTotalTimeout(),
                 $this->requestOptions->getTimeout(),
                 $this->logger
             );
@@ -354,13 +374,13 @@ abstract class AbstractClient implements ClientInterface
      */
     protected function calculateDuration(float $startTime): float
     {
-        return round((microtime(true) - $startTime) * 1000);
+        return TimeUtil::calculateDurationMs($startTime);
     }
 
     /**
      * 获取请求头.
      */
-    private function getHeaders(): array
+    protected function getHeaders(): array
     {
         $headers = [
             'User-Agent' => 'Hyperf-Odin/1.0',

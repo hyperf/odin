@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Exception\LLMException\Network;
 
+use Hyperf\Odin\Exception\LLMException\ErrorMessage;
 use Hyperf\Odin\Exception\LLMException\LLMNetworkException;
 use Throwable;
 
@@ -33,15 +34,15 @@ class LLMConnectionTimeoutException extends LLMNetworkException
     /**
      * 创建一个新的连接超时异常实例.
      */
-    public function __construct(string $message = '连接LLM服务超时', ?Throwable $previous = null, ?float $timeoutSeconds = null)
+    public function __construct(string $message = ErrorMessage::CONNECTION_TIMEOUT, ?Throwable $previous = null, ?float $timeoutSeconds = null, int $statusCode = 408)
     {
         $this->timeoutSeconds = $timeoutSeconds;
 
         if ($timeoutSeconds !== null) {
-            $message = sprintf('%s，超时时间: %.2f秒', $message, $timeoutSeconds);
+            $message = sprintf('%s, timeout: %.2f seconds', $message, $timeoutSeconds);
         }
 
-        parent::__construct($message, self::ERROR_CODE, $previous);
+        parent::__construct($message, self::ERROR_CODE, $previous, 0, $statusCode);
     }
 
     /**

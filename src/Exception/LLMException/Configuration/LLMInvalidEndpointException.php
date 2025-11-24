@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Exception\LLMException\Configuration;
 
+use Hyperf\Odin\Exception\LLMException\ErrorMessage;
 use Hyperf\Odin\Exception\LLMException\LLMConfigurationException;
 use Throwable;
 
@@ -33,7 +34,7 @@ class LLMInvalidEndpointException extends LLMConfigurationException
     /**
      * 创建一个新的无效终端点异常实例.
      */
-    public function __construct(string $message = '无效的API终端点URL', ?Throwable $previous = null, ?string $endpoint = null)
+    public function __construct(string $message = ErrorMessage::INVALID_ENDPOINT, ?Throwable $previous = null, ?string $endpoint = null, int $statusCode = 400)
     {
         $this->endpoint = $endpoint;
 
@@ -41,7 +42,7 @@ class LLMInvalidEndpointException extends LLMConfigurationException
             $message = sprintf('%s: %s', $message, $endpoint);
         }
 
-        parent::__construct($message, self::ERROR_CODE, $previous);
+        parent::__construct($message, self::ERROR_CODE, $previous, 0, $statusCode);
     }
 
     /**

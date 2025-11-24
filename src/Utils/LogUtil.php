@@ -12,6 +12,9 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Utils;
 
+use Hyperf\Context\ApplicationContext;
+use Psr\Log\LoggerInterface;
+
 class LogUtil
 {
     /**
@@ -34,12 +37,21 @@ class LogUtil
 
     private const PERF_TIMEOUT_RISK = 'TIMEOUT_RISK';
 
+    public static function getHyperfLogger(): ?LoggerInterface
+    {
+        return ApplicationContext::getContainer()->get(LoggerInterface::class);
+    }
+
     /**
      * 递归处理数组，格式化超长文本和二进制数据.
+     *
+     * @param array $args 要格式化的数组
+     * @param int $maxTextLength 最大文本长度限制，默认2000
+     * @return array 格式化后的数组
      */
-    public static function formatLongText(array $args): array
+    public static function formatLongText(array $args, int $maxTextLength = 2000): array
     {
-        return self::recursiveFormat($args);
+        return self::recursiveFormat($args, $maxTextLength);
     }
 
     /**
@@ -48,13 +60,14 @@ class LogUtil
      * @param array $logData 原始日志数据
      * @param array $whitelistFields 白名单字段列表，为空则返回所有字段，支持嵌套字段如 'args.messages'
      * @param bool $enableWhitelist 是否启用白名单过滤，默认false
+     * @param int $maxTextLength 最大文本长度限制，默认2000
      * @return array 过滤并格式化后的日志数据
      */
-    public static function filterAndFormatLogData(array $logData, array $whitelistFields = [], bool $enableWhitelist = false): array
+    public static function filterAndFormatLogData(array $logData, array $whitelistFields = [], bool $enableWhitelist = false, int $maxTextLength = 2000): array
     {
         // 如果未启用白名单或白名单为空，处理所有字段
         if (! $enableWhitelist || empty($whitelistFields)) {
-            return self::formatLongText($logData);
+            return self::formatLongText($logData, $maxTextLength);
         }
 
         // 根据白名单过滤字段，支持嵌套字段
@@ -75,7 +88,7 @@ class LogUtil
         }
 
         // 格式化过滤后的数据
-        return self::formatLongText($filteredData);
+        return self::formatLongText($filteredData, $maxTextLength);
     }
 
     /**
@@ -168,12 +181,16 @@ class LogUtil
 
     /**
      * 递归处理数组中的每个元素.
+     *
+     * @param mixed $data 要处理的数据
+     * @param int $maxTextLength 最大文本长度限制
+     * @return mixed 处理后的数据
      */
-    private static function recursiveFormat(mixed $data)
+    private static function recursiveFormat(mixed $data, int $maxTextLength = 2000)
     {
         if (is_array($data)) {
             foreach ($data as $key => $value) {
-                $data[$key] = self::recursiveFormat($value);
+                $data[$key] = self::recursiveFormat($value, $maxTextLength);
             }
             return $data;
         }
@@ -181,7 +198,7 @@ class LogUtil
             // 对象转换为数组再处理，最后转回对象
             if (method_exists($data, 'toArray')) {
                 $array = $data->toArray();
-                $array = self::recursiveFormat($array);
+                $array = self::recursiveFormat($array, $maxTextLength);
                 // 如果对象有 fromArray 方法，可以使用它恢复对象
                 if (method_exists($data, 'fromArray')) {
                     return $data->fromArray($array);
@@ -201,8 +218,8 @@ class LogUtil
                 return '[Base64 Image]';
             }
 
-            // 处理超长字符串
-            if (strlen($data) > 2000) {
+            // 处理超长字符串（0 表示不限制长度）
+            if ($maxTextLength > 0 && strlen($data) > $maxTextLength) {
                 return '[Long Text]';
             }
         }

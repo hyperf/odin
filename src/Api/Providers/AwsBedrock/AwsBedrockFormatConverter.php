@@ -328,7 +328,7 @@ class AwsBedrockFormatConverter implements IteratorAggregate
      * @param mixed $chunk AWS Bedrock 响应块
      * @return null|array|bool 解析后的事件数据，失败返回 null
      */
-    private function parseChunk(array $chunk): null|array|bool
+    private function parseChunk(array $chunk): array|bool|null
     {
         $rawData = $chunk['chunk']['bytes'] ?? null;
         if (! is_string($rawData) || empty($rawData)) {

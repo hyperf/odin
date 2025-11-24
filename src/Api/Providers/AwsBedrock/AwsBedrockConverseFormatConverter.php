@@ -78,11 +78,37 @@ class AwsBedrockConverseFormatConverter implements IteratorAggregate
         $created = time();
         $isFirstChunk = true;
         $toolCallIndex = 0;
+        $chunkIndex = 0;
+        $firstChunks = [];
+        $lastChunks = [];
+        $maxChunksToLog = 5;
 
         foreach ($this->responseStream as $chunk) {
             if (empty($chunk) || ! is_array($chunk)) {
                 continue;
             }
+
+            $timestamp = microtime(true);
+            $chunkWithTime = [
+                'index' => $chunkIndex,
+                'timestamp' => $timestamp,
+                'datetime' => date('Y-m-d H:i:s', (int) $timestamp) . '.' . substr((string) fmod($timestamp, 1), 2, 6),
+                'data' => $chunk,
+            ];
+
+            // Collect first 5 chunks
+            if ($chunkIndex < $maxChunksToLog) {
+                $firstChunks[] = $chunkWithTime;
+            }
+
+            // Keep a rolling window of last 5 chunks
+            $lastChunks[] = $chunkWithTime;
+            if (count($lastChunks) > $maxChunksToLog) {
+                array_shift($lastChunks);
+            }
+
+            ++$chunkIndex;
+
             foreach ($chunk as $eventType => $event) {
                 // 根据事件类型处理
                 switch ($eventType) {
@@ -141,6 +167,21 @@ class AwsBedrockConverseFormatConverter implements IteratorAggregate
                 }
             }
         }
+
+        // Log first 5 and last 5 chunks after all processing
+        if (! empty($firstChunks)) {
+            $this->log(LogLevel::INFO, 'FirstChunks', [
+                'total_chunks' => $chunkIndex,
+                'chunks' => $firstChunks,
+            ]);
+        }
+
+        if (! empty($lastChunks)) {
+            $this->log(LogLevel::INFO, 'LastChunks', [
+                'total_chunks' => $chunkIndex,
+                'chunks' => $lastChunks,
+            ]);
+        }
     }
 
     /**
@@ -161,6 +202,18 @@ class AwsBedrockConverseFormatConverter implements IteratorAggregate
 
     private function formatUsageEvent(int $created, array $usage): string
     {
+        // 转换Claude的token统计方式为Qwen格式（与非流式保持一致）
+        // Claude: inputTokens=新输入, cacheReadInputTokens=缓存命中
+        // OpenAI: promptTokens=总输入(包括缓存), cachedTokens=缓存命中
+        $inputTokens = $usage['inputTokens'] ?? 0;
+        $cacheReadTokens = $usage['cacheReadInputTokens'] ?? 0;
+        $cacheWriteTokens = $usage['cacheWriteInputTokens'] ?? 0;
+
+        // 按照 OpenAI 的方式：promptTokens = 总处理的提示tokens（包括缓存）
+        $promptTokens = $inputTokens + $cacheReadTokens + $cacheWriteTokens;
+        $completionTokens = $usage['outputTokens'] ?? 0;
+        $totalTokens = $promptTokens + $completionTokens;
+
         return $this->formatOpenAiEvent([
             'id' => $this->messageId ?? ('bedrock-' . uniqid()),
             'object' => 'chat.completion.chunk',
@@ -168,15 +221,15 @@ class AwsBedrockConverseFormatConverter implements IteratorAggregate
             'model' => $this->model ?: 'aws.bedrock',
             'choices' => null,
             'usage' => [
-                'prompt_tokens' => $usage['inputTokens'] ?? 0,
-                'completion_tokens' => $usage['outputTokens'] ?? 0,
-                'total_tokens' => $usage['totalTokens'] ?? 0,
+                'prompt_tokens' => $promptTokens,
+                'completion_tokens' => $completionTokens,
+                'total_tokens' => $totalTokens,
                 'prompt_tokens_details' => [
-                    'cache_write_input_tokens' => $usage['cacheWriteInputTokens'] ?? 0,
-                    'cache_read_input_tokens' => $usage['cacheReadInputTokens'] ?? 0,
-                    // 兼容旧参数
+                    'cache_write_input_tokens' => $cacheWriteTokens,
+                    'cache_read_input_tokens' => $cacheReadTokens,
+                    // 兼容 OpenAI 格式：cached_tokens表示缓存命中
                     'audio_tokens' => 0,
-                    'cached_tokens' => $usage['cacheWriteInputTokens'] ?? 0,
+                    'cached_tokens' => $cacheReadTokens,
                 ],
                 'completion_tokens_details' => [
                     'reasoning_tokens' => 0,

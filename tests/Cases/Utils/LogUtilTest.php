@@ -82,6 +82,76 @@ class LogUtilTest extends TestCase
         $this->assertEquals('[Base64 Image]', $result['image']);
     }
 
+    public function testFormatLongTextWithCustomMaxLength()
+    {
+        $text500 = str_repeat('a', 500);
+        $text1500 = str_repeat('b', 1500);
+        $data = [
+            'short_text' => $text500,
+            'long_text' => $text1500,
+        ];
+
+        // Test with custom max length of 1000
+        $result = LogUtil::formatLongText($data, 1000);
+
+        $this->assertIsArray($result);
+        $this->assertEquals($text500, $result['short_text']); // 500 < 1000, should keep original
+        $this->assertEquals('[Long Text]', $result['long_text']); // 1500 > 1000, should be replaced
+    }
+
+    public function testFormatLongTextWithZeroMaxLength()
+    {
+        $veryLongText = str_repeat('x', 10000); // 10000 characters
+        $data = [
+            'model_id' => 'gpt-4o',
+            'content' => $veryLongText,
+        ];
+
+        // Test with max length of 0 (no limit)
+        $result = LogUtil::formatLongText($data, 0);
+
+        $this->assertIsArray($result);
+        $this->assertEquals('gpt-4o', $result['model_id']);
+        $this->assertEquals($veryLongText, $result['content']); // Should keep the full text
+    }
+
+    public function testFilterAndFormatLogDataWithCustomMaxLength()
+    {
+        $text500 = str_repeat('a', 500);
+        $text1500 = str_repeat('b', 1500);
+        $logData = [
+            'model_id' => 'gpt-4o',
+            'short_content' => $text500,
+            'long_content' => $text1500,
+        ];
+        $whitelistFields = ['model_id', 'short_content', 'long_content'];
+
+        // Test with custom max length of 1000
+        $result = LogUtil::filterAndFormatLogData($logData, $whitelistFields, true, 1000);
+
+        $this->assertIsArray($result);
+        $this->assertEquals('gpt-4o', $result['model_id']);
+        $this->assertEquals($text500, $result['short_content']); // 500 < 1000
+        $this->assertEquals('[Long Text]', $result['long_content']); // 1500 > 1000
+    }
+
+    public function testFilterAndFormatLogDataWithZeroMaxLength()
+    {
+        $veryLongText = str_repeat('x', 10000);
+        $logData = [
+            'model_id' => 'gpt-4o',
+            'content' => $veryLongText,
+        ];
+        $whitelistFields = ['model_id', 'content'];
+
+        // Test with max length of 0 (no limit)
+        $result = LogUtil::filterAndFormatLogData($logData, $whitelistFields, true, 0);
+
+        $this->assertIsArray($result);
+        $this->assertEquals('gpt-4o', $result['model_id']);
+        $this->assertEquals($veryLongText, $result['content']); // Should keep the full text
+    }
+
     public function testFilterAndFormatLogDataWithoutWhitelist()
     {
         $logData = [

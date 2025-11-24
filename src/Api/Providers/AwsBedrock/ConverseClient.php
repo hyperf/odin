@@ -76,7 +76,9 @@ class ConverseClient extends Client
                 'request_id' => $requestId,
                 'model_id' => $modelId,
                 'duration_ms' => $duration,
-                'usage' => $result['usage'] ?? [],
+                'usage' => $result['usage'] ?? [], // 原始Claude usage
+                'converted_usage' => $chatCompletionResponse->getUsage()->toArray(), // 转换后的usage
+                'cache_hit_rate' => $chatCompletionResponse->getUsage()->getCacheHitRatePercentage(), // 缓存命中率
                 'content' => $chatCompletionResponse->getContent(),
                 'response_headers' => $result['@metadata']['headers'] ?? [],
                 'performance_flag' => $performanceFlag,
@@ -140,7 +142,7 @@ class ConverseClient extends Client
                 'performance_flag' => $performanceFlag,
             ];
 
-            $this->logger?->info('AwsBedrockConverseStreamFirstResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
+            $this->logger?->info('AwsBedrockConverseStreamResponse', LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));
 
             // 创建 AWS Bedrock 格式转换器，负责将 AWS Bedrock 格式转换为 OpenAI 格式
             $bedrockConverter = new AwsBedrockConverseFormatConverter($result, $this->logger, $modelId);

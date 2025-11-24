@@ -37,7 +37,7 @@ class UserMessage extends AbstractMessage
      */
     public function __construct(string $content = '', array $context = [])
     {
-        parent::__construct($content, $context);
+        parent::__construct(trim($content), $context);
     }
 
     /**

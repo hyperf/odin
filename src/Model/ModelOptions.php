@@ -39,7 +39,19 @@ class ModelOptions
      */
     protected int $vectorSize = 0;
 
+    /**
+     * @var null|float 固定温度
+     */
     protected ?float $fixedTemperature = null;
+
+    /**
+     * @var null|float 默认温度。即推荐温度
+     */
+    protected ?float $defaultTemperature = null;
+
+    protected ?int $maxTokens = null;
+
+    protected ?int $maxOutputTokens = null;
 
     public function __construct(array $options = [])
     {
@@ -66,6 +78,18 @@ class ModelOptions
         if (isset($options['fixed_temperature'])) {
             $this->fixedTemperature = (float) $options['fixed_temperature'];
         }
+
+        if (isset($options['default_temperature'])) {
+            $this->defaultTemperature = (float) $options['default_temperature'];
+        }
+
+        if (isset($options['max_tokens'])) {
+            $this->maxTokens = (int) $options['max_tokens'];
+        }
+
+        if (isset($options['max_output_tokens'])) {
+            $this->maxOutputTokens = (int) $options['max_output_tokens'];
+        }
     }
 
     /**
@@ -88,6 +112,9 @@ class ModelOptions
             'function_call' => $this->functionCall,
             'vector_size' => $this->vectorSize,
             'fixed_temperature' => $this->fixedTemperature,
+            'default_temperature' => $this->defaultTemperature,
+            'max_tokens' => $this->maxTokens,
+            'max_output_tokens' => $this->maxOutputTokens,
         ];
     }
 
@@ -164,5 +191,35 @@ class ModelOptions
     public function setFixedTemperature(?float $fixedTemperature): void
     {
         $this->fixedTemperature = $fixedTemperature;
+    }
+
+    public function getDefaultTemperature(): ?float
+    {
+        return $this->defaultTemperature;
+    }
+
+    public function setDefaultTemperature(?float $defaultTemperature): void
+    {
+        $this->defaultTemperature = $defaultTemperature;
+    }
+
+    public function getMaxTokens(): ?int
+    {
+        return $this->maxTokens;
+    }
+
+    public function setMaxTokens(?int $maxTokens): void
+    {
+        $this->maxTokens = $maxTokens;
+    }
+
+    public function getMaxOutputTokens(): ?int
+    {
+        return $this->maxOutputTokens;
+    }
+
+    public function setMaxOutputTokens(?int $maxOutputTokens): void
+    {
+        $this->maxOutputTokens = $maxOutputTokens;
     }
 }

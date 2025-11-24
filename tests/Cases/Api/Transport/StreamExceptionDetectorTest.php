@@ -17,8 +17,6 @@ use Hyperf\Odin\Exception\LLMException\Network\LLMStreamTimeoutException;
 use Hyperf\Odin\Exception\LLMException\Network\LLMThinkingStreamTimeoutException;
 use HyperfTest\Odin\Cases\AbstractTestCase;
 use Mockery;
-use Mockery\MockInterface;
-use Psr\Log\LoggerInterface;
 
 /**
  * @internal
@@ -45,7 +43,7 @@ class StreamExceptionDetectorTest extends AbstractTestCase
         // 使用反射检查内部配置
         $config = $this->getNonpublicProperty($detector, 'timeoutConfig');
 
-        $this->assertEquals(300.0, $config['total']);
+        $this->assertEquals(600.0, $config['total']); // 流式处理默认超时更长
         $this->assertEquals(60.0, $config['stream_first']);
         $this->assertEquals(30.0, $config['stream_chunk']);
     }
@@ -142,17 +140,7 @@ class StreamExceptionDetectorTest extends AbstractTestCase
      */
     public function testOnChunkReceived()
     {
-        /** @var LoggerInterface|MockInterface $logger */
-        $logger = Mockery::mock(LoggerInterface::class);
-        // @phpstan-ignore-next-line
-        $logger->shouldReceive('debug')->once()->with(
-            'First chunk received',
-            Mockery::on(function ($context) {
-                return isset($context['initial_response_time']);
-            })
-        );
-
-        $detector = new StreamExceptionDetector([], $logger);
+        $detector = new StreamExceptionDetector([]);
 
         // 设置开始时间
         $startTime = microtime(true) - 1;

@@ -36,6 +36,7 @@ return [
                 'thinking' => 120.0,  // 思考超时（秒）
                 'stream_chunk' => 30.0, // 流式块间超时（秒）
                 'stream_first' => 60.0, // 首个流式块超时（秒）
+                'stream_total' => 600.0, // 流式总超时（秒，默认10分钟）
             ],
             'custom_error_mapping_rules' => [],
             /**
@@ -121,6 +122,8 @@ return [
                 ],
                 // 是否启用字段白名单过滤，默认true（启用过滤）
                 'enable_whitelist' => env('ODIN_LOG_WHITELIST_ENABLED', true),
+                // 最大字符串长度限制，超过此长度的字符串将被替换为 [Long Text]，设置为 0 表示不限制
+                'max_text_length' => env('ODIN_LOG_MAX_TEXT_LENGTH', 2000),
             ],
             'network_retry_count' => 0,
         ],
@@ -149,6 +152,7 @@ return [
                         'thinking' => 120.0,  // 思考超时（秒）
                         'stream_chunk' => 30.0, // 流式块间超时（秒）
                         'stream_first' => 60.0, // 首个流式块超时（秒）
+                        'stream_total' => 600.0, // 流式总超时（秒，默认10分钟）
                     ],
                     'custom_error_mapping_rules' => [],
                 ],
@@ -177,6 +181,7 @@ return [
                         'thinking' => 120.0,  // 思考超时（秒）
                         'stream_chunk' => 30.0, // 流式块间超时（秒）
                         'stream_first' => 60.0, // 首个流式块超时（秒）
+                        'stream_total' => 600.0, // 流式总超时（秒，默认10分钟）
                     ],
                     'custom_error_mapping_rules' => [],
                 ],
@@ -203,6 +208,7 @@ return [
                         'thinking' => 120.0,  // 思考超时（秒）
                         'stream_chunk' => 30.0, // 流式块间超时（秒）
                         'stream_first' => 60.0, // 首个流式块超时（秒）
+                        'stream_total' => 600.0, // 流式总超时（秒，默认10分钟）
                     ],
                     'custom_error_mapping_rules' => [],
                 ],
@@ -230,6 +236,7 @@ return [
                         'thinking' => 120.0,  // 思考超时（秒）
                         'stream_chunk' => 30.0, // 流式块间超时（秒）
                         'stream_first' => 60.0, // 首个流式块超时（秒）
+                        'stream_total' => 600.0, // 流式总超时（秒，默认10分钟）
                     ],
                     'custom_error_mapping_rules' => [],
                 ],
@@ -257,6 +264,7 @@ return [
                         'thinking' => 120.0,  // 思考超时（秒）
                         'stream_chunk' => 30.0, // 流式块间超时（秒）
                         'stream_first' => 60.0, // 首个流式块超时（秒）
+                        'stream_total' => 600.0, // 流式总超时（秒，默认10分钟）
                     ],
                     'custom_error_mapping_rules' => [],
                 ],
@@ -284,6 +292,7 @@ return [
                         'thinking' => 120.0,  // 思考超时（秒）
                         'stream_chunk' => 30.0, // 流式块间超时（秒）
                         'stream_first' => 60.0, // 首个流式块超时（秒）
+                        'stream_total' => 600.0, // 流式总超时（秒，默认10分钟）
                     ],
                     'custom_error_mapping_rules' => [],
                 ],
@@ -311,6 +320,7 @@ return [
                         'thinking' => 120.0,  // 思考超时（秒）
                         'stream_chunk' => 30.0, // 流式块间超时（秒）
                         'stream_first' => 60.0, // 首个流式块超时（秒）
+                        'stream_total' => 3600.0, // 流式总超时（秒，1小时）
                     ],
                     'custom_error_mapping_rules' => [],
                 ],
@@ -338,6 +348,7 @@ return [
                         'thinking' => 120.0,  // 思考超时（秒）
                         'stream_chunk' => 30.0, // 流式块间超时（秒）
                         'stream_first' => 60.0, // 首个流式块超时（秒）
+                        'stream_total' => 600.0, // 流式总超时（秒，默认10分钟）
                     ],
                     'custom_error_mapping_rules' => [],
                 ],
@@ -366,6 +377,7 @@ return [
                         'thinking' => 120.0,  // 思考超时（秒）
                         'stream_chunk' => 30.0, // 流式块间超时（秒）
                         'stream_first' => 60.0, // 首个流式块超时（秒）
+                        'stream_total' => 600.0, // 流式总超时（秒，默认10分钟）
                     ],
                     'proxy' => env('HTTP_CLIENT_PROXY'),
                     'custom_error_mapping_rules' => [],

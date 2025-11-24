@@ -54,7 +54,7 @@ class UserMessageContent
 
     public function setText(string $text): self
     {
-        $this->text = $text;
+        $this->text = trim($text);
         return $this;
     }
 
@@ -65,7 +65,7 @@ class UserMessageContent
 
     public function setImageUrl(string $imageUrl): self
     {
-        $this->imageUrl = $imageUrl;
+        $this->imageUrl = trim($imageUrl);
         return $this;
     }
 

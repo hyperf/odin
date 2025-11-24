@@ -22,9 +22,14 @@ class AwsBedrockConfig implements ConfigInterface
         public string $secretKey,
         public string $region = 'us-east-1',
         /**
-         * @var string 类型 converse|invoke
+         * API type:
+         * - converse_custom: Converse API without AWS SDK (custom Guzzle + SigV4) [default]
+         * - converse: Converse API with AWS SDK
+         * - invoke: InvokeModel API with AWS SDK
+         *
+         * @var string
          */
-        public string $type = AwsType::CONVERSE,
+        public string $type = AwsType::CONVERSE_CUSTOM,
         public bool $autoCache = false,
         public ?AutoCacheConfig $autoCacheConfig = null,
     ) {

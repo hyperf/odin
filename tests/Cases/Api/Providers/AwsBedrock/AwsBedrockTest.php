@@ -14,6 +14,7 @@ namespace HyperfTest\Odin\Cases\Api\Providers\AwsBedrock;
 
 use Hyperf\Odin\Api\Providers\AwsBedrock\AwsBedrock;
 use Hyperf\Odin\Api\Providers\AwsBedrock\AwsBedrockConfig;
+use Hyperf\Odin\Api\Providers\AwsBedrock\AwsType;
 use Hyperf\Odin\Api\Providers\AwsBedrock\Client;
 use Hyperf\Odin\Api\RequestOptions\ApiOptions;
 use Hyperf\Odin\Exception\LLMException\Configuration\LLMInvalidApiKeyException;
@@ -41,11 +42,12 @@ class AwsBedrockTest extends AbstractTestCase
         // 创建AwsBedrock实例
         $awsBedrock = new AwsBedrock();
 
-        // 创建有效的配置
+        // 创建有效的配置，使用 invoke 类型以返回 Client 实例
         $config = new AwsBedrockConfig(
             accessKey: 'test-access-key',
             secretKey: 'test-secret-key',
-            region: 'us-east-1'
+            region: 'us-east-1',
+            type: AwsType::INVOKE
         );
 
         // 获取客户端
@@ -152,11 +154,12 @@ class AwsBedrockTest extends AbstractTestCase
     {
         $awsBedrock = new AwsBedrock();
 
-        // 创建配置
+        // 创建配置，使用 invoke 类型以返回 Client 实例
         $config = new AwsBedrockConfig(
             accessKey: 'test-access-key',
             secretKey: 'test-secret-key',
-            region: 'us-east-1'
+            region: 'us-east-1',
+            type: AwsType::INVOKE
         );
 
         // 创建请求选项

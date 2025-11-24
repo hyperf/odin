@@ -27,8 +27,9 @@ class ApiOptions
         'read' => 300.0,      // 读取超时
         'total' => 350.0,     // 总体超时
         'thinking' => 120.0,  // 思考超时（初始响应前的时间）
-        'stream_chunk' => 30.0, // 流式响应块间超时
+        'stream_chunk' => 60.0, // 流式响应块间超时
         'stream_first' => 60.0, // 流式响应首个块超时
+        'stream_total' => 600.0, // 流式总超时
     ];
 
     /**
@@ -52,6 +53,7 @@ class ApiOptions
     protected array $logging = [
         'enable_whitelist' => false,
         'whitelist_fields' => [],
+        'max_text_length' => 2000,
     ];
 
     protected int $networkRetryCount = 0;
@@ -167,12 +169,32 @@ class ApiOptions
         return $this->timeout['stream_chunk'];
     }
 
+    public function setStreamChunkTimeout(float $timeout): self
+    {
+        $this->timeout['stream_chunk'] = $timeout;
+        return $this;
+    }
+
     /**
      * 获取流式响应首个块超时.
      */
     public function getStreamFirstChunkTimeout(): float
     {
         return $this->timeout['stream_first'];
+    }
+
+    public function setStreamFirstChunkTimeout(float $timeout): self
+    {
+        $this->timeout['stream_first'] = $timeout;
+        return $this;
+    }
+
+    /**
+     * 获取流式响应总体超时.
+     */
+    public function getStreamTotalTimeout(): float
+    {
+        return $this->timeout['stream_total'];
     }
 
     /**
@@ -238,6 +260,14 @@ class ApiOptions
     public function isLoggingWhitelistEnabled(): bool
     {
         return (bool) ($this->logging['enable_whitelist'] ?? false);
+    }
+
+    /**
+     * 获取日志最大文本长度限制.
+     */
+    public function getLoggingMaxTextLength(): int
+    {
+        return (int) ($this->logging['max_text_length'] ?? 2000);
     }
 
     /**

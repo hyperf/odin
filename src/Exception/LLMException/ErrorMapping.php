@@ -44,9 +44,9 @@ class ErrorMapping
     public static function getDefaultMapping(): array
     {
         return [
-            // 连接超时异常
+            // Connection timeout exception
             ConnectException::class => [
-                // 连接超时异常
+                // Connection timeout exception
                 [
                     'regex' => '/timeout|timed\s+out/i',
                     'factory' => function (Throwable $e) {
@@ -54,31 +54,32 @@ class ErrorMapping
                         // 尝试从消息中提取超时时间
                         preg_match('/(\d+(?:\.\d+)?)\s*s/i', $message, $matches);
                         $timeout = isset($matches[1]) ? (float) $matches[1] : null;
-                        return new LLMConnectionTimeoutException('连接LLM服务超时', $e, $timeout);
+                        $statusCode = ($e instanceof RequestException && $e->getResponse()) ? $e->getResponse()->getStatusCode() : 408;
+                        return new LLMConnectionTimeoutException(ErrorMessage::CONNECTION_TIMEOUT, $e, $timeout, $statusCode);
                     },
                 ],
-                // 无法解析主机名异常
+                // Unable to resolve hostname exception
                 [
                     'regex' => '/Could not resolve host/i',
                     'factory' => function (Throwable $e) {
                         $message = $e->getMessage();
                         // 尝试从消息中提取主机名
                         preg_match('/Could not resolve host: ([^\s\(\)]+)/i', $message, $matches);
-                        $hostname = $matches[1] ?? '未知主机';
+                        $hostname = $matches[1] ?? 'unknown host';
                         return new LLMNetworkException(
-                            sprintf('无法解析LLM服务域名: %s', $hostname),
+                            sprintf('%s: %s', ErrorMessage::RESOLVE_HOST_ERROR, $hostname),
                             4,
                             $e,
                             ErrorCode::NETWORK_CONNECTION_ERROR
                         );
                     },
                 ],
-                // 默认网络连接异常处理
+                // Default network connection exception handling
                 [
                     'default' => true,
                     'factory' => function (Throwable $e) {
                         return new LLMNetworkException(
-                            sprintf('LLM网络连接错误: %s', $e->getMessage()),
+                            sprintf('%s: %s', ErrorMessage::NETWORK_CONNECTION_ERROR, $e->getMessage()),
                             4,
                             $e,
                             ErrorCode::NETWORK_CONNECTION_ERROR
@@ -87,34 +88,74 @@ class ErrorMapping
                 ],
             ],
 
-            // 请求异常
+            // Request exception
             RequestException::class => [
-                // API密钥无效
+                // Invalid API key (supports both English and Chinese)
                 [
-                    'regex' => '/invalid.+api.+key|api.+key.+invalid|authentication|unauthorized/i',
+                    'regex' => '/invalid.+api.+key|api.+key.+invalid|authentication|unauthorized|invalid.+missing.+api.+key|API密钥无效/i',
                     'status' => [401, 403],
                     'factory' => function (RequestException $e) {
                         $provider = '';
+                        $message = ErrorMessage::INVALID_API_KEY;
+
                         if ($e->getRequest()->getUri()->getHost()) {
                             $provider = $e->getRequest()->getUri()->getHost();
                         }
-                        return new LLMInvalidApiKeyException('API密钥无效或已过期', $e, $provider);
+
+                        // Extract message from response body
+                        if ($e->getResponse()) {
+                            $response = $e->getResponse();
+                            $body = $response->getBody();
+                            if ($body->isSeekable()) {
+                                $body->rewind();
+                            }
+                            $responseBody = (string) $body;
+                            $data = json_decode($responseBody, true);
+                            if (is_array($data)) {
+                                if (isset($data['error']['message'])) {
+                                    $message = $data['error']['message'];
+                                } elseif (isset($data['message'])) {
+                                    $message = $data['message'];
+                                }
+                            }
+                        }
+
+                        return new LLMInvalidApiKeyException($message, $e, $provider);
                     },
                 ],
-                // 速率限制
+                // Rate limit (supports both English and Chinese)
                 [
-                    'regex' => '/rate\s+limit|too\s+many\s+requests/i',
+                    'regex' => '/rate\s+limit|too\s+many\s+requests|API请求频率超出限制|rate.+limit.+exceeded/i',
                     'status' => [429],
                     'factory' => function (RequestException $e) {
                         $retryAfter = null;
+                        $message = ErrorMessage::RATE_LIMIT;
+
                         if ($e->getResponse()) {
                             $retryAfter = $e->getResponse()->getHeaderLine('Retry-After');
                             $retryAfter = $retryAfter ? (int) $retryAfter : null;
+
+                            // Extract message from response body
+                            $response = $e->getResponse();
+                            $body = $response->getBody();
+                            if ($body->isSeekable()) {
+                                $body->rewind();
+                            }
+                            $responseBody = (string) $body;
+                            $data = json_decode($responseBody, true);
+                            if (is_array($data)) {
+                                if (isset($data['error']['message'])) {
+                                    $message = $data['error']['message'];
+                                } elseif (isset($data['message'])) {
+                                    $message = $data['message'];
+                                }
+                            }
                         }
-                        return new LLMRateLimitException('API请求频率超出限制', $e, 429, $retryAfter);
+
+                        return new LLMRateLimitException($message, $e, 429, $retryAfter);
                     },
                 ],
-                // Azure OpenAI 模型内容过滤错误
+                // Azure OpenAI model content filter error
                 [
                     'regex' => '/model\s+produced\s+invalid\s+content|model_error/i',
                     'status' => [500],
@@ -132,20 +173,20 @@ class ErrorMapping
                             if (isset($data['error'])) {
                                 $errorType = $data['error']['type'] ?? 'model_error';
                                 if (isset($data['error']['message']) && str_contains($data['error']['message'], 'modifying your prompt')) {
-                                    $suggestion = '建议修改您的提示词内容';
+                                    $suggestion = 'Please modify your prompt content';
                                 }
                             }
                         }
 
-                        $message = '模型生成了无效内容';
+                        $message = ErrorMessage::MODEL_INVALID_CONTENT;
                         if ($suggestion) {
-                            $message .= '，' . $suggestion;
+                            $message .= ', ' . $suggestion;
                         }
 
                         return new LLMContentFilterException($message, $e, null, [$errorType], $statusCode);
                     },
                 ],
-                // 嵌入输入过大错误
+                // Embedding input too large error
                 [
                     'regex' => '/input\s+is\s+too\s+large|input\s+too\s+large|input\s+size\s+exceeds|batch\s+size\s+too\s+large|increase.+batch.+size/i',
                     'status' => [400, 413, 500],
@@ -190,9 +231,9 @@ class ErrorMapping
                             }
                         }
 
-                        $message = '嵌入请求输入内容过大，超出模型处理限制';
+                        $message = ErrorMessage::EMBEDDING_INPUT_TOO_LARGE;
                         if ($model) {
-                            $message .= "（模型：{$model}）";
+                            $message .= " (model: {$model})";
                         }
 
                         return new LLMEmbeddingInputTooLargeException(
@@ -205,14 +246,14 @@ class ErrorMapping
                         );
                     },
                 ],
-                // Azure OpenAI 服务端内部错误 (可重试的网络错误)
+                // Azure OpenAI server internal error (retryable network error)
                 [
                     'regex' => '/server\s+had\s+an\s+error|server_error/i',
                     'status' => [500, 502, 503, 504],
                     'factory' => function (RequestException $e) {
                         $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : 500;
                         return new LLMNetworkException(
-                            'Azure OpenAI 服务暂时不可用，建议稍后重试',
+                            ErrorMessage::AZURE_UNAVAILABLE,
                             4,
                             $e,
                             ErrorCode::NETWORK_CONNECTION_ERROR,
@@ -220,41 +261,93 @@ class ErrorMapping
                         );
                     },
                 ],
-                // 内容过滤
+                // Content filter (supports both English and Chinese)
                 [
-                    'regex' => '/content\s+filter|content\s+policy|inappropriate|unsafe content|violate|policy/i',
+                    'regex' => '/content\s+filter|content\s+policy|inappropriate|unsafe content|violate|policy|内容被系统安全过滤|filtered.+safety.+system/i',
                     'factory' => function (RequestException $e) {
                         $labels = null;
+                        $message = ErrorMessage::CONTENT_FILTER;
+
                         if ($e->getResponse()) {
                             $response = $e->getResponse();
                             $response->getBody()->rewind(); // 重置流位置
                             $body = $response->getBody()->getContents();
                             $data = json_decode($body, true);
-                            if (isset($data['error']['content_filter_results'])) {
-                                $labels = array_keys($data['error']['content_filter_results']);
+
+                            // Extract message from response
+                            if (is_array($data)) {
+                                if (isset($data['error']['message'])) {
+                                    $message = $data['error']['message'];
+                                } elseif (isset($data['message'])) {
+                                    $message = $data['message'];
+                                }
+
+                                // Extract content filter labels if available
+                                if (isset($data['error']['content_filter_results'])) {
+                                    $labels = array_keys($data['error']['content_filter_results']);
+                                }
                             }
                         }
+
                         $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : 400;
-                        return new LLMContentFilterException('内容被系统安全过滤', $e, null, $labels, $statusCode);
+                        return new LLMContentFilterException($message, $e, null, $labels, $statusCode);
                     },
                 ],
-                // 上下文长度超出限制
+                // Context length exceeded (supports both English and Chinese)
                 [
-                    'regex' => '/context\s+length|token\s+limit|maximum\s+context\s+length/i',
+                    'regex' => '/context\s+length|token\s+limit|maximum\s+context\s+length|input\s+is\s+too\s+long|input\s+too\s+long|上下文长度超出模型限制|context.+exceeds.+limit|exceeds.+model.+limit/i',
                     'factory' => function (RequestException $e) {
                         $currentLength = null;
                         $maxLength = null;
-                        // 尝试从消息中提取长度信息
-                        $message = $e->getMessage();
-                        preg_match('/(\d+)\s*\/\s*(\d+)/i', $message, $matches);
-                        if (isset($matches[1], $matches[2])) {
+                        $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : 400;
+                        $message = null;
+
+                        // Try to extract message from response body for proxy scenarios
+                        if ($e->getResponse()) {
+                            $response = $e->getResponse();
+                            $body = $response->getBody();
+                            if ($body->isSeekable()) {
+                                $body->rewind();
+                            }
+                            $responseBody = (string) $body;
+                            $decodedBody = json_decode($responseBody, true);
+                            if (is_array($decodedBody)) {
+                                // Support both formats:
+                                // 1. {"error": {"message": "...", "code": 4002}}
+                                // 2. {"code": 4017, "message": "..."}
+                                if (isset($decodedBody['error']['message'])) {
+                                    $message = $decodedBody['error']['message'];
+                                } elseif (isset($decodedBody['message'])) {
+                                    $message = $decodedBody['message'];
+                                }
+                            }
+                        }
+
+                        // Fallback to exception message
+                        if (! $message) {
+                            $message = $e->getMessage();
+                        }
+
+                        // Try to extract length information from message
+                        // Support multiple formats:
+                        // 1. "8000 / 4096" or "8000/4096"
+                        // 2. "current length: 8000, max limit: 4096"
+                        // 3. "当前长度: 8000，最大限制: 4096" (Chinese, legacy support)
+                        if (preg_match('/(\d+)\s*\/\s*(\d+)/i', $message, $matches)) {
+                            $currentLength = (int) $matches[1];
+                            $maxLength = (int) $matches[2];
+                        } elseif (preg_match('/当前长度[：:]\s*(\d+).*最大限制[：:]\s*(\d+)/i', $message, $matches)) {
+                            $currentLength = (int) $matches[1];
+                            $maxLength = (int) $matches[2];
+                        } elseif (preg_match('/current\s+length[：:]\s*(\d+).*max\s+limit[：:]\s*(\d+)/i', $message, $matches)) {
                             $currentLength = (int) $matches[1];
                             $maxLength = (int) $matches[2];
                         }
-                        return new LLMContextLengthException('上下文长度超出模型限制', $e, null, $currentLength, $maxLength);
+
+                        return new LLMContextLengthException($message ?: ErrorMessage::CONTEXT_LENGTH, $e, null, $currentLength, $maxLength, $statusCode);
                     },
                 ],
-                // 多模态图片URL不可访问
+                // Multimodal image URL not accessible (supports both English and Chinese)
                 [
                     'regex' => '/image\s+url\s+is\s+not\s+accessible|invalid\s+image\s+url|image\s+could\s+not\s+be\s+accessed/i',
                     'factory' => function (RequestException $e) {
@@ -277,52 +370,90 @@ class ErrorMapping
                                 }
                             }
                         }
-                        return new LLMImageUrlAccessException('多模态图片URL不可访问', $e, null, $imageUrl);
+                        $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : 400;
+                        return new LLMImageUrlAccessException(ErrorMessage::IMAGE_URL_ACCESS, $e, null, $imageUrl, $statusCode);
                     },
                 ],
-                // 无效请求 (更精确的匹配，避免误匹配模型错误)
+                // Invalid request (more precise matching to avoid model error mismatch)
                 [
                     'regex' => '/invalid\s+(request|parameter|api|endpoint)|bad\s+request|malformed/i',
                     'status' => [400],
                     'factory' => function (RequestException $e) {
                         $invalidFields = null;
+                        $providerErrorDetails = null;
+
                         if ($e->getResponse()) {
                             $response = $e->getResponse();
                             $response->getBody()->rewind(); // 重置流位置
                             $body = $response->getBody()->getContents();
                             $data = json_decode($body, true);
+
+                            // 提取无效字段信息（保持原有逻辑）
                             if (isset($data['error']['param'])) {
                                 $invalidFields = [$data['error']['param'] => $data['error']['message'] ?? '无效参数'];
                             }
+
+                            // 提取完整的服务商错误详情
+                            if (isset($data['error']) && is_array($data['error'])) {
+                                $providerErrorDetails = [];
+
+                                // 提取错误码
+                                if (isset($data['error']['code'])) {
+                                    $providerErrorDetails['code'] = $data['error']['code'];
+                                }
+
+                                // 提取错误消息
+                                if (isset($data['error']['message'])) {
+                                    $providerErrorDetails['message'] = $data['error']['message'];
+                                }
+
+                                // 提取错误类型
+                                if (isset($data['error']['type'])) {
+                                    $providerErrorDetails['type'] = $data['error']['type'];
+                                }
+
+                                // 提取参数字段
+                                if (isset($data['error']['param'])) {
+                                    $providerErrorDetails['param'] = $data['error']['param'];
+                                }
+
+                                // 如果有其他字段，也一并保存
+                                foreach ($data['error'] as $key => $value) {
+                                    if (! in_array($key, ['code', 'message', 'type', 'param']) && is_scalar($value)) {
+                                        $providerErrorDetails[$key] = $value;
+                                    }
+                                }
+                            }
                         }
-                        return new LLMInvalidRequestException('无效的API请求', $e, 400, $invalidFields);
+
+                        return new LLMInvalidRequestException(ErrorMessage::INVALID_REQUEST, $e, 400, $invalidFields, $providerErrorDetails);
                     },
                 ],
-                // 默认异常处理
+                // Default exception handling
                 [
                     'default' => true,
                     'factory' => function (RequestException $e) {
                         if ($e->getResponse()) {
                             $statusCode = $e->getResponse()->getStatusCode();
-                            // 根据状态码分类
+                            // Classify by status code
                             if ($statusCode >= 500) {
-                                return new LLMApiException('LLM服务端错误: ' . $e->getMessage(), 3, $e, ErrorCode::API_SERVER_ERROR, $statusCode);
+                                return new LLMApiException(ErrorMessage::SERVER_ERROR . ': ' . $e->getMessage(), 3, $e, ErrorCode::API_SERVER_ERROR, $statusCode);
                             }
                             if ($statusCode >= 400) {
-                                return new LLMApiException('LLM客户端请求错误: ' . $e->getMessage(), 2, $e, ErrorCode::API_INVALID_REQUEST, $statusCode);
+                                return new LLMApiException(ErrorMessage::CLIENT_ERROR . ': ' . $e->getMessage(), 2, $e, ErrorCode::API_INVALID_REQUEST, $statusCode);
                             }
-                            // 其他状态码仍然当作网络异常，但记录状态码
-                            return new LLMNetworkException('LLM网络请求错误: ' . $e->getMessage(), 4, $e, ErrorCode::NETWORK_CONNECTION_ERROR, $statusCode);
+                            // Other status codes are still treated as network exceptions, but record the status code
+                            return new LLMNetworkException(ErrorMessage::NETWORK_REQUEST_ERROR . ': ' . $e->getMessage(), 4, $e, ErrorCode::NETWORK_CONNECTION_ERROR, $statusCode);
                         }
-                        return new LLMNetworkException('LLM网络请求错误: ' . $e->getMessage(), 4, $e, ErrorCode::NETWORK_CONNECTION_ERROR);
+                        return new LLMNetworkException(ErrorMessage::NETWORK_REQUEST_ERROR . ': ' . $e->getMessage(), 4, $e, ErrorCode::NETWORK_CONNECTION_ERROR, 500);
                     },
                 ],
             ],
 
-            // 默认异常处理
+            // Default exception handling
             'default' => [
                 'factory' => function (Throwable $e) {
-                    return new LLMException('LLM调用错误: ' . $e->getMessage(), 0, $e);
+                    return new LLMException(ErrorMessage::LLM_INVOCATION_ERROR . ': ' . $e->getMessage(), 0, $e);
                 },
             ],
         ];

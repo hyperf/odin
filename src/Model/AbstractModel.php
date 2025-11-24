@@ -440,6 +440,9 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
         if ($this->getModelOptions()->getFixedTemperature()) {
             $request->setTemperature($this->getModelOptions()->getFixedTemperature());
         }
+        if (! $request->getTemperature() && $this->modelOptions->getDefaultTemperature()) {
+            $request->setTemperature($this->modelOptions->getDefaultTemperature());
+        }
     }
 
     /**

@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Exception\LLMException\Model;
 
+use Hyperf\Odin\Exception\LLMException\ErrorMessage;
 use Hyperf\Odin\Exception\LLMException\LLMModelException;
 use Throwable;
 
@@ -28,7 +29,7 @@ class LLMFunctionCallNotSupportedException extends LLMModelException
     /**
      * 创建一个新的函数调用不支持异常实例.
      */
-    public function __construct(string $message = '模型不支持函数调用功能', ?Throwable $previous = null, ?string $model = null)
+    public function __construct(string $message = ErrorMessage::FUNCTION_NOT_SUPPORTED, ?Throwable $previous = null, ?string $model = null)
     {
         parent::__construct($message, self::ERROR_CODE, $previous, 0, $model, 400);
     }

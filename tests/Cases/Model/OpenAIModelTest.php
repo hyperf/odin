@@ -50,15 +50,17 @@ class OpenAIModelTest extends AbstractTestCase
      */
     public function testGetClient()
     {
-        // 使用 Mockery 替换 ClientFactory::createOpenAIClient 方法
+        // 使用 Mockery 替换 ClientFactory::createClient 方法
         $clientMock = Mockery::mock(ClientInterface::class);
 
         $clientFactoryMock = Mockery::mock('alias:' . ClientFactory::class);
-        $clientFactoryMock->shouldReceive('createOpenAIClient')
+        $clientFactoryMock->shouldReceive('createClient')
             ->once()
-            ->withArgs(function ($config, $apiOptions, $logger) {
-                // 验证 base_url 是否包含 API 版本路径
-                return isset($config['base_url']) && str_contains($config['base_url'], '/v1');
+            ->withArgs(function ($provider, $config, $apiOptions, $logger) {
+                // 验证 provider 是 'openai' 并且 base_url 包含 API 版本路径
+                return $provider === 'openai'
+                    && isset($config['base_url'])
+                    && str_contains($config['base_url'], '/v1');
             })
             ->andReturn($clientMock);
 

@@ -73,3 +73,12 @@ if ($message instanceof AssistantMessage) {
 
 echo PHP_EOL;
 echo '耗时' . (microtime(true) - $start) . '秒' . PHP_EOL;
+
+// Display usage information
+$usage = $response->getUsage();
+if ($usage) {
+    echo PHP_EOL . '=== Token 使用情况 ===' . PHP_EOL;
+    echo '输入 Tokens: ' . $usage->getPromptTokens() . PHP_EOL;
+    echo '输出 Tokens: ' . $usage->getCompletionTokens() . PHP_EOL;
+    echo '总计 Tokens: ' . $usage->getTotalTokens() . PHP_EOL;
+}

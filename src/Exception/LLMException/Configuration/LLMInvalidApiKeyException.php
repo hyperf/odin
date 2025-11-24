@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Exception\LLMException\Configuration;
 
+use Hyperf\Odin\Exception\LLMException\ErrorMessage;
 use Hyperf\Odin\Exception\LLMException\LLMConfigurationException;
 use Throwable;
 
@@ -28,7 +29,7 @@ class LLMInvalidApiKeyException extends LLMConfigurationException
     /**
      * 创建一个新的无效API密钥异常实例.
      */
-    public function __construct(string $message = '无效的API密钥或API密钥缺失', ?Throwable $previous = null, string $provider = '')
+    public function __construct(string $message = ErrorMessage::INVALID_API_KEY, ?Throwable $previous = null, string $provider = '')
     {
         $message = $provider ? sprintf('[%s] %s', $provider, $message) : $message;
         parent::__construct($message, self::ERROR_CODE, $previous, 0, 401);

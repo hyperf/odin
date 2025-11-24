@@ -189,6 +189,9 @@ class ChatCompletionStreamResponseTest extends AbstractTestCase
                 yield $eventDone;
             })());
 
+        // Mock the closeEarly() method that will be called when processing is done
+        $sseClient->shouldReceive('closeEarly')->once();
+
         // 创建StreamResponse
         $streamResponse = new ChatCompletionStreamResponse($response, null, $sseClient);
 

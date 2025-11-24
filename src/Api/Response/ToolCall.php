@@ -16,6 +16,11 @@ use Hyperf\Contract\Arrayable;
 
 class ToolCall implements Arrayable
 {
+    /**
+     * Metadata for provider-specific extensions (e.g., Gemini thought signatures).
+     */
+    protected array $metadata = [];
+
     public function __construct(
         protected string $name,
         protected array $arguments,
@@ -43,8 +48,14 @@ class ToolCall implements Arrayable
             $name = $function['name'] ?? '';
             $id = $toolCall['id'] ?? '';
             $type = $toolCall['type'] ?? 'function';
-            $static = new self($name, $arguments, $id, $type, $function['arguments']);
-            $toolCallsResult[] = $static;
+            $instance = new self($name, $arguments, $id, $type, $function['arguments']);
+
+            // Preserve thought signature if present (Gemini-specific)
+            if (isset($toolCall['thought_signature'])) {
+                $instance->setThoughtSignature($toolCall['thought_signature']);
+            }
+
+            $toolCallsResult[] = $instance;
         }
         return $toolCallsResult;
     }
@@ -146,5 +157,49 @@ class ToolCall implements Arrayable
     public function appendStreamArguments(string $arguments): void
     {
         $this->streamArguments .= $arguments;
+    }
+
+    /**
+     * Get metadata value.
+     */
+    public function getMetadata(string $key): mixed
+    {
+        return $this->metadata[$key] ?? null;
+    }
+
+    /**
+     * Set metadata value.
+     */
+    public function setMetadata(string $key, mixed $value): self
+    {
+        $this->metadata[$key] = $value;
+        return $this;
+    }
+
+    /**
+     * Get all metadata.
+     */
+    public function getAllMetadata(): array
+    {
+        return $this->metadata;
+    }
+
+    /**
+     * Get thought signature (Gemini-specific).
+     * Thought signatures are used to preserve reasoning context across multi-turn interactions.
+     *
+     * @see https://ai.google.dev/gemini-api/docs/thought-signatures
+     */
+    public function getThoughtSignature(): ?string
+    {
+        return $this->getMetadata('thought_signature');
+    }
+
+    /**
+     * Set thought signature (Gemini-specific).
+     */
+    public function setThoughtSignature(?string $thoughtSignature): self
+    {
+        return $this->setMetadata('thought_signature', $thoughtSignature);
     }
 }

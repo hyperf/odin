@@ -269,7 +269,7 @@ $agent = new ToolUseAgent(
 echo "===== 顺序流式工具调用示例 =====\n";
 $start = microtime(true);
 
-$userMessage = new UserMessage('先获取当前系统时间，再计算 7 的 3 次方，然后查询用户ID为2的信息，最后根据查询结果推荐一些科幻电影。请详细说明每一步。');
+$userMessage = new UserMessage('先获取当前系统时间，再计算 7 的 3 次方，然后查询用户ID为2的信息，最后根据查询结果推荐一些科幻电影。请详细说明每一步。在最后进行总结');
 $response = $agent->chatStreamed($userMessage);
 
 $content = '';

@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Exception\LLMException\Api;
 
+use Hyperf\Odin\Exception\LLMException\ErrorMessage;
 use Hyperf\Odin\Exception\LLMException\LLMApiException;
 use Throwable;
 
@@ -34,7 +35,7 @@ class LLMRateLimitException extends LLMApiException
      * 创建一个新的速率限制异常实例.
      */
     public function __construct(
-        string $message = 'API请求频率超出限制',
+        string $message = ErrorMessage::RATE_LIMIT,
         ?Throwable $previous = null,
         ?int $statusCode = 429,
         ?int $retryAfter = null
@@ -42,7 +43,7 @@ class LLMRateLimitException extends LLMApiException
         $this->retryAfter = $retryAfter;
 
         if ($retryAfter !== null) {
-            $message = sprintf('%s，建议 %d 秒后重试', $message, $retryAfter);
+            $message = sprintf('%s, retry after %d seconds', $message, $retryAfter);
         }
 
         parent::__construct($message, self::ERROR_CODE, $previous, 0, $statusCode);

@@ -13,6 +13,7 @@ declare(strict_types=1);
 namespace Hyperf\Odin\Exception\LLMException\Model;
 
 use Hyperf\Odin\Exception\LLMException;
+use Hyperf\Odin\Exception\LLMException\ErrorMessage;
 use Throwable;
 
 /**
@@ -33,7 +34,7 @@ class LLMEmbeddingNotSupportedException extends LLMException
      * @param string $model 模型名称
      */
     public function __construct(
-        string $message = '模型不支持嵌入功能',
+        string $message = ErrorMessage::EMBEDDING_NOT_SUPPORTED,
         ?Throwable $previous = null,
         protected string $model = ''
     ) {

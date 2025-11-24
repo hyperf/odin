@@ -49,7 +49,7 @@ class AssistantMessage extends AbstractMessage
     public function __construct(string $content, array $toolsCall = [], ?string $reasoningContent = null)
     {
         parent::__construct($content);
-        $this->toolCalls = $toolsCall;
+        $this->toolCalls = $this->normalizeToolCallIds($toolsCall);
         $this->reasoningContent = $reasoningContent;
     }
 
@@ -65,6 +65,7 @@ class AssistantMessage extends AbstractMessage
         $toolCalls = ToolCall::fromArray($message['tool_calls'] ?? []);
         $reasoningContent = $message['reasoning_content'] ?? null;
 
+        // 注意：构造函数中已经包含了标准化逻辑，所以这里不需要额外处理
         return new self($content, $toolCalls, $reasoningContent);
     }
 
@@ -179,5 +180,25 @@ class AssistantMessage extends AbstractMessage
     {
         $this->reasoningContent = $reasoningContent;
         return $this;
+    }
+
+    /**
+     * 标准化 tool call IDs 以确保跨平台兼容性.
+     *
+     * @param array<ToolCall> $toolCalls 原始工具调用列表
+     * @return array<ToolCall> 标准化后的工具调用列表
+     */
+    private function normalizeToolCallIds(array $toolCalls): array
+    {
+        foreach ($toolCalls as $toolCall) {
+            $originalId = $toolCall->getId();
+            $normalizedId = $this->normalizeToolCallId($originalId);
+
+            if ($normalizedId !== $originalId) {
+                $toolCall->setId($normalizedId);
+            }
+        }
+
+        return $toolCalls;
     }
 }
