@@ -41,6 +41,9 @@ $model = new DoubaoModel(
 
 $model->setApiRequestOptions(new ApiOptions([
     // HTTP 处理器配置 - 支持环境变量 ODIN_HTTP_HANDLER
+    // 'auto': 自动选择（在协程环境中自动使用 stream 处理器）
+    // 'curl': 强制使用 cURL（推荐用于非协程环境）
+    // 'stream': 强制使用 PHP Stream（在协程环境中更稳定）
     'http_handler' => env('ODIN_HTTP_HANDLER', 'auto'),
 ]));
 

@@ -34,6 +34,11 @@ class HttpHandlerFactory
      */
     public static function create(string $type = 'auto'): callable
     {
+        // 在协程上下文中自动使用 stream 处理器以避免 OpenSSL 兼容性问题
+        if ($type === 'auto' && self::isInCoroutineContext()) {
+            return self::createStreamHandler();
+        }
+
         return match (strtolower($type)) {
             'stream' => self::createStreamHandler(),
             'auto' => self::createAutoHandler(),
@@ -133,6 +138,7 @@ class HttpHandlerFactory
             'curl_version' => function_exists('curl_version') ? curl_version() : null,
             'stream_available' => ini_get('allow_url_fopen') !== false,
             'openssl_available' => extension_loaded('openssl'),
+            'in_coroutine_context' => self::isInCoroutineContext(),
             'recommended_handler' => self::getRecommendedHandler(),
         ];
     }
@@ -144,6 +150,11 @@ class HttpHandlerFactory
      */
     public static function getRecommendedHandler(): string
     {
+        // 在协程上下文中推荐使用 stream 处理器以避免 OpenSSL 兼容性问题
+        if (self::isInCoroutineContext()) {
+            return 'stream';
+        }
+
         if (function_exists('curl_multi_exec') && function_exists('curl_exec')) {
             return 'curl'; // Best performance for concurrent requests
         }
@@ -153,6 +164,38 @@ class HttpHandlerFactory
         }
 
         return 'auto'; // Let Guzzle decide
+    }
+
+    /**
+     * Check if the code is running in a coroutine context.
+     * 检测是否在协程上下文中运行
+     *
+     * @return bool True if running in a coroutine context
+     */
+    public static function isInCoroutineContext(): bool
+    {
+        // 检测 Swoole 协程
+        if (class_exists(\Swoole\Coroutine::class, false)) {
+            try {
+                $cid = \Swoole\Coroutine::getCid();
+                return $cid > 0;
+            } catch (\Throwable $e) {
+                // 如果调用失败，说明不在协程上下文中
+                return false;
+            }
+        }
+
+        // 检测 Hyperf Engine 协程（支持 Swoole 和 Swow）
+        if (class_exists(\Hyperf\Engine\Coroutine::class, false)) {
+            try {
+                $id = \Hyperf\Engine\Coroutine::id();
+                return $id > 0;
+            } catch (\Throwable $e) {
+                return false;
+            }
+        }
+
+        return false;
     }
 
     /**
