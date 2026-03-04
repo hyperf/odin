@@ -155,4 +155,66 @@ class AssistantMessageTest extends AbstractTestCase
         // 确认 toolCalls 属性被设置
         $this->assertTrue($message->hasToolCalls());
     }
+
+    /**
+     * 测试 content 为 array 格式（OpenAI 最新格式）.
+     */
+    public function testFromArrayWithContentAsArray()
+    {
+        $array = [
+            'role' => 'assistant',
+            'content' => [
+                ['type' => 'text', 'text' => 'Hello, '],
+                ['type' => 'text', 'text' => 'how can I help?'],
+            ],
+        ];
+        $message = AssistantMessage::fromArray($array);
+        $this->assertInstanceOf(AssistantMessage::class, $message);
+        $this->assertSame('Hello, how can I help?', $message->getContent());
+
+        $toArray = $message->toArray();
+        $this->assertIsArray($toArray['content']);
+        $this->assertCount(2, $toArray['content']);
+        $this->assertSame('text', $toArray['content'][0]['type']);
+        $this->assertSame('Hello, ', $toArray['content'][0]['text']);
+    }
+
+    /**
+     * 测试 content 为 array 格式且包含 refusal 类型.
+     */
+    public function testFromArrayWithRefusalContentPart()
+    {
+        $array = [
+            'role' => 'assistant',
+            'content' => [
+                ['type' => 'refusal', 'refusal' => 'I cannot assist with that request.'],
+            ],
+        ];
+        $message = AssistantMessage::fromArray($array);
+        $this->assertSame('I cannot assist with that request.', $message->getContent());
+
+        $toArray = $message->toArray();
+        $this->assertIsArray($toArray['content']);
+        $this->assertSame('refusal', $toArray['content'][0]['type']);
+        $this->assertSame('I cannot assist with that request.', $toArray['content'][0]['refusal']);
+    }
+
+    /**
+     * 测试 setContent 会清空 contentParts.
+     */
+    public function testSetContentClearsContentParts()
+    {
+        $message = AssistantMessage::fromArray([
+            'content' => [['type' => 'text', 'text' => 'Original']],
+        ]);
+        $this->assertSame('Original', $message->getContent());
+        $toArrayBefore = $message->toArray();
+        $this->assertIsArray($toArrayBefore['content']);
+
+        $message->setContent('New string content');
+        $this->assertSame('New string content', $message->getContent());
+        $toArrayAfter = $message->toArray();
+        $this->assertIsString($toArrayAfter['content']);
+        $this->assertSame('New string content', $toArrayAfter['content']);
+    }
 }

@@ -258,9 +258,18 @@ class ToolParameter implements Arrayable
 
     /**
      * 将参数转换为数组.
+     *
+     * @param int $maxDepth 最大递归深度，用于处理 $ref 引用
+     * @param int $currentDepth 当前递归深度
+     * @param array $fullSchema 完整的 schema 定义，用于解析 $ref 引用
      */
-    public function toArray(): array
+    public function toArray(int $maxDepth = 2, int $currentDepth = 0, array $fullSchema = []): array
     {
+        // 处理引用类型（$ref）
+        if ($this->ref !== null) {
+            return $this->resolveRef($this->ref, $maxDepth, $currentDepth, $fullSchema);
+        }
+
         $result = [
             'type' => $this->type,
             'description' => $this->description,
@@ -320,7 +329,8 @@ class ToolParameter implements Arrayable
                 $result['uniqueItems'] = $this->uniqueItems;
             }
             if ($this->items !== null) {
-                $result['items'] = $this->items;
+                // 处理 items 中的 $ref
+                $result['items'] = $this->resolveItems($this->items, $maxDepth, $currentDepth, $fullSchema);
             }
         }
 
@@ -328,7 +338,8 @@ class ToolParameter implements Arrayable
         if ($this->type === 'object') {
             $properties = [];
             foreach ($this->properties as $property) {
-                $properties[$property->getName()] = $property->toArray();
+                // 递归处理子属性，传递深度信息
+                $properties[$property->getName()] = $property->toArray($maxDepth, $currentDepth + 1, $fullSchema);
             }
             if (! empty($properties)) {
                 $result['properties'] = $properties;
@@ -336,16 +347,7 @@ class ToolParameter implements Arrayable
             if (! empty($this->propertyRequired)) {
                 $result['required'] = $this->propertyRequired;
             }
-            if ($this->additionalProperties !== null) {
-                $result['additionalProperties'] = $this->additionalProperties;
-            }
-        }
-
-        // 添加引用类型
-        if ($this->ref !== null) {
-            $result['$ref'] = $this->ref;
-            // 引用类型不需要 type 属性
-            unset($result['type']);
+            // 移除 additionalProperties，不再输出以提高 LLM 兼容性
         }
 
         // 添加元数据
@@ -787,5 +789,179 @@ class ToolParameter implements Arrayable
     public function getExtensions(): array
     {
         return $this->extensions;
+    }
+
+    /**
+     * 解析 $ref 引用.
+     *
+     * @param string $ref 引用路径，如 "#/properties/topics/items"
+     * @param int $maxDepth 最大递归深度
+     * @param int $currentDepth 当前递归深度
+     * @param array $fullSchema 完整的 schema 定义
+     * @return array 解析后的 schema
+     */
+    protected function resolveRef(string $ref, int $maxDepth, int $currentDepth, array $fullSchema): array
+    {
+        // 如果达到最大深度，返回简化的 object 类型
+        if ($currentDepth >= $maxDepth) {
+            return [
+                'type' => 'object',
+                'description' => $this->description . ' (递归结构已简化，深度限制: ' . $maxDepth . '层)',
+            ];
+        }
+
+        // 尝试解析 JSON Pointer 引用
+        $resolved = $this->resolveJsonPointer($ref, $fullSchema);
+
+        if ($resolved === null) {
+            // 无法解析引用，返回简化的 object 类型
+            return [
+                'type' => 'object',
+                'description' => $this->description . ' (无法解析引用: ' . $ref . ')',
+            ];
+        }
+
+        // 递归处理解析后的 schema
+        return $this->processResolvedSchema($resolved, $maxDepth, $currentDepth + 1, $fullSchema);
+    }
+
+    /**
+     * 解析 JSON Pointer 引用.
+     *
+     * @param string $ref 引用路径，如 "#/properties/topics/items"
+     * @param array $schema 要搜索的 schema
+     * @return null|array 解析后的 schema，如果无法解析则返回 null
+     */
+    protected function resolveJsonPointer(string $ref, array $schema): ?array
+    {
+        // 移除开头的 # 字符
+        if (strpos($ref, '#') === 0) {
+            $ref = substr($ref, 1);
+        }
+
+        // 如果是根引用，直接返回
+        if ($ref === '' || $ref === '/') {
+            return $schema;
+        }
+
+        // 分割路径
+        $parts = array_filter(explode('/', $ref));
+
+        $current = $schema;
+        foreach ($parts as $part) {
+            // 解码 JSON Pointer 转义字符
+            $part = str_replace(['~1', '~0'], ['/', '~'], $part);
+
+            if (! isset($current[$part])) {
+                return null;
+            }
+
+            $current = $current[$part];
+        }
+
+        return is_array($current) ? $current : null;
+    }
+
+    /**
+     * 处理解析后的 schema.
+     *
+     * @param array $schema 解析后的 schema
+     * @param int $maxDepth 最大递归深度
+     * @param int $currentDepth 当前递归深度
+     * @param array $fullSchema 完整的 schema 定义
+     * @return array 处理后的 schema
+     */
+    protected function processResolvedSchema(array $schema, int $maxDepth, int $currentDepth, array $fullSchema): array
+    {
+        // 如果解析后的 schema 包含 $ref，继续递归解析
+        if (isset($schema['$ref'])) {
+            return $this->resolveRef($schema['$ref'], $maxDepth, $currentDepth, $fullSchema);
+        }
+
+        $result = [];
+
+        // 基本字段
+        if (isset($schema['type'])) {
+            $result['type'] = $schema['type'];
+        }
+        if (isset($schema['description'])) {
+            $result['description'] = $schema['description'];
+        }
+
+        // 处理对象类型的 properties，空 properties 不输出（避免序列化为 JSON 数组）
+        if (isset($schema['properties']) && is_array($schema['properties'])) {
+            $processedProperties = [];
+            foreach ($schema['properties'] as $propName => $propSchema) {
+                $processedProperties[$propName] = $this->processResolvedSchema($propSchema, $maxDepth, $currentDepth + 1, $fullSchema);
+            }
+            if (! empty($processedProperties)) {
+                $result['properties'] = $processedProperties;
+            }
+        }
+
+        // 处理 required 字段
+        if (isset($schema['required'])) {
+            $result['required'] = $schema['required'];
+        }
+
+        // 处理数组类型的 items
+        if (isset($schema['items']) && is_array($schema['items'])) {
+            $result['items'] = $this->resolveItems($schema['items'], $maxDepth, $currentDepth, $fullSchema);
+        }
+
+        // 移除 additionalProperties
+        // 不处理其他高级字段
+
+        return $result;
+    }
+
+    /**
+     * 解析数组的 items 定义.
+     *
+     * @param array $items items 定义
+     * @param int $maxDepth 最大递归深度
+     * @param int $currentDepth 当前递归深度
+     * @param array $fullSchema 完整的 schema 定义
+     * @return array 解析后的 items
+     */
+    protected function resolveItems(array $items, int $maxDepth, int $currentDepth, array $fullSchema): array
+    {
+        // 如果 items 包含 $ref，解析引用
+        if (isset($items['$ref'])) {
+            return $this->resolveRef($items['$ref'], $maxDepth, $currentDepth, $fullSchema);
+        }
+
+        // 如果 items 包含 additionalProperties，移除它
+        if (isset($items['additionalProperties'])) {
+            unset($items['additionalProperties']);
+        }
+
+        // 递归处理 items 中的对象属性，空 properties 直接移除（避免序列化为 JSON 数组导致 API 报错）
+        if (isset($items['properties']) && is_array($items['properties'])) {
+            if (empty($items['properties'])) {
+                unset($items['properties']);
+            } else {
+                $processedProperties = [];
+                foreach ($items['properties'] as $propName => $propSchema) {
+                    if (is_array($propSchema)) {
+                        $processedProperties[$propName] = $this->processResolvedSchema($propSchema, $maxDepth, $currentDepth + 1, $fullSchema);
+                    } else {
+                        $processedProperties[$propName] = $propSchema;
+                    }
+                }
+                if (! empty($processedProperties)) {
+                    $items['properties'] = $processedProperties;
+                } else {
+                    unset($items['properties']);
+                }
+            }
+        }
+
+        // 递归处理嵌套的 items（数组的数组）
+        if (isset($items['items']) && is_array($items['items'])) {
+            $items['items'] = $this->resolveItems($items['items'], $maxDepth, $currentDepth + 1, $fullSchema);
+        }
+
+        return $items;
     }
 }

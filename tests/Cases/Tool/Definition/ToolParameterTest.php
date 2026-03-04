@@ -262,7 +262,8 @@ class ToolParameterTest extends ToolBaseTestCase
         $this->assertArrayHasKey('name', $array['properties']);
         $this->assertArrayHasKey('age', $array['properties']);
         $this->assertEquals(['name'], $array['required']);
-        $this->assertFalse($array['additionalProperties']);
+        // additionalProperties 已从序列化输出中移除以提高 LLM 兼容性
+        $this->assertArrayNotHasKey('additionalProperties', $array);
     }
 
     /**

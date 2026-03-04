@@ -98,6 +98,7 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
             $request->setStream(false);
 
             $client = $this->getClient();
+            $request->setModel($client->normalizeModelName($request->getModel()));
             $response = $client->chatCompletions($request);
 
             // 统一检查响应内容是否为空
@@ -124,6 +125,7 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
             $request->setStreamIncludeUsage($this->streamIncludeUsage);
 
             $client = $this->getClient();
+            $request->setModel($client->normalizeModelName($request->getModel()));
             return $client->chatCompletionsStream($request);
         });
     }
@@ -456,6 +458,10 @@ abstract class AbstractModel implements ModelInterface, EmbeddingInterface
             throw new LLMModelException('Model returned empty content response');
         }
         if ($message->hasToolCalls()) {
+            return;
+        }
+        // 如果有推理内容，即使 content 为空也是正常的（例如模型思考后因 MAX_TOKENS 限制未输出结果）
+        if ($message->hasReasoningContent()) {
             return;
         }
         $content = $message->getContent();

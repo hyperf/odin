@@ -26,9 +26,25 @@ class ModelUtil
     }
 
     /**
+     * 检查是否为deepseek系列模型.
+     */
+    public static function isDeepSeekModel(string $model): bool
+    {
+        return str_contains(strtolower($model), 'deepseek');
+    }
+
+    /**
+     * 检查是否为kimi系列模型.
+     */
+    public static function isKimiModel(string $model): bool
+    {
+        return str_contains(strtolower($model), 'kimi');
+    }
+
+    /**
      * 获取模型提供商类型.
      *
-     * @return string 返回 'dashscope'、'openai' 等提供商标识
+     * @return string 返回 'dashscope'、'openai'、'deepseek' 等提供商标识
      */
     public static function getProviderType(string $model): string
     {
@@ -36,10 +52,13 @@ class ModelUtil
             return 'dashscope';
         }
 
-        // 可以在这里扩展其他模型的判断
-        // if (self::isClaudeModel($model)) {
-        //     return 'anthropic';
-        // }
+        if (self::isDeepSeekModel($model)) {
+            return 'deepseek';
+        }
+
+        if (self::isKimiModel($model)) {
+            return 'deepseek'; // Kimi模型使用DeepSeek客户端以支持reasoning_content
+        }
 
         return 'openai'; // 默认为 OpenAI
     }

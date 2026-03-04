@@ -154,6 +154,10 @@ class RequestHandler
      * Convert messages array from OpenAI format to Gemini contents format.
      * Made public for use in cache strategies (GlobalCacheStrategy, UserCacheStrategy).
      *
+     * Important: Gemini API requires that multiple function responses corresponding to
+     * function calls in the same turn must be merged into a single user turn.
+     * This method automatically merges consecutive ToolMessages into a single turn.
+     *
      * @return array{contents: array, system_instruction: null|array}
      */
     public static function convertMessages(array $messages): array
@@ -166,7 +170,10 @@ class RequestHandler
         // but Gemini functionResponse requires the function name
         $toolCallIdToName = [];
 
-        foreach ($messages as $message) {
+        // Buffer for collecting consecutive ToolMessages
+        $toolMessageBuffer = [];
+
+        foreach ($messages as $index => $message) {
             if (! $message instanceof MessageInterface) {
                 continue;
             }
@@ -187,16 +194,58 @@ class RequestHandler
                 }
             }
 
+            // Handle ToolMessage - collect consecutive tool messages
+            if ($message instanceof ToolMessage) {
+                $toolMessageBuffer[] = $message;
+                continue;
+            }
+
+            // If we have buffered tool messages and encounter a non-tool message,
+            // merge all tool responses into a single user turn
+            if (! empty($toolMessageBuffer)) {
+                $mergedParts = [];
+                foreach ($toolMessageBuffer as $toolMsg) {
+                    $toolContent = self::convertToolMessage($toolMsg, $toolCallIdToName);
+                    // Extract the functionResponse part
+                    $mergedParts[] = $toolContent['parts'][0];
+                }
+
+                // Add merged tool responses as a single user turn
+                $contents[] = [
+                    'role' => 'user',
+                    'parts' => $mergedParts,
+                ];
+
+                // Clear buffer
+                $toolMessageBuffer = [];
+            }
+
+            // Calculate context hash for this message (hash of all previous messages)
+            $contextHash = ThoughtSignatureCache::calculateContextHash($messages, $index);
+
             $content = match (true) {
                 $message instanceof UserMessage => self::convertUserMessage($message),
-                $message instanceof AssistantMessage => self::convertAssistantMessage($message),
-                $message instanceof ToolMessage => self::convertToolMessage($message, $toolCallIdToName),
+                $message instanceof AssistantMessage => self::convertAssistantMessage($message, $contextHash),
                 default => null,
             };
 
             if ($content !== null) {
                 $contents[] = $content;
             }
+        }
+
+        // Handle any remaining buffered tool messages at the end
+        if (! empty($toolMessageBuffer)) {
+            $mergedParts = [];
+            foreach ($toolMessageBuffer as $toolMsg) {
+                $toolContent = self::convertToolMessage($toolMsg, $toolCallIdToName);
+                $mergedParts[] = $toolContent['parts'][0];
+            }
+
+            $contents[] = [
+                'role' => 'user',
+                'parts' => $mergedParts,
+            ];
         }
 
         // Build system instruction in Gemini format
@@ -218,14 +267,29 @@ class RequestHandler
 
     /**
      * Convert AssistantMessage to Gemini format.
+     *
+     * @param AssistantMessage $message The assistant message to convert
+     * @param string $contextHash Context hash (cumulative hash of all previous messages)
      */
-    private static function convertAssistantMessage(AssistantMessage $message): array
+    private static function convertAssistantMessage(AssistantMessage $message, string $contextHash = ''): array
     {
         $parts = [];
+        $content = $message->getContent();
 
         // Add text content if present
-        if ($message->getContent()) {
-            $parts[] = ['text' => $message->getContent()];
+        if ($content) {
+            $textPart = ['text' => $content];
+
+            // For normal messages (without tool calls), try to get thoughtSignature from cache
+            if (! $message->hasToolCalls() && $contextHash !== '') {
+                $cacheKey = ThoughtSignatureCache::generateMessageKey($contextHash, $content);
+                $thoughtSignature = ThoughtSignatureCache::get($cacheKey);
+                if ($thoughtSignature) {
+                    $textPart['thoughtSignature'] = $thoughtSignature;
+                }
+            }
+
+            $parts[] = $textPart;
         }
 
         // Add tool calls as functionCall parts
@@ -274,8 +338,13 @@ class RequestHandler
     /**
      * Convert ToolMessage to Gemini format.
      *
+     * Note: This method returns a complete turn structure with role and parts.
+     * However, in convertMessages(), the parts are extracted and merged with other
+     * consecutive ToolMessages to form a single user turn (as required by Gemini API).
+     *
      * @param ToolMessage $message The tool message to convert
      * @param array $toolCallIdToName Mapping of tool_call_id to function name
+     * @return array Complete turn structure: ['role' => 'user', 'parts' => [...]]
      */
     private static function convertToolMessage(ToolMessage $message, array $toolCallIdToName = []): array
     {
@@ -396,7 +465,7 @@ class RequestHandler
         // According to API docs, thinkingConfig should be inside generationConfig
         $thinking = $request->getThinking();
         if (! empty($thinking)) {
-            $thinkingConfig = self::convertThinkingConfig($thinking);
+            $thinkingConfig = self::convertThinkingConfig($request->getModel(), $thinking);
             if (! empty($thinkingConfig)) {
                 $config['thinkingConfig'] = $thinkingConfig;
             }
@@ -408,13 +477,23 @@ class RequestHandler
     /**
      * Convert thinking config to Gemini format.
      */
-    private static function convertThinkingConfig(array $thinking): array
+    private static function convertThinkingConfig(string $model, array $thinking): array
     {
         $config = [];
 
         // Map thinking budget if present
         if (isset($thinking['thinking_budget'])) {
-            $config['thinkingBudget'] = $thinking['thinking_budget'];
+            if (str_starts_with($model, 'gemini-2')) {
+                $config['thinkingBudget'] = $thinking['thinking_budget'];
+            } else {
+                $level = $thinking['level'] ?? 'HIGH';
+                $level = strtoupper($level);
+                if (! in_array($level, ['HIGH', 'LOW'])) {
+                    $level = 'HIGH';
+                }
+                $config['includeThoughts'] = true;
+                $config['thinkingLevel'] = $level;
+            }
         }
 
         return $config;

@@ -17,6 +17,7 @@ use Hyperf\Odin\Exception\InvalidArgumentException;
 use IteratorAggregate;
 use JsonException;
 use Psr\Log\LoggerInterface;
+use RuntimeException;
 
 class SSEClient implements IteratorAggregate
 {
@@ -62,7 +63,7 @@ class SSEClient implements IteratorAggregate
     {
         try {
             $lastCheckTime = microtime(true);
-            $chunkCounter = 0;
+            $buffer = ''; // Accumulator buffer for handling events larger than BUFFER_SIZE
 
             while (! feof($this->stream) && ! $this->shouldClose) {
                 $now = microtime(true);
@@ -71,47 +72,85 @@ class SSEClient implements IteratorAggregate
                     $this->exceptionDetector?->checkTimeout();
                 }
 
-                $chunk = stream_get_line($this->stream, self::BUFFER_SIZE, self::EVENT_END);
+                // Read data into buffer
+                $data = fread($this->stream, self::BUFFER_SIZE);
 
-                if ($chunk === false) {
+                if ($data === false || $data === '') {
                     $this->exceptionDetector?->checkTimeout();
                     continue;
                 }
 
-                ++$chunkCounter;
+                $buffer .= $data;
 
-                $eventData = $this->parseEvent($chunk);
-                $event = SSEEvent::fromArray($eventData);
+                // Process complete SSE events (separated by \n\n)
+                while (($pos = strpos($buffer, self::EVENT_END)) !== false) {
+                    $chunk = substr($buffer, 0, $pos);
+                    $buffer = substr($buffer, $pos + strlen(self::EVENT_END));
 
-                if ($event->getId() !== null) {
-                    $this->lastEventId = $event->getId();
-                }
-
-                if ($event->getRetry() !== null) {
-                    $retryInt = (int) $event->getRetry();
-                    if ($retryInt > 0 && $retryInt <= 600000) {
-                        $this->retryTimeout = $retryInt;
+                    // Skip empty chunks
+                    if (empty(trim($chunk))) {
+                        continue;
                     }
+
+                    $eventData = $this->parseEvent($chunk);
+                    $event = SSEEvent::fromArray($eventData);
+
+                    if ($event->getId() !== null) {
+                        $this->lastEventId = $event->getId();
+                    }
+
+                    if ($event->getRetry() !== null) {
+                        $retryInt = (int) $event->getRetry();
+                        if ($retryInt > 0 && $retryInt <= 600000) {
+                            $this->retryTimeout = $retryInt;
+                        }
+                    }
+
+                    if ($event->isEmpty()) {
+                        continue;
+                    }
+
+                    $chunkInfo = [
+                        'event_type' => $event->getEvent(),
+                        'event_id' => $event->getId(),
+                        'data_preview' => is_string($event->getData())
+                            ? substr($event->getData(), 0, 200)
+                            : (is_array($event->getData()) ? json_encode($event->getData()) : 'non-string-data'),
+                        'raw_chunk_size' => strlen($chunk),
+                    ];
+                    $this->exceptionDetector?->onChunkReceived($chunkInfo);
+
+                    yield $event;
                 }
 
-                if ($event->isEmpty()) {
-                    continue;
+                // Prevent buffer from growing indefinitely (protect against malformed streams)
+                // Set limit to 1MB - any single SSE event larger than this is likely an error
+                if (strlen($buffer) > 1024 * 1024) {
+                    throw new RuntimeException('SSE event exceeds maximum size (1MB). Possible malformed stream or missing event delimiter.');
                 }
-
-                $chunkInfo = [
-                    'event_type' => $event->getEvent(),
-                    'event_id' => $event->getId(),
-                    'data_preview' => is_string($event->getData())
-                        ? substr($event->getData(), 0, 200)
-                        : (is_array($event->getData()) ? json_encode($event->getData()) : 'non-string-data'),
-                    'raw_chunk_size' => strlen($chunk),
-                ];
-                $this->exceptionDetector?->onChunkReceived($chunkInfo);
-
-                yield $event;
 
                 if (! is_resource($this->stream) || feof($this->stream)) {
                     break;
+                }
+            }
+
+            // Process any remaining data in buffer after stream ends
+            if (! empty(trim($buffer))) {
+                $eventData = $this->parseEvent($buffer);
+                $event = SSEEvent::fromArray($eventData);
+
+                if (! $event->isEmpty()) {
+                    $chunkInfo = [
+                        'event_type' => $event->getEvent(),
+                        'event_id' => $event->getId(),
+                        'data_preview' => is_string($event->getData())
+                            ? substr($event->getData(), 0, 200)
+                            : (is_array($event->getData()) ? json_encode($event->getData()) : 'non-string-data'),
+                        'raw_chunk_size' => strlen($buffer),
+                    ];
+                    $this->exceptionDetector?->onChunkReceived($chunkInfo);
+
+                    yield $event;
                 }
             }
         } finally {

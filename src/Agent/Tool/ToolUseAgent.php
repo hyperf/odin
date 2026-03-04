@@ -107,6 +107,7 @@ class ToolUseAgent
             $response = $gen->current();
 
             $toolCalls = [];
+            $toolCallIds = [];
             $content = '';
             $lastChoice = null;
             /** @var ChatCompletionChoice $choice */
@@ -116,7 +117,8 @@ class ToolUseAgent
                 $content .= $message->getContent();
                 if ($message instanceof AssistantMessage && $message->hasToolCalls()) {
                     foreach ($message->getToolCalls() as $toolCall) {
-                        if ($toolCall->getId()) {
+                        if ($toolCall->getId() && ! in_array($toolCall->getId(), $toolCallIds)) {
+                            $toolCallIds[] = $toolCall->getId();
                             $toolCalls[] = new ToolCall($toolCall->getName(), [], $toolCall->getId(), $toolCall->getType(), $toolCall->getStreamArguments());
                         } else {
                             /** @var ToolCall $lastToolCall */

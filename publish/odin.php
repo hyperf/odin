@@ -20,6 +20,14 @@ use function Hyperf\Support\env;
 return [
     'llm' => [
         'default' => 'gpt-4o-global',
+        // 模型智能路由配置
+        // 启用后，OpenAIModel 会根据模型名称自动路由到对应的客户端
+        'smart_routing' => [
+            // 是否启用 DeepSeek 模型智能路由（模型名包含 deepseek 时自动使用 DeepSeek 客户端）
+            'deepseek' => env('ODIN_SMART_ROUTING_DEEPSEEK', false),
+            // 是否启用 Qwen 模型智能路由（模型名包含 qwen 时自动使用 DashScope 客户端）
+            'qwen' => env('ODIN_SMART_ROUTING_QWEN', false),
+        ],
         'general_model_options' => [
             'chat' => true,
             'function_call' => false,

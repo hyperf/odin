@@ -41,7 +41,8 @@ $start = microtime(true);
 $response = $model->chat($messages);
 $message = $response->getFirstChoice()->getMessage();
 if ($message instanceof AssistantMessage) {
-    echo $message->getReasoningContent() ?? $message->getContent();
+    echo '<think>' . PHP_EOL . $message->getReasoningContent() . PHP_EOL . '<think>' . PHP_EOL;
+    echo $message->getContent();
 }
 echo PHP_EOL;
 echo '非流式耗时' . (microtime(true) - $start) . '秒' . PHP_EOL;

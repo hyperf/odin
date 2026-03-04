@@ -13,6 +13,7 @@ declare(strict_types=1);
 namespace Hyperf\Odin\Api\Providers\Gemini;
 
 use Hyperf\Context\ApplicationContext;
+use Hyperf\Odin\Contract\Message\MessageInterface;
 use Hyperf\Odin\Exception\RuntimeException;
 use Psr\SimpleCache\CacheInterface;
 
@@ -28,7 +29,7 @@ class ThoughtSignatureCache
 {
     private const CACHE_PREFIX = 'gemini:thought_signature:';
 
-    private const CACHE_TTL = 3600;
+    private const CACHE_TTL = 7200;
 
     /**
      * Store a thought signature for a tool call.
@@ -75,6 +76,39 @@ class ThoughtSignatureCache
     public static function isAvailable(): bool
     {
         return self::getCacheDriver() !== null;
+    }
+
+    /**
+     * Calculate cumulative context hash from message list.
+     * This creates a unique hash based on all previous messages in the conversation.
+     *
+     * @param MessageInterface[] $messages Array of messages
+     * @param int $upToIndex Calculate hash up to this index (exclusive)
+     * @return string The cumulative context hash
+     */
+    public static function calculateContextHash(array $messages, int $upToIndex): string
+    {
+        $hash = '';
+        for ($i = 0; $i < $upToIndex && $i < count($messages); ++$i) {
+            $message = $messages[$i];
+            // Accumulate hash = md5(previous_hash + message_hash)
+            // Using getHash() which includes all message properties
+            $hash = md5($hash . $message->getHash());
+        }
+        return $hash;
+    }
+
+    /**
+     * Generate cache key for normal message thought signature.
+     * Uses context hash to ensure uniqueness within a conversation.
+     *
+     * @param string $contextHash The cumulative context hash
+     * @param string $content The message content
+     * @return string The cache key
+     */
+    public static function generateMessageKey(string $contextHash, string $content): string
+    {
+        return 'msg_' . $contextHash . '_' . md5($content);
     }
 
     /**

@@ -180,11 +180,12 @@ $agent = new ToolUseAgent(
 echo "===== 顺序工具调用示例 =====\n";
 $start = microtime(true);
 
-$userMessage = new UserMessage('请计算 23 × 45，然后查询北京的天气，最后将"你好"翻译成英语。请详细说明每一步。');
+$userMessage = new UserMessage('请计算 23 × 45，然后查询北京的天气，最后将"你好"翻译成英语。请详细说明每一步。每次都只是调用一个工具');
 $response = $agent->chat($userMessage);
 
 $message = $response->getFirstChoice()->getMessage();
 if ($message instanceof AssistantMessage) {
+    echo '<think>' . PHP_EOL . $message->getReasoningContent() . PHP_EOL . '<think>' . PHP_EOL;
     echo $message->getContent();
 }
 

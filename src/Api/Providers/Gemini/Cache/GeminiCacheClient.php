@@ -23,9 +23,9 @@ use Throwable;
 
 /**
  * Gemini 缓存 API 客户端.
- * 封装缓存相关的 API 调用.
+ * 使用 x-goog-api-key 认证方式，适用于 Generative Language API.
  */
-class GeminiCacheClient
+class GeminiCacheClient implements GeminiCacheClientInterface
 {
     private Client $client;
 
@@ -45,9 +45,10 @@ class GeminiCacheClient
             'connect_timeout' => $apiOptions?->getConnectionTimeout() ?? 5.0,
         ];
 
-        // Add proxy if configured
+        // Apply proxy configuration (supports HTTP/HTTPS and SOCKS5 proxies)
         if ($apiOptions && $apiOptions->hasProxy()) {
-            $clientOptions['proxy'] = $apiOptions->getProxy();
+            $proxyConfig = $apiOptions->getGuzzleProxyConfig();
+            $clientOptions = array_merge($clientOptions, $proxyConfig);
         }
 
         $this->client = new Client($clientOptions);
@@ -56,19 +57,17 @@ class GeminiCacheClient
     /**
      * 创建缓存.
      *
-     * @param string $model 模型名称
+     * @param string $model 模型名称，支持以下格式：
+     *                      - models/{model}
+     *                      - projects/{project}/locations/{location}/publishers/{publisher}/models/{model}
      * @param array $config 缓存配置，包含 systemInstruction, tools, contents, ttl
      * @return array 缓存响应数据，包含 name 和 usageMetadata
      * @throws Exception
      */
     public function createCache(string $model, array $config): array
     {
-        $url = $this->getBaseUri() . '/cachedContents';
-
-        // Ensure model name has 'models/' prefix (required by Gemini Cache API)
-        if (! str_starts_with($model, 'models/')) {
-            $model = 'models/' . $model;
-        }
+        // 构建缓存 API URL
+        $url = $this->buildCacheUrl($model);
 
         // Merge config fields directly into body according to Gemini API spec
         $body = array_merge(
@@ -143,12 +142,15 @@ class GeminiCacheClient
     /**
      * 删除缓存.
      *
-     * @param string $cacheName 缓存名称（如 cachedContents/xxx）
+     * @param string $cacheName 缓存名称，支持以下格式：
+     *                          - cachedContents/xxx
+     *                          - projects/{project}/locations/{location}/cachedContents/{cacheId}
      * @throws Exception
      */
     public function deleteCache(string $cacheName): void
     {
-        $url = $this->getBaseUri() . '/' . $cacheName;
+        // 如果是完整资源路径，直接使用；否则拼接 baseUri
+        $url = $this->buildCacheResourceUrl($cacheName);
 
         $options = [
             RequestOptions::HEADERS => $this->getHeaders(),
@@ -177,13 +179,16 @@ class GeminiCacheClient
     /**
      * 获取缓存信息.
      *
-     * @param string $cacheName 缓存名称（如 cachedContents/xxx）
+     * @param string $cacheName 缓存名称，支持以下格式：
+     *                          - cachedContents/xxx
+     *                          - projects/{project}/locations/{location}/cachedContents/{cacheId}
      * @return array 缓存信息
      * @throws Exception
      */
     public function getCache(string $cacheName): array
     {
-        $url = $this->getBaseUri() . '/' . $cacheName;
+        // 如果是完整资源路径，直接使用；否则拼接 baseUri
+        $url = $this->buildCacheResourceUrl($cacheName);
 
         $options = [
             RequestOptions::HEADERS => $this->getHeaders(),
@@ -219,5 +224,30 @@ class GeminiCacheClient
     private function getBaseUri(): string
     {
         return rtrim($this->config->getBaseUrl(), '/');
+    }
+
+    /**
+     * 根据 model 格式构建缓存 API URL.
+     *
+     * @param string $model 模型名称
+     * @return string 缓存 API URL
+     */
+    private function buildCacheUrl(string $model): string
+    {
+        // Generative Language API 格式: {baseUri}/cachedContents
+        return $this->getBaseUri() . '/cachedContents';
+    }
+
+    /**
+     * 根据 cacheName 格式构建缓存资源 URL (用于 get/delete 操作).
+     *
+     * @param string $cacheName 缓存名称
+     * @return string 缓存资源 URL
+     */
+    private function buildCacheResourceUrl(string $cacheName): string
+    {
+        // Generative Language API 格式: {baseUri}/{cacheName}
+        // cacheName 格式: cachedContents/{id}
+        return $this->getBaseUri() . '/' . $cacheName;
     }
 }

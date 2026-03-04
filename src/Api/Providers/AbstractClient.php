@@ -216,6 +216,19 @@ abstract class AbstractClient implements ClientInterface
     }
 
     /**
+     * 规范化模型名称.
+     * 默认实现：直接返回原始模型名称，不做任何修改.
+     * 子类可以根据具体服务商的要求重写此方法.
+     *
+     * @param string $model 原始模型名称
+     * @return string 规范化后的模型名称
+     */
+    public function normalizeModelName(string $model): string
+    {
+        return $model;
+    }
+
+    /**
      * 构建聊天补全API的URL.
      */
     abstract protected function buildChatCompletionsUrl(): string;
@@ -294,8 +307,10 @@ abstract class AbstractClient implements ClientInterface
         if ($this->getBaseUri()) {
             $options['base_uri'] = $this->getBaseUri();
         }
-        if ($this->requestOptions->getProxy()) {
-            $options['proxy'] = $this->requestOptions->getProxy();
+        // Apply proxy configuration (supports HTTP/HTTPS and SOCKS5 proxies)
+        $proxyConfig = $this->requestOptions->getGuzzleProxyConfig();
+        if (! empty($proxyConfig)) {
+            $options = array_merge($options, $proxyConfig);
         }
 
         // 从 requestOptions 获取 HTTP 处理器配置
@@ -331,10 +346,14 @@ abstract class AbstractClient implements ClientInterface
      */
     protected function logRequest(string $logType, string $url, array $options, string $requestId): void
     {
+        // 先对敏感数据进行脱敏处理
+        $maskedOptions = LogUtil::maskSensitiveData($options);
+
         $logData = [
             'url' => $url,
-            'options' => $options,
+            'options' => $maskedOptions,
             'request_id' => $requestId,
+            'has_proxy' => $this->requestOptions->hasProxy(),
         ];
 
         $this->logger?->info($logType, LoggingConfigHelper::filterAndFormatLogData($logData, $this->requestOptions));

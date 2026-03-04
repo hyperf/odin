@@ -40,7 +40,7 @@ class GeminiCacheConfig
     /**
      * Cache TTL in seconds.
      * Range: 60s - 86400s (24 hours).
-     * Default: 3600 seconds (1 hour).
+     * Default: 300 seconds (5 minutes).
      */
     private int $cacheTtl;
 
@@ -58,7 +58,7 @@ class GeminiCacheConfig
         bool $enableCache = false,
         int $minCacheTokens = 4096,
         int $refreshThreshold = 8000,
-        int $cacheTtl = 600,
+        int $cacheTtl = 300,
         float $estimationRatio = 0.33
     ) {
         $this->enableCache = $enableCache;
@@ -119,5 +119,10 @@ class GeminiCacheConfig
             // Default: use the highest threshold to be safe
             default => 4096,
         };
+    }
+
+    public function setEnableCache(bool $enableCache): void
+    {
+        $this->enableCache = $enableCache;
     }
 }

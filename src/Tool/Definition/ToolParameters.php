@@ -83,8 +83,12 @@ class ToolParameters implements Arrayable
 
     /**
      * 将参数转换为数组，兼容 JSON Schema 格式.
+     *
+     * @param int $maxDepth 最大递归深度，用于处理 $ref 引用
+     * @param int $currentDepth 当前递归深度
+     * @param array $fullSchema 完整的 schema 定义，用于解析 $ref 引用
      */
-    public function toArray(): array
+    public function toArray(int $maxDepth = 2, int $currentDepth = 0, array $fullSchema = []): array
     {
         $result = [
             'type' => $this->getType(),
@@ -99,13 +103,18 @@ class ToolParameters implements Arrayable
             $result['description'] = $this->description;
         }
 
+        // 如果 fullSchema 为空，则构建完整的 schema 用于 $ref 解析
+        if (empty($fullSchema)) {
+            $fullSchema = $this->buildFullSchema();
+        }
+
         // 处理属性
         $properties = [];
         foreach ($this->getProperties() as $property) {
             if (! $property instanceof ToolParameter) {
                 continue;
             }
-            $properties[$property->getName()] = $property->toArray();
+            $properties[$property->getName()] = $property->toArray($maxDepth, $currentDepth, $fullSchema);
         }
 
         if (! empty($properties)) {
@@ -117,10 +126,7 @@ class ToolParameters implements Arrayable
             $result['required'] = $this->getRequired();
         }
 
-        // 添加附加属性
-        if ($this->additionalProperties !== null) {
-            $result['additionalProperties'] = $this->additionalProperties;
-        }
+        // 移除 additionalProperties，不再输出以提高 LLM 兼容性
 
         return $result;
     }
@@ -294,5 +300,58 @@ class ToolParameters implements Arrayable
     {
         $this->description = $description;
         return $this;
+    }
+
+    /**
+     * 构建完整的 schema 定义，用于 $ref 解析.
+     */
+    protected function buildFullSchema(): array
+    {
+        $schema = [
+            'type' => $this->type,
+            'properties' => [],
+        ];
+
+        foreach ($this->properties as $property) {
+            if ($property instanceof ToolParameter) {
+                $schema['properties'][$property->getName()] = $this->buildPropertySchema($property);
+            }
+        }
+
+        return $schema;
+    }
+
+    /**
+     * 递归构建属性的完整 schema.
+     */
+    protected function buildPropertySchema(ToolParameter $property): array
+    {
+        $schema = [
+            'type' => $property->getType(),
+            'description' => $property->getDescription(),
+        ];
+
+        // 处理对象类型
+        if ($property->getType() === 'object') {
+            $schema['properties'] = [];
+            foreach ($property->getProperties() as $subProperty) {
+                $schema['properties'][$subProperty->getName()] = $this->buildPropertySchema($subProperty);
+            }
+            if (! empty($property->getPropertyRequired())) {
+                $schema['required'] = $property->getPropertyRequired();
+            }
+        }
+
+        // 处理数组类型
+        if ($property->getType() === 'array' && $property->getItems() !== null) {
+            $schema['items'] = $property->getItems();
+        }
+
+        // 处理引用类型
+        if ($property->getRef() !== null) {
+            $schema['$ref'] = $property->getRef();
+        }
+
+        return $schema;
     }
 }

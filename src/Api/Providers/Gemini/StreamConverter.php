@@ -52,6 +52,18 @@ class StreamConverter implements IteratorAggregate
     private array $candidateHasToolCalls = [];
 
     /**
+     * Track content for each candidate (for normal messages without tool calls).
+     * Structure: [candidateIndex => string].
+     */
+    private array $contentTracker = [];
+
+    /**
+     * Track thoughtSignature for each candidate (for normal messages).
+     * Structure: [candidateIndex => string].
+     */
+    private array $thoughtSignatureTracker = [];
+
+    /**
      * Strategy for handling function call arguments in streaming mode.
      * - 'complete': Each chunk contains complete args (Gemini's current behavior)
      * - 'incremental': Each chunk contains partial args that need to be merged
@@ -61,16 +73,24 @@ class StreamConverter implements IteratorAggregate
 
     private int $cacheWriteTokens;
 
+    /**
+     * Context hash for thought signature caching.
+     * Represents the cumulative hash of all previous messages.
+     */
+    private string $contextHash;
+
     public function __construct(
         ResponseInterface $response,
         ?LoggerInterface $logger,
         string $model,
-        int $cacheWriteTokens = 0
+        int $cacheWriteTokens = 0,
+        string $contextHash = ''
     ) {
         $this->response = $response;
         $this->logger = $logger;
         $this->model = $model;
         $this->cacheWriteTokens = $cacheWriteTokens;
+        $this->contextHash = $contextHash;
     }
 
     /**
@@ -205,6 +225,9 @@ class StreamConverter implements IteratorAggregate
                 } else {
                     $choice['finish_reason'] = $this->convertFinishReason($finishReason);
                 }
+
+                // Note: reasoning_content is now streamed incrementally in each chunk
+                // No need to output accumulated content here
             }
 
             $choices[] = $choice;
@@ -247,13 +270,37 @@ class StreamConverter implements IteratorAggregate
             $this->candidateHasToolCalls[$candidateIndex] = false;
         }
 
+        // Initialize content tracker for this candidate if not exists
+        if (! isset($this->contentTracker[$candidateIndex])) {
+            $this->contentTracker[$candidateIndex] = '';
+        }
+
         foreach ($parts as $part) {
+            // Check if this is a thought part
+            $isThought = isset($part['thought']) && $part['thought'] === true;
+
             // Handle text delta
             if (isset($part['text'])) {
-                if (! isset($delta['content'])) {
-                    $delta['content'] = '';
+                if ($isThought) {
+                    // This is thinking/reasoning content - output immediately in stream
+                    if (! isset($delta['reasoning_content'])) {
+                        $delta['reasoning_content'] = '';
+                    }
+                    $delta['reasoning_content'] .= $part['text'];
+                } else {
+                    // This is normal response content
+                    if (! isset($delta['content'])) {
+                        $delta['content'] = '';
+                    }
+                    $delta['content'] .= $part['text'];
+                    // Track content for cache key generation
+                    $this->contentTracker[$candidateIndex] .= $part['text'];
                 }
-                $delta['content'] .= $part['text'];
+            }
+
+            // Capture thoughtSignature for normal messages (can be on text part or standalone)
+            if (isset($part['thoughtSignature']) && ! isset($part['functionCall'])) {
+                $this->thoughtSignatureTracker[$candidateIndex] = $part['thoughtSignature'];
             }
 
             // Handle function call delta
@@ -292,8 +339,13 @@ class StreamConverter implements IteratorAggregate
         // Gemini format:
         // - promptTokenCount: tokens from new input (not from cache)
         // - cachedContentTokenCount: tokens read from cache
-        $inputTokens = $usageMetadata['promptTokenCount'] ?? 0;
         $cacheReadTokens = $usageMetadata['cachedContentTokenCount'] ?? 0;
+        $inputTokens = $usageMetadata['promptTokenCount'] ?? 0 - $cacheReadTokens;
+
+        // 如果有 $cacheWriteTokens，代表是第一次写入，那么本次虽然会读取到缓存但是不计入读取量
+        if ($this->cacheWriteTokens > 0) {
+            $cacheReadTokens = 0;
+        }
 
         // OpenAI format: prompt_tokens = total prompt tokens (including cache)
         // Following AWS Bedrock's implementation for consistency
@@ -624,14 +676,32 @@ class StreamConverter implements IteratorAggregate
     }
 
     /**
-     * Cache thought signatures from all tool calls tracked during streaming.
+     * Cache thought signatures from all tool calls and normal messages tracked during streaming.
      */
     private function cacheThoughtSignatures(): void
     {
+        // Cache tool call thought signatures
         foreach ($this->toolCallTracker as $candidateIndex => $toolCalls) {
             foreach ($toolCalls as $toolCallIndex => $toolCall) {
                 if (isset($toolCall['thought_signature'])) {
                     ThoughtSignatureCache::store($toolCall['id'], $toolCall['thought_signature']);
+                }
+            }
+        }
+
+        // Cache normal message thought signatures (for candidates without tool calls)
+        // Only cache if we have a context hash (otherwise we can't generate a unique key)
+        if ($this->contextHash === '') {
+            return;
+        }
+
+        foreach ($this->thoughtSignatureTracker as $candidateIndex => $thoughtSignature) {
+            // Only cache if this candidate has no tool calls
+            if (empty($this->candidateHasToolCalls[$candidateIndex])) {
+                $content = $this->contentTracker[$candidateIndex] ?? '';
+                if ($content !== '') {
+                    $cacheKey = ThoughtSignatureCache::generateMessageKey($this->contextHash, $content);
+                    ThoughtSignatureCache::store($cacheKey, $thoughtSignature);
                 }
             }
         }

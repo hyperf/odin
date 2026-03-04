@@ -21,6 +21,7 @@ use Hyperf\Odin\Agent\Tool\ToolUseAgent;
 use Hyperf\Odin\Api\Response\ChatCompletionChoice;
 use Hyperf\Odin\Logger;
 use Hyperf\Odin\Memory\MemoryManager;
+use Hyperf\Odin\Message\AssistantMessage;
 use Hyperf\Odin\Message\SystemMessage;
 use Hyperf\Odin\Message\UserMessage;
 use Hyperf\Odin\ModelMapper;
@@ -275,7 +276,9 @@ $response = $agent->chatStreamed($userMessage);
 $content = '';
 /** @var ChatCompletionChoice $choice */
 foreach ($response as $choice) {
-    $delta = $choice->getMessage()->getContent();
+    /** @var AssistantMessage $message */
+    $message = $choice->getMessage();
+    $delta = $message->getReasoningContent() ?: $message->getContent();
     if ($delta !== null) {
         echo $delta;
         $content .= $delta;

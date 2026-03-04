@@ -21,9 +21,12 @@ use Hyperf\Odin\Api\Providers\AzureOpenAI\AzureOpenAIConfig;
 use Hyperf\Odin\Api\Providers\DashScope\Cache\DashScopeAutoCacheConfig;
 use Hyperf\Odin\Api\Providers\DashScope\DashScope;
 use Hyperf\Odin\Api\Providers\DashScope\DashScopeConfig;
+use Hyperf\Odin\Api\Providers\DeepSeek\DeepSeek;
+use Hyperf\Odin\Api\Providers\DeepSeek\DeepSeekConfig;
 use Hyperf\Odin\Api\Providers\Gemini\Cache\GeminiCacheConfig;
 use Hyperf\Odin\Api\Providers\Gemini\Gemini;
 use Hyperf\Odin\Api\Providers\Gemini\GeminiConfig;
+use Hyperf\Odin\Api\Providers\Gemini\ServiceAccountConfig;
 use Hyperf\Odin\Api\Providers\OpenAI\OpenAI;
 use Hyperf\Odin\Api\Providers\OpenAI\OpenAIConfig;
 use Hyperf\Odin\Api\RequestOptions\ApiOptions;
@@ -208,16 +211,24 @@ class ClientFactory
                 enableCache: (bool) ($autoCacheConfig['enable_cache'] ?? false),
                 minCacheTokens: $autoCacheConfig['min_cache_tokens'] ?? 4096,
                 refreshThreshold: $autoCacheConfig['refresh_threshold'] ?? 8000,
-                cacheTtl: $autoCacheConfig['cache_ttl'] ?? 600,
+                cacheTtl: $autoCacheConfig['cache_ttl'] ?? 300,
                 estimationRatio: (float) ($autoCacheConfig['estimation_ratio'] ?? 0.33)
             );
+        }
+
+        $serviceAccountConfig = null;
+        if (isset($config['service_account'])) {
+            $serviceAccountConfig = ServiceAccountConfig::fromArray($config['service_account']);
+        } elseif (isset($config['service_account_key_path'])) {
+            $serviceAccountConfig = ServiceAccountConfig::fromFile($config['service_account_key_path']);
         }
 
         // 创建配置对象
         $clientConfig = new GeminiConfig(
             apiKey: $apiKey,
             baseUrl: $baseUrl,
-            skipApiKeyValidation: $skipApiKeyValidation
+            skipApiKeyValidation: $skipApiKeyValidation,
+            serviceAccountConfig: $serviceAccountConfig,
         );
 
         // 设置缓存配置
@@ -239,6 +250,39 @@ class ClientFactory
     }
 
     /**
+     * 创建DeepSeek客户端.
+     *
+     * @param array $config 配置参数
+     * @param null|ApiOptions $apiOptions API请求选项
+     * @param null|LoggerInterface $logger 日志记录器
+     */
+    public static function createDeepSeekClient(array $config, ?ApiOptions $apiOptions = null, ?LoggerInterface $logger = null): ClientInterface
+    {
+        // 验证必要的配置参数
+        $apiKey = $config['api_key'] ?? '';
+        $baseUrl = $config['base_url'] ?? 'https://api.deepseek.com';
+        $skipApiKeyValidation = (bool) ($config['skip_api_key_validation'] ?? false);
+
+        // 创建配置对象
+        $clientConfig = new DeepSeekConfig(
+            apiKey: $apiKey,
+            baseUrl: $baseUrl,
+            skipApiKeyValidation: $skipApiKeyValidation
+        );
+
+        // 如果未提供API选项，则创建一个默认的选项
+        if ($apiOptions === null) {
+            $apiOptions = new ApiOptions();
+        }
+
+        // 创建API实例
+        $deepSeek = new DeepSeek();
+
+        // 创建客户端
+        return $deepSeek->getClient($clientConfig, $apiOptions, $logger);
+    }
+
+    /**
      * 根据提供商类型创建客户端.
      *
      * @param string $provider 提供商类型 (openai, azure_openai, aws_bedrock, dashscope, gemini)
@@ -257,6 +301,7 @@ class ClientFactory
             'aws_bedrock' => self::createAwsBedrockClient($config, $apiOptions, $logger),
             'dashscope' => self::createDashScopeClient($config, $apiOptions, $logger),
             'gemini' => self::createGeminiClient($config, $apiOptions, $logger),
+            'deepseek' => self::createDeepSeekClient($config, $apiOptions, $logger),
             default => throw new InvalidArgumentException(sprintf('Unsupported provider: %s', $provider)),
         };
     }

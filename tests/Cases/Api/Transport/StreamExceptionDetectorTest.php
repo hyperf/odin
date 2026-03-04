@@ -43,9 +43,9 @@ class StreamExceptionDetectorTest extends AbstractTestCase
         // 使用反射检查内部配置
         $config = $this->getNonpublicProperty($detector, 'timeoutConfig');
 
-        $this->assertEquals(600.0, $config['total']); // 流式处理默认超时更长
+        $this->assertEquals(1800.0, $config['total']); // 流式处理默认超时更长
         $this->assertEquals(60.0, $config['stream_first']);
-        $this->assertEquals(30.0, $config['stream_chunk']);
+        $this->assertEquals(60.0, $config['stream_chunk']);
     }
 
     /**

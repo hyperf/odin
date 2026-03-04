@@ -41,4 +41,13 @@ interface ClientInterface
      * 参照 OpenAI API 实现：https://platform.openai.com/docs/api-reference/completions.
      */
     public function completions(CompletionRequest $completionRequest): TextCompletionResponse;
+
+    /**
+     * 规范化模型名称.
+     * 不同的服务商可能有不同的模型名称格式要求.
+     *
+     * @param string $model 原始模型名称
+     * @return string 规范化后的模型名称
+     */
+    public function normalizeModelName(string $model): string;
 }

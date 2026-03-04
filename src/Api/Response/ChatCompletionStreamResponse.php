@@ -108,6 +108,11 @@ class ChatCompletionStreamResponse extends AbstractResponse implements Stringabl
         $this->afterChatCompletionsStreamEvent = $afterChatCompletionsStreamEvent;
     }
 
+    public function getAfterChatCompletionsStreamEvent(): ?AfterChatCompletionsStreamEvent
+    {
+        return $this->afterChatCompletionsStreamEvent ?? null;
+    }
+
     public function getId(): ?string
     {
         return $this->id;

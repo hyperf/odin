@@ -42,12 +42,35 @@ $response = $model->chatStream($messages);
 
 // 使用流式API调用
 $start = microtime(true);
+$inThinking = false;
+$thinkingEnded = false;
+
 /** @var ChatCompletionChoice $choice */
 foreach ($response->getStreamIterator() as $choice) {
     $message = $choice->getMessage();
     if ($message instanceof AssistantMessage) {
-        echo $message->getReasoningContent() ?? $message->getContent();
+        $reasoningContent = $message->getReasoningContent();
+        $content = $message->getContent();
+
+        // Handle reasoning content with <think> tags
+        if ($reasoningContent !== null && $reasoningContent !== '') {
+            if (! $inThinking) {
+                echo '<think>' . PHP_EOL;
+                $inThinking = true;
+            }
+            echo $reasoningContent;
+        }
+
+        // Handle regular content
+        if ($content !== null && $content !== '') {
+            if ($inThinking && ! $thinkingEnded) {
+                echo PHP_EOL . '</think>' . PHP_EOL;
+                $thinkingEnded = true;
+            }
+            echo $content;
+        }
     }
 }
+
 echo PHP_EOL;
 echo '流式耗时' . (microtime(true) - $start) . '秒' . PHP_EOL;

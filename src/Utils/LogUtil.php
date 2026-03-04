@@ -37,6 +37,23 @@ class LogUtil
 
     private const PERF_TIMEOUT_RISK = 'TIMEOUT_RISK';
 
+    /**
+     * 敏感字段列表（不区分大小写）.
+     * 这些字段会被自动脱敏处理.
+     */
+    private const SENSITIVE_FIELDS = [
+        'authorization',
+        'api-key',
+        'apikey',
+        'x-api-key',
+        'api_key',
+        'secret',
+        'password',
+        'token',
+        'access_token',
+        'refresh_token',
+    ];
+
     public static function getHyperfLogger(): ?LoggerInterface
     {
         return ApplicationContext::getContainer()->get(LoggerInterface::class);
@@ -119,6 +136,68 @@ class LogUtil
         }
 
         return self::PERF_NORMAL; // <= 3分钟，正常
+    }
+
+    /**
+     * 脱敏敏感数据.
+     * 自动检测并脱敏敏感字段（如：Authorization, api-key等）.
+     *
+     * @param array $data 原始数据
+     * @return array 脱敏后的数据
+     */
+    public static function maskSensitiveData(array $data): array
+    {
+        return self::recursiveMask($data);
+    }
+
+    /**
+     * 检查字段名是否为敏感字段（不区分大小写）.
+     */
+    private static function isSensitiveField(string $fieldName): bool
+    {
+        $fieldNameLower = strtolower($fieldName);
+        foreach (self::SENSITIVE_FIELDS as $sensitiveField) {
+            if (str_contains($fieldNameLower, $sensitiveField)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 对敏感值进行脱敏处理.
+     * 显示前4位和后4位，中间用星号替换.
+     */
+    private static function maskValue(string $value): string
+    {
+        $length = strlen($value);
+
+        // 如果值太短，完全用星号替换
+        if ($length <= 8) {
+            return '***';
+        }
+
+        // 显示前4位和后4位
+        $prefix = substr($value, 0, 4);
+        $suffix = substr($value, -4);
+        $maskedLength = $length - 8;
+
+        return $prefix . str_repeat('*', min($maskedLength, 20)) . $suffix;
+    }
+
+    /**
+     * 递归脱敏数组中的敏感字段.
+     */
+    private static function recursiveMask(array $data): array
+    {
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                $data[$key] = self::recursiveMask($value);
+            } elseif (is_string($value) && is_string($key) && self::isSensitiveField($key)) {
+                $data[$key] = self::maskValue($value);
+            }
+        }
+        return $data;
     }
 
     /**

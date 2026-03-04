@@ -14,7 +14,7 @@ namespace Hyperf\Odin\Api\Providers\Gemini\Cache\Strategy;
 
 use Hyperf\Context\ApplicationContext;
 use Hyperf\Odin\Api\Providers\Gemini\Cache\CacheInfo;
-use Hyperf\Odin\Api\Providers\Gemini\Cache\GeminiCacheClient;
+use Hyperf\Odin\Api\Providers\Gemini\Cache\GeminiCacheClientInterface;
 use Hyperf\Odin\Api\Providers\Gemini\Cache\GeminiCacheConfig;
 use Hyperf\Odin\Api\Providers\Gemini\RequestHandler;
 use Hyperf\Odin\Api\Request\ChatCompletionRequest;
@@ -36,12 +36,12 @@ class ConversationCacheStrategy implements CacheStrategyInterface
 {
     private CacheInterface $cache;
 
-    private GeminiCacheClient $cacheClient;
+    private GeminiCacheClientInterface $cacheClient;
 
     private ?LoggerInterface $logger;
 
     public function __construct(
-        GeminiCacheClient $cacheClient,
+        GeminiCacheClientInterface $cacheClient,
         ?LoggerInterface $logger = null,
     ) {
         $this->cache = ApplicationContext::getContainer()->get(CacheInterface::class);
@@ -439,7 +439,7 @@ class ConversationCacheStrategy implements CacheStrategyInterface
         LocalCachedData $localCachedData,
         int $ttl
     ): void {
-        $this->cache->set($cacheKey, $localCachedData->toArray(), $ttl);
+        $this->cache->set($cacheKey, $localCachedData->toArray(), $ttl - 10);
     }
 
     /**

@@ -38,6 +38,7 @@ use Hyperf\Odin\Message\UserMessage;
 use Hyperf\Odin\Utils\EventUtil;
 use Hyperf\Odin\Utils\LoggingConfigHelper;
 use Hyperf\Odin\Utils\LogUtil;
+use Hyperf\Odin\Utils\ProxyUtil;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Throwable;
@@ -91,6 +92,7 @@ class Client extends AbstractClient
                 'request_id' => $requestId,
                 'model_id' => $modelId,
                 'args' => $args,
+                'has_proxy' => $this->requestOptions->hasProxy(),
             ], $this->requestOptions));
 
             // 调用模型
@@ -156,6 +158,7 @@ class Client extends AbstractClient
                 'request_id' => $requestId,
                 'model_id' => $modelId,
                 'args' => $args,
+                'has_proxy' => $this->requestOptions->hasProxy(),
             ], $this->requestOptions));
 
             // 使用流式响应调用模型
@@ -313,8 +316,11 @@ class Client extends AbstractClient
         if ($stream) {
             $http['stream'] = true;
         }
+
+        // Apply proxy configuration (supports HTTP/HTTPS and SOCKS5 proxies)
         if ($proxy) {
-            $http['proxy'] = $proxy;
+            $proxyConfig = ProxyUtil::getGuzzleProxyConfig($proxy);
+            $http = array_merge($http, $proxyConfig);
         }
         return $http;
     }

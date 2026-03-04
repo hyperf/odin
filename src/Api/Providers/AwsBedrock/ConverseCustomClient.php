@@ -124,6 +124,7 @@ class ConverseCustomClient extends AbstractClient
                 'url' => $url,
                 'body' => $requestBody,
                 'token_estimate' => $chatRequest->getTokenEstimateDetail(),
+                'has_proxy' => $this->requestOptions->hasProxy(),
             ], $this->requestOptions));
 
             // Send request with Guzzle
@@ -207,6 +208,7 @@ class ConverseCustomClient extends AbstractClient
                 'url' => $url,
                 'body' => $requestBody,
                 'token_estimate' => $chatRequest->getTokenEstimateDetail(),
+                'has_proxy' => $this->requestOptions->hasProxy(),
             ], $this->requestOptions));
 
             // Send streaming request using OdinSimpleCurl in coroutine environment or Guzzle otherwise
@@ -354,8 +356,10 @@ class ConverseCustomClient extends AbstractClient
             $options['stream'] = true;
         }
 
-        if ($proxy = $this->requestOptions->getProxy()) {
-            $options['proxy'] = $proxy;
+        // Apply proxy configuration (supports HTTP/HTTPS and SOCKS5 proxies)
+        $proxyConfig = $this->requestOptions->getGuzzleProxyConfig();
+        if (! empty($proxyConfig)) {
+            $options = array_merge($options, $proxyConfig);
         }
 
         // SSL/TLS options - verify certificates by default

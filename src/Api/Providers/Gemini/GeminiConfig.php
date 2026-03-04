@@ -31,14 +31,21 @@ class GeminiConfig implements ConfigInterface
      */
     protected ?GeminiCacheConfig $cacheConfig = null;
 
+    /**
+     * Service Account 配置 (用于 Vertex AI Platform API 认证).
+     */
+    protected ?ServiceAccountConfig $serviceAccountConfig = null;
+
     public function __construct(
         string $apiKey,
         string $baseUrl = 'https://generativelanguage.googleapis.com/v1beta',
         bool $skipApiKeyValidation = false,
+        ?ServiceAccountConfig $serviceAccountConfig = null,
     ) {
         $this->apiKey = $apiKey;
         $this->baseUrl = $baseUrl;
         $this->skipApiKeyValidation = $skipApiKeyValidation;
+        $this->serviceAccountConfig = $serviceAccountConfig;
     }
 
     public function getApiKey(): string
@@ -56,22 +63,48 @@ class GeminiConfig implements ConfigInterface
         return $this->skipApiKeyValidation;
     }
 
+    public function getServiceAccountConfig(): ?ServiceAccountConfig
+    {
+        return $this->serviceAccountConfig;
+    }
+
+    public function setServiceAccountConfig(?ServiceAccountConfig $serviceAccountConfig): void
+    {
+        $this->serviceAccountConfig = $serviceAccountConfig;
+    }
+
     public static function fromArray(array $config): self
     {
+        $serviceAccountConfig = null;
+        if (isset($config['service_account'])) {
+            // 如果提供了 service_account 配置数组，创建 ServiceAccountConfig
+            $serviceAccountConfig = ServiceAccountConfig::fromArray($config['service_account']);
+        } elseif (isset($config['service_account_key_path'])) {
+            // 兼容：如果提供了文件路径，从文件加载
+            $serviceAccountConfig = ServiceAccountConfig::fromFile($config['service_account_key_path']);
+        }
+
         return new self(
             $config['api_key'] ?? '',
             $config['base_url'] ?? 'https://generativelanguage.googleapis.com/v1beta',
             $config['skip_api_key_validation'] ?? false,
+            $serviceAccountConfig,
         );
     }
 
     public function toArray(): array
     {
-        return [
+        $array = [
             'api_key' => $this->apiKey,
             'base_url' => $this->baseUrl,
             'skip_api_key_validation' => $this->skipApiKeyValidation,
         ];
+
+        if ($this->serviceAccountConfig) {
+            $array['service_account'] = $this->serviceAccountConfig->toArray();
+        }
+
+        return $array;
     }
 
     public function isAutoCache(): bool

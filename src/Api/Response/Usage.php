@@ -12,6 +12,16 @@ declare(strict_types=1);
 
 namespace Hyperf\Odin\Api\Response;
 
+/**
+ * OpenAI的prompt_tokens包含了所有缓存相关tokens：
+ * - prompt_tokens = input_tokens + cached_tokens + cache_write_tokens
+ * - 需要转换为标准的计费格式：
+ * - input_tokens: 不包含任何缓存的纯新输入tokens
+ * 计算公式：input_tokens = prompt_tokens - cached_tokens - cache_write_tokens
+ * - output_tokens: LLM生成的输出token数量
+ * - cached_tokens: 从缓存中读取的token数量（input_tokens_details.cached_tokens）
+ * - cache_write_tokens: 写入缓存的token数量（input_tokens_details.cache_write_tokens）.
+ */
 class Usage
 {
     /**

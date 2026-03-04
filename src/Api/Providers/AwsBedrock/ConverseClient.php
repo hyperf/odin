@@ -59,6 +59,7 @@ class ConverseClient extends Client
                 'model_id' => $modelId,
                 'args' => $args,
                 'token_estimate' => $chatRequest->getTokenEstimateDetail(),
+                'has_proxy' => $this->requestOptions->hasProxy(),
             ], $this->requestOptions));
 
             // 调用模型
@@ -124,6 +125,7 @@ class ConverseClient extends Client
                 'model_id' => $modelId,
                 'args' => $args,
                 'token_estimate' => $chatRequest->getTokenEstimateDetail(),
+                'has_proxy' => $this->requestOptions->hasProxy(),
             ], $this->requestOptions));
 
             // 使用流式响应调用模型
